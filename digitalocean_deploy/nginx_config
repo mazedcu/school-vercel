@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name 174.138.37.136;
+    server_name 104.248.226.234;
 
     location = /favicon.ico { access_log off; log_not_found off; }
     location /static/ {
