@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block page_title %}Timetable Setup{% endblock %}
+{% block breadcrumb %}Admin / Timetable Setup{% endblock %}
+{% block content %}
+
+<div class="grid grid-2">
+    <!-- ── ADD TIME SLOT ──────────────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">⏰ Manage Time Slots</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_slot">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Day</label>
+                    <select name="day" class="form-control" required>
+                        <option value="">-- Select Day --</option>
+                        {% for val, label in day_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" name="start_time" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" name="end_time" class="form-control" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Add Time Slot</button>
+        </form>
+
+        {% if time_slots %}
+        <div style="margin-top:1rem;">
+            <div style="font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;color:var(--text-muted);">Existing Time Slots ({{ time_slots.count }})</div>
+            <table>
+                <thead><tr><th>Day</th><th>Time</th><th></th></tr></thead>
+                <tbody>
+                    {% for ts in time_slots %}
+                    <tr>
+                        <td style="font-weight:500;">{{ ts.get_day_display }}</td>
+                        <td>{{ ts.start_time|time:"H:i" }} – {{ ts.end_time|time:"H:i" }}</td>
+                        <td>
+                            <form method="POST" action=".">
+                                {% csrf_token %}
+                                <input type="hidden" name="slot_id" value="{{ ts.id }}">
+                                <button type="submit" name="action" value="delete_slot" class="btn btn-danger btn-sm">✕ Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:1rem;">No time slots created yet.</div>
+        {% endif %}
+    </div>
+
+    <!-- ── ASSIGN CLASS ENTRY ─────────────────────────────────────────── -->
+    <div class="card">
+        <div class="card-title">📅 Schedule a Class</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;">Conflict detection is active — teachers and rooms cannot be double-booked.</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_entry">
+            <div class="form-group">
+                <label>Section</label>
+                <select name="section" class="form-control" required>
+                    <option value="">-- Select Section --</option>
+                    {% for s in sections %}<option value="{{ s.id }}">{{ s.class_group.name }} – {{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Subject</label>
+                <select name="subject" class="form-control" required>
+                    <option value="">-- Select Subject --</option>
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Teacher</label>
+                <select name="teacher" class="form-control" required>
+                    <option value="">-- Select Teacher --</option>
+                    {% for t in teachers %}<option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Time Slot</label>
+                    <select name="time_slot" class="form-control" required>
+                        <option value="">-- Select Slot --</option>
+                        {% for ts in time_slots %}<option value="{{ ts.id }}">{{ ts.get_day_display }} {{ ts.start_time|time:"H:i" }}-{{ ts.end_time|time:"H:i" }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Room (optional)</label>
+                    <input type="text" name="room" class="form-control" placeholder="e.g. Room 101">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Assign →</button>
+        </form>
+    </div>
+</div>
+
+<!-- ── TIMETABLE ENTRIES ──────────────────────────────────────────────── -->
+<div class="card">
+    <div class="card-title">All Timetable Entries ({{ entries.count }})</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Day &amp; Time</th>
+                    <th>Section</th>
+                    <th>Subject</th>
+                    <th>Teacher</th>
+                    <th>Room</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td style="font-weight:500;">
+                        <span class="badge badge-blue" style="font-size:0.65rem;">{{ e.time_slot.get_day_display }}</span>
+                        <span style="font-size:0.8rem;margin-left:0.25rem;">{{ e.time_slot.start_time|time:"H:i" }}–{{ e.time_slot.end_time|time:"H:i" }}</span>
+                    </td>
+                    <td>{{ e.section.class_group.name }} – {{ e.section.name }}</td>
+                    <td>{{ e.subject.name }}</td>
+                    <td>{{ e.teacher.get_full_name|default:e.teacher.username }}</td>
+                    <td>{{ e.room|default:"—" }}</td>
+                    <td>
+                        <form method="POST" action=".">
+                            {% csrf_token %}
+                            <input type="hidden" name="entry_id" value="{{ e.id }}">
+                            <button type="submit" name="action" value="delete_entry" class="btn btn-danger btn-sm">✕ Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="empty-state">No entries yet. Create time slots and schedule classes above.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

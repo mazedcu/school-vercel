@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block page_title %}Student Dashboard{% endblock %}
+{% block breadcrumb %}Student / Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .perf-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-top: 0.35rem; }
+    .perf-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+    .welcome-banner {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .welcome-banner h2 { margin: 0; font-size: 1.25rem; }
+    .welcome-banner p { margin: 0.25rem 0 0; opacity: 0.85; font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-banner">
+    <div>
+        <h2>Welcome back, {{ request.user.first_name|default:request.user.username }}! 👋</h2>
+        <p>{{ section|default:"No section assigned" }} · Roll: {{ profile.roll_number|default:"N/A" }}</p>
+    </div>
+    <a href="{% url 'student_profile_detail' request.user.id %}" class="btn" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);">👤 My Profile</a>
+</div>
+
+<div class="grid grid-3" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value" style="color:{% if att_pct >= 75 %}var(--success){% elif att_pct >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ att_pct }}%</div>
+        <div class="stat-label">My Attendance</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ grades|length }}</div>
+        <div class="stat-label">Subjects</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ section|default:"N/A" }}</div>
+        <div class="stat-label">My Section</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-title">📊 My Grades</div>
+        {% if grades %}
+        {% for g in grades %}
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+            <div style="width:100px;font-weight:500;font-size:0.8rem;">{{ g.subject.name }}</div>
+            <div style="flex:1;"><div class="perf-bar"><div class="perf-bar-fill" style="width:{{ g.score }}%;background:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};"></div></div></div>
+            <div style="width:50px;text-align:right;font-weight:700;font-size:0.85rem;color:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ g.score }}%</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">No grades recorded yet.</div>
+        {% endif %}
+    </div>
+    <div class="card">
+        <div class="card-title">Quick Links</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            <a href="{% url 'student_profile_detail' request.user.id %}" class="btn btn-primary btn-block">👤 My Profile</a>
+            <a href="{% url 'student_report' %}" class="btn btn-primary btn-block" style="background:#7c3aed;">📄 Full Report Card</a>
+            <a href="{% url 'my_timetable' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 My Timetable</a>
+            {% if section %}
+            <a href="{% url 'download_timetable_pdf' section.id %}" class="btn btn-block" style="background:#059669;color:#fff;">📥 Download Timetable PDF</a>
+            {% endif %}
+            <a href="{% url 'my_attendance' %}" class="btn btn-success btn-block">✅ My Attendance</a>
+        </div>
+    </div>
+</div>
+
+{% if invoices %}
+<div class="card">
+    <div class="card-title">💰 Fee Status</div>
+    <table>
+        <thead><tr><th>Fee</th><th>Amount Due</th><th>Paid</th><th>Status</th></tr></thead>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td>{{ inv.fee_structure.name }}</td>
+                <td>Rs.{{ inv.amount_due }}</td>
+                <td>Rs.{{ inv.amount_paid }}</td>
+                <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

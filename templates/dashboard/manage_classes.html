@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block page_title %}Classes, Subjects & Time Slots{% endblock %}
+{% block breadcrumb %}Admin / Academic Setup{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+    <!-- Add Class -->
+    <div class="card">
+        <div class="card-title">Add Class (Grade)</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_class">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Class Name</label>
+                    <input type="text" name="class_name" class="form-control" placeholder="e.g. Grade 10" required>
+                </div>
+                <div class="form-group">
+                    <label>Display Order</label>
+                    <input type="number" name="display_order" class="form-control" value="0">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Class</button>
+        </form>
+    </div>
+
+    <!-- Add Section -->
+    <div class="card">
+        <div class="card-title">Add Section</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_section">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Class</label>
+                    <select name="class_group" class="form-control" required>
+                        {% for cg in class_groups %}
+                        <option value="{{ cg.id }}">{{ cg.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Section Name</label>
+                    <input type="text" name="section_name" class="form-control" placeholder="e.g. A" required>
+                </div>
+                <div class="form-group">
+                    <label>Academic Year</label>
+                    <input type="text" name="academic_year" class="form-control" value="2026" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Section</button>
+        </form>
+    </div>
+
+    <!-- Add Subject -->
+    <div class="card">
+        <div class="card-title">Add Subject</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_subject">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Subject Name</label>
+                    <input type="text" name="subject_name" class="form-control" placeholder="e.g. Mathematics" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Code</label>
+                    <input type="text" name="subject_code" class="form-control" placeholder="e.g. MATH101" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Subject</button>
+        </form>
+    </div>
+
+    <!-- Add Time Slot -->
+    <div class="card">
+        <div class="card-title">Add Time Slot</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_timeslot">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Day</label>
+                    <select name="day" class="form-control" required>
+                        {% for val, label in day_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" name="start_time" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" name="end_time" class="form-control" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Slot</button>
+        </form>
+    </div>
+</div>
+
+<!-- Existing Data -->
+<div class="card">
+    <div class="card-title">Existing Classes & Sections</div>
+    <table>
+        <thead><tr><th>Class</th><th>Sections</th></tr></thead>
+        <tbody>
+            {% for cg in class_groups %}
+            <tr>
+                <td style="font-weight:600;">{{ cg.name }}</td>
+                <td>{% for sec in cg.sections.all %}{{ sec.name }} ({{ sec.academic_year }}){% if not forloop.last %}, {% endif %}{% empty %}<span style="color:var(--text-muted);">No sections</span>{% endfor %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="empty-state">No classes created yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-title">Subjects</div>
+        <table>
+            <thead><tr><th>Name</th><th>Code</th></tr></thead>
+            <tbody>
+                {% for s in subjects %}
+                <tr><td>{{ s.name }}</td><td><span class="badge badge-blue">{{ s.code }}</span></td></tr>
+                {% empty %}
+                <tr><td colspan="2" class="empty-state">No subjects.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <div class="card-title">Time Slots</div>
+        <table>
+            <thead><tr><th>Day</th><th>Time</th></tr></thead>
+            <tbody>
+                {% for ts in time_slots %}
+                <tr><td>{{ ts.get_day_display }}</td><td>{{ ts.start_time|time:"H:i" }} - {{ ts.end_time|time:"H:i" }}</td></tr>
+                {% empty %}
+                <tr><td colspan="2" class="empty-state">No slots.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

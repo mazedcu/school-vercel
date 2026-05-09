@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block page_title %}Student Profiles{% endblock %}
+{% block breadcrumb %}Admin / Student Profiles{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="card-title" style="margin-bottom:0;">All Students</div>
+        <form method="GET" style="display:flex;gap:0.5rem;align-items:center;">
+            <select name="section" class="form-control" style="width:auto;">
+                <option value="">All Sections</option>
+                {% for s in sections %}<option value="{{ s.id }}" {% if selected_section == s.id|stringformat:"d" %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+        </form>
+    </div>
+
+    {% if profiles %}
+    <div class="table-wrap">
+    <table>
+        <thead><tr><th>Photo</th><th>Name</th><th>Roll</th><th>Section</th><th>Guardian</th><th>Admitted</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for p in profiles %}
+            <tr>
+                <td><div class="avatar" style="width:36px;height:36px;font-size:0.85rem;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;">{{ p.user.first_name|make_list|first|upper|default:"?" }}</div></td>
+                <td>
+                    <div style="font-weight:600;">{{ p.user.get_full_name|default:p.user.username }}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">{{ p.user.email|default:"No email" }}</div>
+                </td>
+                <td>{{ p.roll_number|default:"-" }}</td>
+                <td>{% if p.section %}<span class="badge badge-blue">{{ p.section.class_group.name }} - {{ p.section.name }}</span>{% else %}<span class="badge badge-red">Unassigned</span>{% endif %}</td>
+                <td style="font-size:0.8rem;">{{ p.guardian_name|default:"-" }}<br><span style="color:var(--text-muted);">{{ p.guardian_phone|default:"" }}</span></td>
+                <td style="font-size:0.8rem;">{{ p.admission_date|date:"M d, Y" }}</td>
+                <td>
+                    <a href="{% url 'student_profile_detail' p.user.id %}" class="btn btn-primary btn-sm">View / Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No students found. Create students from User Management.</div>
+    {% endif %}
+</div>
+{% endblock %}

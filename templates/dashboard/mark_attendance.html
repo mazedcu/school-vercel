@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block page_title %}Mark Attendance{% endblock %}
+{% block breadcrumb %}Teaching / Attendance{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">Select Section & Date</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Section</label>
+            <select name="section" class="form-control" required>
+                <option value="">-- Select --</option>
+                {% for s in sections %}<option value="{{ s.id }}" {% if selected_section and s.id == selected_section.id %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Date</label>
+            <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+        </div>
+        <button type="submit" class="btn btn-primary">Load Students</button>
+    </form>
+</div>
+
+{% if students_list %}
+<div class="card">
+    <div class="card-title">Attendance for {{ selected_section }} — {{ selected_date }}</div>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="section_id" value="{{ selected_section.id }}">
+        <input type="hidden" name="date" value="{{ selected_date }}">
+        <table>
+            <thead><tr><th>Roll #</th><th>Student</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for s in students_list %}
+                <tr>
+                    <td>{{ s.roll|default:"-" }}</td>
+                    <td>{{ s.user.get_full_name|default:s.user.username }}</td>
+                    <td>
+                        <select name="status_{{ s.user.id }}" class="form-control" style="width:auto;">
+                            <option value="present" {% if s.existing_status == 'present' %}selected{% endif %}>Present</option>
+                            <option value="absent" {% if s.existing_status == 'absent' %}selected{% endif %}>Absent</option>
+                            <option value="late" {% if s.existing_status == 'late' %}selected{% endif %}>Late</option>
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-success" style="margin-top:1rem;">Save Attendance</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

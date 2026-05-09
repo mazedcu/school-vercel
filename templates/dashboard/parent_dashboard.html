@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block page_title %}Parent Dashboard{% endblock %}
+{% block breadcrumb %}Parent / Dashboard{% endblock %}
+{% block content %}
+
+{% if children_data %}
+{% for cd in children_data %}
+<div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div>
+            <h3 style="margin:0;font-size:1.1rem;">👶 {{ cd.child.get_full_name|default:cd.child.username }}</h3>
+            <div style="color:var(--text-muted);font-size:0.8rem;">
+                {{ cd.section|default:"Unassigned" }} · Roll: {{ cd.profile.roll_number|default:"N/A" }}
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <a href="{% url 'student_report_detail' cd.child.id %}" class="btn btn-primary btn-sm">📄 Full Report Card</a>
+        </div>
+    </div>
+
+    <div class="grid grid-3" style="margin-bottom:1rem;">
+        <div class="stat-card">
+            <div class="stat-value" style="color:var(--success);">{{ cd.att_pct }}%</div>
+            <div class="stat-label">Attendance</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ cd.grades|length }}</div>
+            <div class="stat-label">Subjects</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ cd.invoices|length }}</div>
+            <div class="stat-label">Invoices</div>
+        </div>
+    </div>
+
+    {% if cd.grades %}
+    <div style="margin-bottom:1rem;">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">📊 Academic Performance</div>
+        <table>
+            <thead><tr><th>Subject</th><th>Score</th><th>Grade</th></tr></thead>
+            <tbody>
+                {% for g in cd.grades %}
+                <tr>
+                    <td>{{ g.subject.name }}</td>
+                    <td>
+                        <span style="font-weight:700;color:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ g.score }}%</span>
+                    </td>
+                    <td>
+                        <span style="display:inline-block;padding:0.2rem 0.5rem;border-radius:0.25rem;font-weight:700;font-size:0.8rem;
+                            {% if g.score >= 80 %}background:#d1fae5;color:#065f46;
+                            {% elif g.score >= 50 %}background:#fef3c7;color:#92400e;
+                            {% else %}background:#fee2e2;color:#991b1b;{% endif %}">{{ g.letter }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if cd.invoices %}
+    <div>
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">💰 Fee Status</div>
+        <table>
+            <thead><tr><th>Fee</th><th>Due</th><th>Paid</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for inv in cd.invoices %}
+                <tr>
+                    <td>{{ inv.fee_structure.name }}</td>
+                    <td>Rs.{{ inv.amount_due }}</td>
+                    <td>Rs.{{ inv.amount_paid }}</td>
+                    <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+    <div class="empty-state">No children linked to your account. Please contact the school administration.</div>
+</div>
+{% endif %}
+{% endblock %}

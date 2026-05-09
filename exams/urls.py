@@ -1,0 +1,13 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('manage_assessments/', views.manage_assessments, name='manage_assessments'),
+    path('enter_marks/<int:assessment_id>/', views.enter_marks, name='enter_marks'),
+    path('student_report/', views.student_report, name='student_report'),
+    path('student_report/<int:student_id>/', views.student_report, name='student_report_detail'),
+    path('view_reports/', views.view_reports, name='view_reports'),
+    path('grade_settings/', views.grade_settings_view, name='grade_settings'),
+    path('subject_comments/', views.subject_comments_view, name='subject_comments'),
+    path('report_settings/', views.report_settings, name='report_settings'),
+]

@@ -1,0 +1,25 @@
+from django.db import models
+from django.conf import settings
+
+
+class Attendance(models.Model):
+    """Daily attendance record for a student."""
+    class Status(models.TextChoices):
+        PRESENT = 'present', 'Present'
+        ABSENT = 'absent', 'Absent'
+        LATE = 'late', 'Late'
+
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='attendances')
+    section = models.ForeignKey('academics.Section', on_delete=models.CASCADE)
+    date = models.DateField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PRESENT)
+    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='attendances_marked')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['student', 'date'], name='unique_student_attendance')
+        ]
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.student.username} - {self.date} - {self.get_status_display()}"

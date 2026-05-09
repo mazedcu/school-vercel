@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_title %}Student Report Cards{% endblock %}
+{% block breadcrumb %}Admin / Reports{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">Select Section to Filter</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Section</label>
+            <select name="section" class="form-control">
+                <option value="">All Sections</option>
+                {% for s in sections %}<option value="{{ s.id }}" {% if selected_section == s.id|slugify %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filter</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">Students ({{ students|length }})</div>
+    {% if students %}
+    <table>
+        <thead><tr><th>Roll #</th><th>Name</th><th>Section</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for s in students %}
+            <tr>
+                <td>{{ s.profile.roll_number|default:"-" }}</td>
+                <td style="font-weight:500;">{{ s.user.get_full_name|default:s.user.username }}</td>
+                <td>{{ s.profile.section|default:"Unassigned" }}</td>
+                <td><a href="{% url 'student_report_detail' s.user.id %}" class="btn btn-primary btn-sm">📄 View Report Card</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No students found. Create student users first.</div>
+    {% endif %}
+</div>
+{% endblock %}

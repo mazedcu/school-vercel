@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block page_title %}Finance Management{% endblock %}
+{% block breadcrumb %}Admin / Finance{% endblock %}
+{% block content %}
+<div class="grid grid-3">
+    <!-- Create Fee Structure -->
+    <div class="card">
+        <div class="card-title">Create Fee Structure</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_fee">
+            <div class="form-group">
+                <label>Class</label>
+                <select name="class_group" class="form-control" required>
+                    {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Fee Name</label>
+                <input type="text" name="fee_name" class="form-control" placeholder="Tuition Fee" required>
+            </div>
+            <div class="form-group">
+                <label>Amount (Rs.)</label>
+                <input type="number" name="amount" class="form-control" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Academic Year</label>
+                <input type="text" name="academic_year" class="form-control" value="2026">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create Fee</button>
+        </form>
+    </div>
+
+    <!-- Issue Invoice -->
+    <div class="card">
+        <div class="card-title">Issue Invoice</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="issue_invoice">
+            <div class="form-group">
+                <label>Student</label>
+                <select name="student" class="form-control" required>
+                    {% for s in students %}<option value="{{ s.id }}">{{ s.get_full_name|default:s.username }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Fee Structure</label>
+                <select name="fee_structure" class="form-control" required>
+                    {% for f in fee_structures %}<option value="{{ f.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Due Date</label>
+                <input type="date" name="due_date" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Issue Invoice</button>
+        </form>
+    </div>
+
+    <!-- Record Payment -->
+    <div class="card">
+        <div class="card-title">Record Payment</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="record_payment">
+            <div class="form-group">
+                <label>Invoice</label>
+                <select name="invoice" class="form-control" required>
+                    {% for inv in invoices %}
+                    {% if inv.status != 'paid' %}
+                    <option value="{{ inv.id }}">#{{ inv.pk }} - {{ inv.student.username }} - Rs.{{ inv.amount_due }} ({{ inv.get_status_display }})</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount (Rs.)</label>
+                <input type="number" name="pay_amount" class="form-control" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Method</label>
+                <select name="method" class="form-control">
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank Transfer</option>
+                    <option value="online">Online</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success btn-block">Record Payment</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">All Invoices</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>#</th><th>Student</th><th>Fee</th><th>Due</th><th>Paid</th><th>Status</th><th>Due Date</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td>{{ inv.pk }}</td>
+                    <td>{{ inv.student.get_full_name|default:inv.student.username }}</td>
+                    <td>{{ inv.fee_structure.name }}</td>
+                    <td>Rs.{{ inv.amount_due }}</td>
+                    <td>Rs.{{ inv.amount_paid }}</td>
+                    <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
+                    <td>{{ inv.due_date }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="empty-state">No invoices issued yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

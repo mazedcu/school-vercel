@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block page_title %}Principal Dashboard{% endblock %}
+{% block breadcrumb %}Admin / Dashboard{% endblock %}
+{% block content %}
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_students }}</div>
+        <div class="stat-label">Total Students</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_teachers }}</div>
+        <div class="stat-label">Total Teachers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ attendance_pct }}%</div>
+        <div class="stat-label">Today's Attendance</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--warning);">{{ unpaid_invoices }}</div>
+        <div class="stat-label">Unpaid Invoices</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            <a href="{% url 'manage_users' %}" class="btn btn-primary btn-block">👥 Add Users</a>
+            <a href="{% url 'manage_classes' %}" class="btn btn-primary btn-block" style="background:#8b5cf6;">🏫 Manage Classes</a>
+            <a href="{% url 'timetable_gen' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 Generate Timetable</a>
+            <a href="{% url 'report_settings' %}" class="btn btn-primary btn-block" style="background:#f59e0b;">⚙️ Configure Weights</a>
+            <a href="{% url 'manage_finance' %}" class="btn btn-primary btn-block" style="background:#10b981;">💰 Finance</a>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">System Summary</div>
+        <table>
+            <tbody>
+                <tr><td style="font-weight:500;">Total Sections</td><td>{{ total_sections }}</td></tr>
+                <tr><td style="font-weight:500;">Students Enrolled</td><td>{{ total_students }}</td></tr>
+                <tr><td style="font-weight:500;">Teachers on Staff</td><td>{{ total_teachers }}</td></tr>
+                <tr><td style="font-weight:500;">Outstanding Invoices</td><td><span class="badge badge-yellow">{{ unpaid_invoices }}</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

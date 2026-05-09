@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block page_title %}{{ student.get_full_name|default:student.username }} — Profile{% endblock %}
+{% block breadcrumb %}{% if is_admin %}Admin / Profiles{% else %}My School{% endif %} / {{ student.username }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .profile-header {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #7c3aed);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+    .profile-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .profile-meta span { font-size: 0.8rem; color: var(--text-muted); }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+    .info-item {
+        background: var(--bg);
+        padding: 0.85rem 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+    }
+    .info-item .lbl {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 0.2rem;
+    }
+    .info-item .val { font-weight: 600; font-size: 0.9rem; }
+    .perf-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--border);
+        overflow: hidden;
+        margin-top: 0.35rem;
+    }
+    .perf-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.5s;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="profile-header">
+        <div class="profile-avatar">{{ student.first_name|make_list|first|upper|default:"?" }}</div>
+        <div>
+            <h2 style="margin:0;font-size:1.3rem;">{{ student.get_full_name|default:student.username }}</h2>
+            <div class="profile-meta">
+                <span>🎓 {{ section|default:"Unassigned" }}</span>
+                <span>📋 Roll: {{ profile.roll_number|default:"N/A" }}</span>
+                <span>📅 Admitted: {{ profile.admission_date|date:"M d, Y" }}</span>
+                {% for parent in parent_users %}
+                <span>👤 Parent: {{ parent.get_full_name|default:parent.username }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:0.5rem;">
+            <a href="{% url 'student_report_detail' student.id %}" class="btn btn-primary btn-sm">📄 Report Card</a>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="grid grid-3" style="margin-bottom:1.5rem;">
+        <div class="stat-card">
+            <div class="stat-value" style="color:{% if att_pct >= 75 %}var(--success){% elif att_pct >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ att_pct }}%</div>
+            <div class="stat-label">Attendance ({{ att_present }}/{{ att_total }})</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" style="color:{% if overall_avg >= 80 %}var(--success){% elif overall_avg >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ overall_avg }}%</div>
+            <div class="stat-label">Overall Average</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ grades|length }}</div>
+            <div class="stat-label">Subjects</div>
+        </div>
+    </div>
+
+    {% if grades %}
+    <div style="margin-bottom:1.5rem;">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.75rem;">📊 Subject Performance</div>
+        {% for g in grades %}
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+            <div style="width:120px;font-weight:500;font-size:0.8rem;">{{ g.subject.name }}</div>
+            <div style="flex:1;">
+                <div class="perf-bar">
+                    <div class="perf-bar-fill" style="width:{{ g.score }}%;background:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};"></div>
+                </div>
+            </div>
+            <div style="width:50px;text-align:right;font-weight:700;font-size:0.85rem;color:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ g.score }}%</div>
+            <div style="width:30px;">
+                {% if g.letter != '-' %}
+                <span style="display:inline-block;padding:0.15rem 0.4rem;border-radius:0.25rem;font-weight:700;font-size:0.7rem;
+                    {% if g.score >= 80 %}background:#d1fae5;color:#065f46;
+                    {% elif g.score >= 50 %}background:#fef3c7;color:#92400e;
+                    {% else %}background:#fee2e2;color:#991b1b;{% endif %}">{{ g.letter }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if invoices %}
+    <div style="margin-bottom:1rem;">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">💰 Fee Status</div>
+        <table>
+            <thead><tr><th>Fee</th><th>Due</th><th>Paid</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td>{{ inv.fee_structure.name }}</td>
+                    <td>Rs.{{ inv.amount_due }}</td>
+                    <td>Rs.{{ inv.amount_paid }}</td>
+                    <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Editable Profile Info (Admin only) -->
+{% if is_admin %}
+<div class="card">
+    <div class="card-title">✏️ Edit Profile</div>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" name="first_name" class="form-control" value="{{ student.first_name }}">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" name="last_name" class="form-control" value="{{ student.last_name }}">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" value="{{ student.email }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="text" name="phone" class="form-control" value="{{ student.phone }}">
+            </div>
+            <div class="form-group">
+                <label>Section / Class</label>
+                <select name="section" class="form-control">
+                    <option value="">-- Unassigned --</option>
+                    {% for s in sections %}<option value="{{ s.id }}" {% if profile.section and profile.section.id == s.id %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Roll Number</label>
+                <input type="text" name="roll_number" class="form-control" value="{{ profile.roll_number }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Date of Birth</label>
+                <input type="date" name="date_of_birth" class="form-control" value="{{ profile.date_of_birth|date:'Y-m-d' }}">
+            </div>
+            <div class="form-group">
+                <label>Guardian Name</label>
+                <input type="text" name="guardian_name" class="form-control" value="{{ profile.guardian_name }}">
+            </div>
+            <div class="form-group">
+                <label>Guardian Phone</label>
+                <input type="text" name="guardian_phone" class="form-control" value="{{ profile.guardian_phone }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <textarea name="address" class="form-control" rows="2">{{ profile.address }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Save Changes</button>
+    </form>
+</div>
+{% else %}
+<!-- Read-only info for student -->
+<div class="card">
+    <div class="card-title">📋 My Details</div>
+    <div class="info-grid">
+        <div class="info-item"><div class="lbl">Full Name</div><div class="val">{{ student.get_full_name|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Username</div><div class="val">{{ student.username }}</div></div>
+        <div class="info-item"><div class="lbl">Email</div><div class="val">{{ student.email|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Phone</div><div class="val">{{ student.phone|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Section</div><div class="val">{{ section|default:"Unassigned" }}</div></div>
+        <div class="info-item"><div class="lbl">Roll Number</div><div class="val">{{ profile.roll_number|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Date of Birth</div><div class="val">{{ profile.date_of_birth|date:"M d, Y"|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Address</div><div class="val">{{ profile.address|default:"-" }}</div></div>
+        <div class="info-item"><div class="lbl">Guardian</div><div class="val">{{ profile.guardian_name|default:"-" }} {{ profile.guardian_phone|default:"" }}</div></div>
+        <div class="info-item"><div class="lbl">Admission Date</div><div class="val">{{ profile.admission_date|date:"M d, Y" }}</div></div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

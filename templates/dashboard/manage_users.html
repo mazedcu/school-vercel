@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block page_title %}User Management{% endblock %}
+{% block breadcrumb %}Admin / Users{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">Create New User</div>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label>Username *</label>
+                <input type="text" name="username" class="form-control" required placeholder="e.g. john_doe">
+            </div>
+            <div class="form-group">
+                <label>Password *</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <select name="role" class="form-control" id="role_select" onchange="toggleStudentFields()">
+                    {% for value, label in roles %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" name="first_name" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" name="last_name" class="form-control">
+            </div>
+        </div>
+
+        <!-- Student-specific fields -->
+        <div id="student_fields" style="background:var(--bg);padding:1.25rem;border-radius:0.5rem;border:1px solid var(--border);margin:1rem 0;">
+            <div style="font-weight:600;font-size:0.85rem;color:var(--primary);margin-bottom:0.75rem;">📚 Student & Parent Details</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Section *</label>
+                    <select name="section" class="form-control">
+                        <option value="">-- Select Class/Section --</option>
+                        {% for s in sections %}
+                        <option value="{{ s.id }}">{{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Roll Number</label>
+                    <input type="text" name="roll_number" class="form-control" placeholder="e.g. R001">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Student Email</label>
+                    <input type="email" name="student_email" class="form-control" placeholder="student@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Parent Email</label>
+                    <input type="email" name="parent_email" class="form-control" placeholder="parent@email.com">
+                </div>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">
+                ✅ A <strong>Parent account</strong> will be auto-created (parent_<em>username</em>).<br>
+                ✅ Credential emails will be sent to both student and parent.
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create User</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-title">All Users ({{ all_users.count }})</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Connection</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for item in user_data %}
+                <tr>
+                    <td>{{ item.user.username }}</td>
+                    <td>{{ item.user.get_full_name|default:"-" }}</td>
+                    <td><span class="badge {% if item.user.role == 'admin' %}badge-blue{% elif item.user.role == 'teacher' %}badge-green{% elif item.user.role == 'parent' %}badge-yellow{% else %}badge-blue{% endif %}">{{ item.user.get_role_display }}</span></td>
+                    <td style="font-size:0.75rem;">
+                        {% if item.parent_of %}
+                        <span style="color:var(--success);">👶 Parent of: {{ item.parent_of }}</span>
+                        {% elif item.child_of %}
+                        <span style="color:var(--primary);">👤 Parent: {{ item.child_of }}</span>
+                        {% elif item.user.role == 'student' %}
+                        <span style="color:var(--text-muted);">No parent linked</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if item.user != request.user %}
+                        <form method="POST" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="user_id" value="{{ item.user.id }}">
+                            <button type="submit" name="action" value="delete_user"
+                                    class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="badge badge-blue">You</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleStudentFields() {
+    const role = document.getElementById('role_select').value;
+    document.getElementById('student_fields').style.display = role === 'student' ? 'block' : 'none';
+}
+toggleStudentFields();
+</script>
+{% endblock %}

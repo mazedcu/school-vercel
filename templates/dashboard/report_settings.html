@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block page_title %}Assessment Weight Configuration{% endblock %}
+{% block breadcrumb %}Settings / Report Weights{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">Configure Subject Weights (must total 100%)</div>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label>Section</label>
+                <select name="section" class="form-control" required>
+                    <option value="">-- Select --</option>
+                    {% for s in sections %}<option value="{{ s.id }}">{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Subject</label>
+                <select name="subject" class="form-control" required>
+                    <option value="">-- Select --</option>
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div style="background:var(--bg);padding:1.25rem;border-radius:0.5rem;border:1px solid var(--border);margin:1rem 0;">
+            {% for at in assessment_types %}
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;{% if not forloop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                <span style="font-weight:500;">{{ at.name }}</span>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <input type="number" name="weight_{{ at.id }}" value="0" min="0" max="100" class="form-control" style="width:80px;text-align:center;">
+                    <span>%</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary">Save Weights</button>
+    </form>
+</div>
+
+{% if existing_weightings %}
+<div class="card">
+    <div class="card-title">Existing Weight Configurations</div>
+    <table>
+        <thead><tr><th>Section</th><th>Subject</th><th>Breakdown</th></tr></thead>
+        <tbody>
+            {% for w in existing_weightings %}
+            <tr>
+                <td>{{ w.section }}</td>
+                <td>{{ w.subject.name }}</td>
+                <td>{% for c in w.components.all %}<span class="badge badge-blue" style="margin-right:0.25rem;">{{ c.assessment_type.name }}: {{ c.weight_percentage }}%</span>{% endfor %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

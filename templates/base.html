@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SMS Pro{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: #e0e7ff;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --danger: #ef4444;
+            --danger-light: #fee2e2;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --sidebar-bg: #1e1b4b;
+            --sidebar-text: #c7d2fe;
+            --sidebar-active: #6366f1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            text-align: center;
+            padding: 0.5rem 0 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 1.5rem;
+        }
+        .sidebar-brand h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .sidebar-brand span {
+            font-size: 0.7rem;
+            color: var(--sidebar-text);
+            opacity: 0.6;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .nav-section {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(199,210,254,0.4);
+            padding: 1rem 0.75rem 0.5rem;
+            font-weight: 600;
+        }
+
+        .nav-links {
+            list-style: none;
+            flex-grow: 1;
+        }
+        .nav-links li { margin-bottom: 2px; }
+        .nav-links a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0.75rem;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .nav-links a:hover {
+            background: rgba(99,102,241,0.2);
+            color: #fff;
+        }
+        .nav-links a.active {
+            background: var(--sidebar-active);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.4);
+        }
+        .nav-links a .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-footer .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            color: var(--sidebar-text);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        .sidebar-footer .user-badge .avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 0.8rem;
+        }
+        .logout-btn {
+            display: block;
+            width: 100%;
+            padding: 0.6rem;
+            background: rgba(239,68,68,0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+        .logout-btn:hover {
+            background: rgba(239,68,68,0.3);
+            color: #fff;
+        }
+
+        /* ── Main ── */
+        .main-wrap {
+            flex-grow: 1;
+            margin-left: 260px;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .topbar h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .topbar .breadcrumb {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .main-content {
+            padding: 1.5rem 2rem 3rem;
+        }
+
+        /* ── Messages ── */
+        .messages-container { margin-bottom: 1rem; }
+        .msg {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
+        .msg-success { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+        .msg-error { background: var(--danger-light); color: #991b1b; border: 1px solid #fca5a5; }
+        .msg-warning { background: var(--warning-light); color: #92400e; border: 1px solid #fcd34d; }
+        .msg-info { background: var(--primary-light); color: #3730a3; border: 1px solid #a5b4fc; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+            font-weight: 500;
+        }
+
+        /* ── Grid ── */
+        .grid { display: grid; gap: 1rem; }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        /* ── Forms ── */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.35rem;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-family: inherit;
+            transition: border-color 0.15s;
+            background: var(--surface);
+            color: var(--text);
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+        select.form-control { cursor: pointer; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 2px 8px rgba(99,102,241,0.4); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.75rem; }
+        .btn-block { display: flex; width: 100%; justify-content: center; }
+
+        /* ── Tables ── */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        thead th {
+            background: var(--bg);
+            padding: 0.6rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+        }
+        tbody td {
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+        tbody tr:hover { background: #f8fafc; }
+
+        /* ── Badges ── */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge-green { background: var(--success-light); color: #065f46; }
+        .badge-red { background: var(--danger-light); color: #991b1b; }
+        .badge-yellow { background: var(--warning-light); color: #92400e; }
+        .badge-blue { background: var(--primary-light); color: #3730a3; }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-wrap { margin-left: 0; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h2>SMS Pro</h2>
+            <span>School Management System</span>
+        </div>
+
+        <ul class="nav-links">
+            <li class="nav-section">Main</li>
+            <li><a href="{% url 'dashboard_router' %}" class="{% if request.resolver_match.url_name in 'admin_dashboard teacher_dashboard student_dashboard' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a></li>
+
+            {% if user.role == 'admin' %}
+            <li class="nav-section">Administration</li>
+            <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
+            <li><a href="{% url 'student_profiles' %}" class="{% if request.resolver_match.url_name == 'student_profiles' or request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">🎓</span> Student Profiles</a></li>
+            <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes & Subjects</a></li>
+            <li><a href="{% url 'timetable_gen' %}" class="{% if request.resolver_match.url_name == 'timetable_gen' %}active{% endif %}"><span class="icon">📅</span> Timetable Setup</a></li>
+            <li><a href="{% url 'view_timetable' %}" class="{% if request.resolver_match.url_name == 'view_timetable' %}active{% endif %}"><span class="icon">🗓️</span> View Timetable</a></li>
+            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
+            <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
+            <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Attendance</a></li>
+            <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
+            <li class="nav-section">Reports</li>
+            <li><a href="{% url 'grade_settings' %}" class="{% if request.resolver_match.url_name == 'grade_settings' %}active{% endif %}"><span class="icon">🎓</span> Grade Settings</a></li>
+            <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
+            <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
+
+            {% elif user.role == 'teacher' %}
+            <li class="nav-section">Teaching</li>
+            <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
+            <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Mark Attendance</a></li>
+            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
+            <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
+            <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
+
+            {% elif user.role == 'student' %}
+            <li class="nav-section">My School</li>
+            <li><a href="{% url 'student_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
+            <li><a href="{% url 'student_report' %}" class="{% if request.resolver_match.url_name == 'student_report' %}active{% endif %}"><span class="icon">📄</span> My Report Card</a></li>
+            <li><a href="{% url 'my_timetable' %}" class="{% if request.resolver_match.url_name == 'my_timetable' %}active{% endif %}"><span class="icon">📅</span> My Timetable</a></li>
+            <li><a href="{% url 'my_attendance' %}" class="{% if request.resolver_match.url_name == 'my_attendance' %}active{% endif %}"><span class="icon">✅</span> My Attendance</a></li>
+
+            {% elif user.role == 'parent' %}
+            <li class="nav-section">My Children</li>
+            <li><a href="{% url 'parent_dashboard' %}" class="{% if request.resolver_match.url_name == 'parent_dashboard' %}active{% endif %}"><span class="icon">👶</span> Children Overview</a></li>
+            {% endif %}
+        </ul>
+
+        <div class="sidebar-footer">
+            <div class="user-badge">
+                <div class="avatar">{{ user.username|make_list|first|upper }}</div>
+                <div>
+                    <div style="font-weight:600;color:#fff;">{{ user.get_full_name|default:user.username }}</div>
+                    <div style="font-size:0.7rem;opacity:0.6;">{{ user.get_role_display }}</div>
+                </div>
+            </div>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="logout-btn">Sign Out</button>
+            </form>
+        </div>
+    </aside>
+    {% endif %}
+
+    <div class="main-wrap">
+        {% if user.is_authenticated %}
+        <div class="topbar">
+            <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            <span class="breadcrumb">{% block breadcrumb %}Home{% endblock %}</span>
+        </div>
+        {% endif %}
+
+        <div class="main-content">
+            {% if messages %}
+            <div class="messages-container">
+                {% for message in messages %}
+                <div class="msg msg-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html>

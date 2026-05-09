@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block page_title %}Teacher Dashboard{% endblock %}
+{% block breadcrumb %}Teacher / Dashboard{% endblock %}
+{% block content %}
+<div class="grid grid-3" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value">{{ section_count }}</div>
+        <div class="stat-label">My Sections</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ my_entries.count }}</div>
+        <div class="stat-label">Scheduled Classes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--warning);">{{ pending_assessments|length }}</div>
+        <div class="stat-label">Recent Assessments</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <div class="card-title" style="margin-bottom:0;">My Timetable</div>
+            {% if my_entries %}
+            <a href="{% url 'download_teacher_timetable_pdf' %}" class="btn btn-sm" style="background:#059669;color:#fff;">📥 Download PDF</a>
+            {% endif %}
+        </div>
+        {% if my_entries %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Day & Time</th><th>Section</th><th>Subject</th></tr></thead>
+                <tbody>
+                    {% for e in my_entries %}
+                    <tr>
+                        <td>{{ e.time_slot.get_day_display }} {{ e.time_slot.start_time|time:"H:i" }}-{{ e.time_slot.end_time|time:"H:i" }}</td>
+                        <td>{{ e.section.class_group.name }} {{ e.section.name }}</td>
+                        <td>{{ e.subject.name }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">No classes scheduled for you yet.</div>
+        {% endif %}
+    </div>
+    <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            <a href="{% url 'manage_assessments' %}" class="btn btn-primary btn-block">📝 Create Assessment</a>
+            <a href="{% url 'mark_attendance' %}" class="btn btn-success btn-block">✅ Mark Attendance</a>
+            <a href="{% url 'report_settings' %}" class="btn btn-primary btn-block" style="background:#f59e0b;">⚙️ Configure Weights</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

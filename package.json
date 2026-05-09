@@ -1,0 +1,7 @@
+{
+  "name": "sms-project",
+  "version": "1.0.0",
+  "scripts": {
+    "vercel-build": "python3 -m pip install -r requirements.txt && python3 manage.py collectstatic --noinput"
+  }
+}
