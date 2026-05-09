@@ -18,6 +18,8 @@ def manage_users(request):
             target = get_object_or_404(User, pk=uid)
             if target == request.user:
                 messages.error(request, "You cannot delete your own account.")
+            elif target.role == User.Role.ADMIN:
+                messages.error(request, "Cannot delete the Admin/Principal account.")
             else:
                 uname = target.username
                 target.delete()
@@ -35,18 +37,40 @@ def manage_users(request):
         parent_email = request.POST.get('parent_email', '').strip()
         roll_number = request.POST.get('roll_number', '').strip()
 
+        # ── Validation ───────────────────────────────────────────────────────
         if not username or not password:
             messages.error(request, "Username and password are required.")
+        elif not first_name:
+            messages.error(request, "First name is required.")
         elif User.objects.filter(username=username).exists():
             messages.error(request, f"Username '{username}' already exists.")
+        elif role == User.Role.ADMIN:
+            # Block creation of additional admin accounts
+            messages.error(request, "Only one Admin/Principal account is allowed. Cannot create another admin.")
         else:
             if role == User.Role.STUDENT:
-                user, parent_user, section = create_student_with_parent(
-                    username, password, first_name, last_name, section_id,
-                    student_email, parent_email, roll_number
-                )
-                section_name = section if section else "Unassigned"
-                messages.success(request, f"Student '{username}' created in {section_name}. Parent account '{parent_user.username}' auto-created. Credential emails sent.")
+                # Validate mandatory student fields
+                if not student_email:
+                    messages.error(request, "Student email is required.")
+                elif not parent_email:
+                    messages.error(request, "Guardian/Parent email is required.")
+                else:
+                    user, parent_user, section = create_student_with_parent(
+                        username, password, first_name, last_name, section_id,
+                        student_email, parent_email, roll_number
+                    )
+                    section_name = section if section else "Unassigned"
+                    messages.success(request, f"Student '{username}' created in {section_name}. Parent account '{parent_user.username}' auto-created. Credential emails sent.")
+            elif role == User.Role.TEACHER:
+                if not student_email:
+                    messages.error(request, "Email address is required.")
+                else:
+                    user = User.objects.create_user(
+                        username=username, password=password,
+                        first_name=first_name, last_name=last_name,
+                        role=role, email=student_email
+                    )
+                    messages.success(request, f"User '{username}' created as {user.get_role_display()}.")
             else:
                 user = User.objects.create_user(
                     username=username, password=password,
@@ -74,10 +98,13 @@ def manage_users(request):
             child_of = ", ".join([p.user.get_full_name() or p.user.username for p in parents])
         user_data.append({'user': u, 'parent_of': parent_of, 'child_of': child_of})
 
+    # Filter out admin role from role choices for the create form
+    roles_for_create = [(val, label) for val, label in User.Role.choices if val != User.Role.ADMIN]
+
     context = {
         'user_data': user_data,
         'all_users': users,
         'sections': sections,
-        'roles': User.Role.choices,
+        'roles': roles_for_create,
     }
     return render(request, 'dashboard/manage_users.html', context)

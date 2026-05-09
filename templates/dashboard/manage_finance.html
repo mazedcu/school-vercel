@@ -1,23 +1,62 @@
 {% extends "base.html" %}
 {% block page_title %}Finance Management{% endblock %}
 {% block breadcrumb %}Admin / Finance{% endblock %}
+
+{% block extra_head %}
+<style>
+    .fee-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .fee-row select { flex: 1; }
+    .fee-row .fee-amount { width: 100px; text-align: right; font-weight: 600; color: var(--primary); font-size: 0.85rem; }
+    .remove-fee-btn {
+        width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--danger);
+        background: var(--danger-light); color: var(--danger); cursor: pointer;
+        display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        transition: all 0.15s;
+    }
+    .remove-fee-btn:hover { background: var(--danger); color: #fff; }
+    .add-fee-btn {
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        padding: 0.4rem 0.75rem; font-size: 0.75rem; font-weight: 600;
+        background: var(--primary-light); color: var(--primary); border: 1px dashed var(--primary);
+        border-radius: 0.5rem; cursor: pointer; transition: all 0.15s;
+    }
+    .add-fee-btn:hover { background: var(--primary); color: #fff; }
+    .invoice-summary {
+        background: var(--bg); border-radius: 0.5rem; padding: 0.75rem;
+        margin-top: 0.75rem; font-size: 0.85rem;
+    }
+    .invoice-summary .row { display: flex; justify-content: space-between; padding: 0.25rem 0; }
+    .invoice-summary .row.total { font-weight: 700; font-size: 1rem; border-top: 2px solid var(--border); padding-top: 0.5rem; margin-top: 0.25rem; color: var(--primary); }
+    .discount-section { background: #fef3c7; border-radius: 0.5rem; padding: 0.75rem; margin-top: 0.75rem; }
+    .discount-section label { color: #92400e; }
+    .print-btn {
+        display: inline-flex; align-items: center; gap: 0.25rem;
+        padding: 0.3rem 0.6rem; font-size: 0.7rem; font-weight: 600;
+        background: var(--primary-light); color: var(--primary); border-radius: 0.35rem;
+        text-decoration: none; transition: all 0.15s;
+    }
+    .print-btn:hover { background: var(--primary); color: #fff; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="grid grid-3">
     <!-- Create Fee Structure -->
     <div class="card">
-        <div class="card-title">Create Fee Structure</div>
+        <div class="card-title">📋 Create Fee Structure</div>
         <form method="POST">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_fee">
             <div class="form-group">
                 <label>Class</label>
                 <select name="class_group" class="form-control" required>
+                    <option value="">-- Select Class --</option>
                     {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
                 </select>
             </div>
             <div class="form-group">
                 <label>Fee Name</label>
-                <input type="text" name="fee_name" class="form-control" placeholder="Tuition Fee" required>
+                <input type="text" name="fee_name" class="form-control" placeholder="e.g. Tuition Fee" required>
             </div>
             <div class="form-group">
                 <label>Amount (Rs.)</label>
@@ -33,42 +72,88 @@
 
     <!-- Issue Invoice -->
     <div class="card">
-        <div class="card-title">Issue Invoice</div>
-        <form method="POST">
+        <div class="card-title">🧾 Issue Invoice</div>
+        <form method="POST" id="invoiceForm">
             {% csrf_token %}
             <input type="hidden" name="action" value="issue_invoice">
+
+            <div class="form-group">
+                <label>Filter by Class</label>
+                <select id="invoiceClassFilter" name="invoice_class_group" class="form-control">
+                    <option value="">-- All Classes --</option>
+                    {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>Student</label>
-                <select name="student" class="form-control" required>
+                <select name="student" id="invoiceStudentSelect" class="form-control" required>
+                    <option value="">-- Select Student --</option>
                     {% for s in students %}<option value="{{ s.id }}">{{ s.get_full_name|default:s.username }}</option>{% endfor %}
                 </select>
             </div>
+
             <div class="form-group">
-                <label>Fee Structure</label>
-                <select name="fee_structure" class="form-control" required>
-                    {% for f in fee_structures %}<option value="{{ f.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
-                </select>
+                <label>Fee Items <span style="font-weight:400;color:var(--text-muted);">(up to 5)</span></label>
+                <div id="feeItemsContainer">
+                    <div class="fee-row" data-row="1">
+                        <select name="fee_structure_1" class="form-control fee-select" required>
+                            <option value="">-- Select Fee --</option>
+                            {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
+                        </select>
+                        <span class="fee-amount" data-amount-display="1">Rs.0</span>
+                    </div>
+                </div>
+                <button type="button" class="add-fee-btn" id="addFeeBtn" onclick="addFeeRow()">+ Add Fee Item</button>
             </div>
-            <div class="form-group">
+
+            <div class="discount-section">
+                <div class="form-group" style="margin-bottom:0.5rem;">
+                    <label>💡 Discount Description</label>
+                    <input type="text" name="discount_description" class="form-control" placeholder="e.g. Sibling Discount, Scholarship">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Discount Amount (Rs.)</label>
+                    <input type="number" name="discount_amount" id="discountAmount" class="form-control" step="0.01" value="0" oninput="updateInvoiceSummary()">
+                </div>
+            </div>
+
+            <div class="invoice-summary" id="invoiceSummary">
+                <div class="row"><span>Subtotal:</span><span id="summarySubtotal">Rs.0.00</span></div>
+                <div class="row"><span>Discount:</span><span id="summaryDiscount">- Rs.0.00</span></div>
+                <div class="row total"><span>Total Due:</span><span id="summaryTotal">Rs.0.00</span></div>
+            </div>
+
+            <div class="form-group" style="margin-top:1rem;">
                 <label>Due Date</label>
                 <input type="date" name="due_date" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Issue Invoice</button>
+            <button type="submit" class="btn btn-primary btn-block">🧾 Issue Invoice</button>
         </form>
     </div>
 
     <!-- Record Payment -->
     <div class="card">
-        <div class="card-title">Record Payment</div>
+        <div class="card-title">💳 Record Payment</div>
         <form method="POST">
             {% csrf_token %}
             <input type="hidden" name="action" value="record_payment">
+
+            <div class="form-group">
+                <label>Filter by Class</label>
+                <select id="paymentClassFilter" class="form-control" onchange="filterInvoicesByClass()">
+                    <option value="">-- All Classes --</option>
+                    {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>Invoice</label>
-                <select name="invoice" class="form-control" required>
+                <select name="invoice" id="paymentInvoiceSelect" class="form-control" required>
+                    <option value="">-- Select Invoice --</option>
                     {% for inv in invoices %}
                     {% if inv.status != 'paid' %}
-                    <option value="{{ inv.id }}">#{{ inv.pk }} - {{ inv.student.username }} - Rs.{{ inv.amount_due }} ({{ inv.get_status_display }})</option>
+                    <option value="{{ inv.id }}" data-class="{{ inv.class_group_id }}">{{ inv.invoice_number }} - {{ inv.student.get_full_name|default:inv.student.username }} - Rs.{{ inv.amount_due }} ({{ inv.get_status_display }})</option>
                     {% endif %}
                     {% endfor %}
                 </select>
@@ -85,32 +170,202 @@
                     <option value="online">Online</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-success btn-block">Record Payment</button>
+            <button type="submit" class="btn btn-success btn-block">💳 Record Payment</button>
         </form>
     </div>
 </div>
 
+<!-- All Invoices Table -->
 <div class="card">
-    <div class="card-title">All Invoices</div>
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>📄 All Invoices</span>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            <label style="font-size:0.75rem;color:var(--text-muted);margin:0;">Filter:</label>
+            <select id="tableClassFilter" class="form-control" style="width:auto;padding:0.35rem 0.5rem;font-size:0.75rem;" onchange="filterTableByClass()">
+                <option value="">All Classes</option>
+                {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>#</th><th>Student</th><th>Fee</th><th>Due</th><th>Paid</th><th>Status</th><th>Due Date</th></tr></thead>
-            <tbody>
+            <thead><tr><th>Invoice #</th><th>Student</th><th>Class</th><th>Fees</th><th>Subtotal</th><th>Discount</th><th>Due</th><th>Paid</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead>
+            <tbody id="invoiceTableBody">
                 {% for inv in invoices %}
-                <tr>
-                    <td>{{ inv.pk }}</td>
+                <tr data-class-id="{{ inv.class_group_id }}">
+                    <td><strong>{{ inv.invoice_number }}</strong></td>
                     <td>{{ inv.student.get_full_name|default:inv.student.username }}</td>
-                    <td>{{ inv.fee_structure.name }}</td>
-                    <td>Rs.{{ inv.amount_due }}</td>
+                    <td>{{ inv.class_group.name|default:"—" }}</td>
+                    <td style="font-size:0.75rem;">
+                        {% for item in inv.line_items.all %}
+                        {{ item.description }}<br>
+                        {% empty %}
+                        —
+                        {% endfor %}
+                    </td>
+                    <td>Rs.{{ inv.subtotal }}</td>
+                    <td>{% if inv.discount_amount > 0 %}<span style="color:var(--success);">- Rs.{{ inv.discount_amount }}</span>{% else %}—{% endif %}</td>
+                    <td><strong>Rs.{{ inv.amount_due }}</strong></td>
                     <td>Rs.{{ inv.amount_paid }}</td>
                     <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
                     <td>{{ inv.due_date }}</td>
+                    <td><a href="{% url 'print_invoice' inv.id %}" class="print-btn" target="_blank">🖨️ Print</a></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" class="empty-state">No invoices issued yet.</td></tr>
+                <tr><td colspan="11" class="empty-state">No invoices issued yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+let feeRowCount = 1;
+const MAX_FEE_ROWS = 5;
+
+// Store all students and fee structures for JS filtering
+const allStudents = [
+    {% for s in students %}
+    { id: {{ s.id }}, name: "{{ s.get_full_name|default:s.username|escapejs }}" },
+    {% endfor %}
+];
+
+function addFeeRow() {
+    if (feeRowCount >= MAX_FEE_ROWS) return;
+    feeRowCount++;
+
+    const container = document.getElementById('feeItemsContainer');
+    const row = document.createElement('div');
+    row.className = 'fee-row';
+    row.dataset.row = feeRowCount;
+
+    // Get currently available fee options
+    const firstSelect = document.querySelector('.fee-select');
+    let optionsHtml = '<option value="">-- Select Fee --</option>';
+    firstSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value) {
+            optionsHtml += `<option value="${opt.value}" data-amount="${opt.dataset.amount}" data-class="${opt.dataset.class}">${opt.text}</option>`;
+        }
+    });
+
+    row.innerHTML = `
+        <select name="fee_structure_${feeRowCount}" class="form-control fee-select" onchange="updateInvoiceSummary()">
+            ${optionsHtml}
+        </select>
+        <span class="fee-amount" data-amount-display="${feeRowCount}">Rs.0</span>
+        <button type="button" class="remove-fee-btn" onclick="removeFeeRow(this)">×</button>
+    `;
+    container.appendChild(row);
+
+    // Apply class filter to new row
+    filterFeesByClass();
+
+    if (feeRowCount >= MAX_FEE_ROWS) {
+        document.getElementById('addFeeBtn').style.display = 'none';
+    }
+}
+
+function removeFeeRow(btn) {
+    btn.closest('.fee-row').remove();
+    feeRowCount--;
+    document.getElementById('addFeeBtn').style.display = '';
+    updateInvoiceSummary();
+}
+
+function updateInvoiceSummary() {
+    let subtotal = 0;
+    document.querySelectorAll('.fee-select').forEach((sel, idx) => {
+        const opt = sel.options[sel.selectedIndex];
+        const amount = opt && opt.dataset.amount ? parseFloat(opt.dataset.amount) : 0;
+        subtotal += amount;
+
+        // Update individual amount display
+        const amountDisplay = sel.closest('.fee-row').querySelector('.fee-amount');
+        if (amountDisplay) {
+            amountDisplay.textContent = amount > 0 ? `Rs.${amount.toFixed(2)}` : 'Rs.0';
+        }
+    });
+
+    const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+    const total = Math.max(subtotal - discount, 0);
+
+    document.getElementById('summarySubtotal').textContent = `Rs.${subtotal.toFixed(2)}`;
+    document.getElementById('summaryDiscount').textContent = `- Rs.${discount.toFixed(2)}`;
+    document.getElementById('summaryTotal').textContent = `Rs.${total.toFixed(2)}`;
+}
+
+// Filter students when class is selected in invoice form
+document.getElementById('invoiceClassFilter').addEventListener('change', function() {
+    const classId = this.value;
+    const studentSelect = document.getElementById('invoiceStudentSelect');
+
+    if (!classId) {
+        // Show all students
+        studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+        allStudents.forEach(s => {
+            studentSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+    } else {
+        // Fetch students by class via AJAX
+        fetch(`/api/students-by-class/?class_group_id=${classId}`)
+            .then(r => r.json())
+            .then(data => {
+                studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
+                data.students.forEach(s => {
+                    studentSelect.innerHTML += `<option value="${s.id}">${s.name}${s.roll ? ' (Roll: ' + s.roll + ')' : ''}</option>`;
+                });
+            });
+    }
+
+    // Also filter fee structures by class
+    filterFeesByClass();
+});
+
+function filterFeesByClass() {
+    const classId = document.getElementById('invoiceClassFilter').value;
+    document.querySelectorAll('.fee-select').forEach(sel => {
+        const currentVal = sel.value;
+        sel.querySelectorAll('option').forEach(opt => {
+            if (opt.value && classId) {
+                opt.style.display = opt.dataset.class === classId ? '' : 'none';
+            } else {
+                opt.style.display = '';
+            }
+        });
+    });
+}
+
+// Filter invoices in record payment section by class
+function filterInvoicesByClass() {
+    const classId = document.getElementById('paymentClassFilter').value;
+    const select = document.getElementById('paymentInvoiceSelect');
+    select.querySelectorAll('option').forEach(opt => {
+        if (opt.value && classId) {
+            opt.style.display = opt.dataset.class === classId ? '' : 'none';
+        } else {
+            opt.style.display = '';
+        }
+    });
+    select.value = '';
+}
+
+// Filter invoice table by class
+function filterTableByClass() {
+    const classId = document.getElementById('tableClassFilter').value;
+    document.querySelectorAll('#invoiceTableBody tr').forEach(tr => {
+        if (!classId || tr.dataset.classId === classId) {
+            tr.style.display = '';
+        } else {
+            tr.style.display = 'none';
+        }
+    });
+}
+
+// Attach change listeners to fee selects
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('fee-select')) {
+        updateInvoiceSummary();
+    }
+});
+</script>
 {% endblock %}

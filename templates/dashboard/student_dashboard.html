@@ -74,22 +74,36 @@
     </div>
 </div>
 
-{% if invoices %}
 <div class="card">
     <div class="card-title">💰 Fee Status</div>
+    {% if invoices %}
+    <div class="table-wrap">
     <table>
-        <thead><tr><th>Fee</th><th>Amount Due</th><th>Paid</th><th>Status</th></tr></thead>
+        <thead><tr><th>Invoice #</th><th>Fee Items</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Due Date</th></tr></thead>
         <tbody>
             {% for inv in invoices %}
             <tr>
-                <td>{{ inv.fee_structure.name }}</td>
-                <td>Rs.{{ inv.amount_due }}</td>
+                <td><strong>{{ inv.invoice_number }}</strong></td>
+                <td style="font-size:0.8rem;">
+                    {% for item in inv.line_items.all %}
+                    {{ item.description }} (Rs.{{ item.amount }}){% if not forloop.last %}<br>{% endif %}
+                    {% endfor %}
+                    {% if inv.discount_amount > 0 %}
+                    <br><span style="color:var(--success);font-size:0.75rem;">Discount: -Rs.{{ inv.discount_amount }}{% if inv.discount_description %} ({{ inv.discount_description }}){% endif %}</span>
+                    {% endif %}
+                </td>
+                <td><strong>Rs.{{ inv.amount_due }}</strong></td>
                 <td>Rs.{{ inv.amount_paid }}</td>
+                <td style="font-weight:600;color:{% if inv.amount_paid >= inv.amount_due %}var(--success){% else %}var(--danger){% endif %};">Rs.{{ inv.amount_due|add:"-"|default:"0" }}{% widthratio inv.amount_paid 1 1 as paid_int %}{% widthratio inv.amount_due 1 1 as due_int %}</td>
                 <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
+                <td>{{ inv.due_date }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No fee invoices found. ✅</div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

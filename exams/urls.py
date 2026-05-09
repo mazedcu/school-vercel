@@ -10,4 +10,7 @@ urlpatterns = [
     path('grade_settings/', views.grade_settings_view, name='grade_settings'),
     path('subject_comments/', views.subject_comments_view, name='subject_comments'),
     path('report_settings/', views.report_settings, name='report_settings'),
+    path('ct-progress/', views.ct_progress_report, name='ct_progress_report'),
+    path('ct-progress/print/', views.ct_progress_report_print, name='ct_progress_report_print'),
 ]
+

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block page_title %}Purchase Requests{% endblock %}
+{% block breadcrumb %}{% if request.user.role == 'admin' %}Admin{% else %}{{ request.user.get_role_display }}{% endif %} / Purchase Requests{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pr-status-pending { background: #fef3c7; color: #92400e; }
+    .pr-status-approved { background: #d1fae5; color: #065f46; }
+    .pr-status-rejected { background: #fee2e2; color: #991b1b; }
+    .pr-status-ordered { background: #e0e7ff; color: #3730a3; }
+    .pr-status-received { background: #d1fae5; color: #065f46; }
+    .workflow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+    .workflow-step { text-align: center; padding: 0.75rem; border-radius: 0.5rem; background: var(--bg); font-size: 0.75rem; font-weight: 600; }
+    .workflow-step.active { background: var(--primary); color: #fff; }
+    .action-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; margin-top: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Create Purchase Request -->
+<div class="card">
+    <div class="card-title">🛒 New Purchase Request</div>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_request">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" name="title" class="form-control" placeholder="e.g. Whiteboard Markers" required>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select name="item_type" class="form-control">
+                    {% for val, label in item_types %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Estimated Cost (Rs.) *</label>
+                <input type="number" name="estimated_cost" class="form-control" step="0.01" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Items Detail *</label>
+            <textarea name="items_detail" class="form-control" rows="3" placeholder="List items, quantities, specs..." required></textarea>
+        </div>
+        <div class="form-group">
+            <label>Justification</label>
+            <textarea name="justification" class="form-control" rows="2" placeholder="Why is this needed?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">📝 Submit Request</button>
+    </form>
+</div>
+
+<!-- Workflow Info -->
+<div class="card" style="padding:1rem 1.5rem;">
+    <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;flex-wrap:wrap;">
+        <div class="workflow-step">📝 Request</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">✅ Approval</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">📋 Purchase Order</div>
+        <span class="workflow-arrow">→</span>
+        <div class="workflow-step">📦 Received & Stocked</div>
+    </div>
+</div>
+
+<!-- All Requests -->
+<div class="card">
+    <div class="card-title">📋 Purchase Requests</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>PR #</th><th>Title</th><th>Type</th><th>Requested By</th><th>Est. Cost</th><th>Status</th><th>Date</th>{% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}</tr></thead>
+            <tbody>
+                {% for pr in requests %}
+                <tr>
+                    <td><strong>PR-{{ pr.pk|stringformat:"04d" }}</strong></td>
+                    <td>{{ pr.title }}</td>
+                    <td><span class="badge badge-blue">{{ pr.get_item_type_display }}</span></td>
+                    <td>{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</td>
+                    <td>Rs.{{ pr.estimated_cost }}</td>
+                    <td><span class="badge pr-status-{{ pr.status }}">{{ pr.get_status_display }}</span></td>
+                    <td style="font-size:0.75rem;">{{ pr.created_at|date:"d M Y" }}</td>
+                    {% if request.user.role == 'admin' %}
+                    <td>
+                        {% if pr.status == 'pending' %}
+                        <!-- Approve/Reject -->
+                        <div style="display:flex;gap:0.25rem;">
+                            <form method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="approve">
+                                <input type="hidden" name="pr_id" value="{{ pr.id }}">
+                                <button type="submit" class="btn btn-success btn-sm">✅ Approve</button>
+                            </form>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Reject this request?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="reject">
+                                <input type="hidden" name="pr_id" value="{{ pr.id }}">
+                                <button type="submit" class="btn btn-danger btn-sm">❌ Reject</button>
+                            </form>
+                        </div>
+                        {% elif pr.status == 'approved' %}
+                        <!-- Create PO -->
+                        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('po-form-{{ pr.id }}').style.display='block'">📋 Create PO</button>
+                        <div id="po-form-{{ pr.id }}" class="action-panel" style="display:none;margin-top:0.5rem;">
+                            <form method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="create_po">
+                                <input type="hidden" name="pr_id" value="{{ pr.id }}">
+                                <div class="form-group"><label>Vendor *</label><input type="text" name="vendor_name" class="form-control" required></div>
+                                <div class="form-group"><label>Vendor Contact</label><input type="text" name="vendor_contact" class="form-control"></div>
+                                <div class="form-row">
+                                    <div class="form-group"><label>Order Date</label><input type="date" name="order_date" class="form-control"></div>
+                                    <div class="form-group"><label>Expected Delivery</label><input type="date" name="expected_delivery" class="form-control"></div>
+                                </div>
+                                <div class="form-group"><label>Actual Cost (Rs.)</label><input type="number" name="actual_cost" class="form-control" step="0.01" value="{{ pr.estimated_cost }}"></div>
+                                <button type="submit" class="btn btn-primary btn-sm">Create Purchase Order</button>
+                            </form>
+                        </div>
+                        {% elif pr.status == 'ordered' %}
+                        <span class="badge badge-blue">PO Created</span>
+                        {% elif pr.status == 'received' %}
+                        <span class="badge badge-green">✅ Complete</span>
+                        {% elif pr.status == 'rejected' %}
+                        <span class="badge badge-red">Rejected</span>
+                        {% endif %}
+                        {% if pr.admin_remarks %}<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;">Remarks: {{ pr.admin_remarks }}</div>{% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="empty-state">No purchase requests yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if request.user.role == 'admin' and purchase_orders %}
+<!-- Purchase Orders -->
+<div class="card">
+    <div class="card-title">📦 Purchase Orders</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>PO #</th><th>Request</th><th>Vendor</th><th>Cost</th><th>Order Date</th><th>Received?</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                <tr>
+                    <td><strong>{{ po.po_number }}</strong></td>
+                    <td>{{ po.purchase_request.title }}</td>
+                    <td>{{ po.vendor_name }}</td>
+                    <td>Rs.{{ po.actual_cost }}</td>
+                    <td>{{ po.order_date }}</td>
+                    <td>
+                        {% if po.is_received %}
+                        <span class="badge badge-green">✅ {{ po.received_date }}</span>
+                        {% else %}
+                        <span class="badge badge-yellow">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not po.is_received %}
+                        <form method="POST" onsubmit="return confirm('Mark as received? This will add the item to inventory/CAPEX and record the expense.')">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="receive_po">
+                            <input type="hidden" name="po_id" value="{{ po.id }}">
+                            <button type="submit" class="btn btn-success btn-sm">📦 Mark Received</button>
+                        </form>
+                        {% else %}
+                        <span style="font-size:0.75rem;color:var(--text-muted);">Complete</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

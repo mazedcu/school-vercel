@@ -2,13 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import role_required
 from django.utils import timezone
+from django.db.models import Sum
+from decimal import Decimal
 from accounts.models import User
 from academics.models import Section, Subject
 from students.models import StudentProfile, ParentProfile
 from timetable.models import TimetableEntry
 from attendance.models import Attendance
 from exams.models import AssessmentRecord, GradeSetting
-from finance.models import Invoice
+from finance.models import Invoice, Payment
+from procurement.models import Expense, PurchaseRequest, InventoryItem, CapexItem
 from exams.views import _calculate_student_grade, _get_letter_grade
 
 # ─── Home & Router ───────────────────────────────────────────────────────────
@@ -36,6 +39,7 @@ def dashboard_router(request):
 @role_required(User.Role.ADMIN)
 def admin_dashboard(request):
     today = timezone.now().date()
+    now = timezone.now()
     total_students = User.objects.filter(role=User.Role.STUDENT).count()
     total_teachers = User.objects.filter(role=User.Role.TEACHER).count()
     total_sections = Section.objects.count()
@@ -47,12 +51,33 @@ def admin_dashboard(request):
 
     unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.UNPAID).count()
 
+    # Monthly finance data
+    month_income = Payment.objects.filter(
+        payment_date__year=now.year, payment_date__month=now.month
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    month_expenses = Expense.objects.filter(
+        date__year=now.year, date__month=now.month
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    month_net = month_income - month_expenses
+
+    # Procurement stats
+    pending_pr_count = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
+    inventory_count = InventoryItem.objects.count()
+    capex_count = CapexItem.objects.count()
+
     context = {
         'total_students': total_students,
         'total_teachers': total_teachers,
         'total_sections': total_sections,
         'attendance_pct': attendance_pct,
         'unpaid_invoices': unpaid_invoices,
+        'current_year': now.year,
+        'month_income': month_income,
+        'month_expenses': month_expenses,
+        'month_net': month_net,
+        'pending_pr_count': pending_pr_count,
+        'inventory_count': inventory_count,
+        'capex_count': capex_count,
     }
     return render(request, 'dashboard/admin_dashboard.html', context)
 
@@ -102,7 +127,7 @@ def student_dashboard(request):
         timetable = TimetableEntry.objects.filter(section=section).select_related('subject', 'teacher', 'time_slot').order_by('time_slot__day', 'time_slot__start_time')
 
     # Invoices
-    invoices = Invoice.objects.filter(student=request.user).order_by('-issued_date')[:5]
+    invoices = Invoice.objects.filter(student=request.user).prefetch_related('line_items').order_by('-issued_date')[:5]
 
     context = {
         'profile': profile,
@@ -143,7 +168,7 @@ def parent_dashboard(request):
                     grades.append({'subject': subj, 'score': score, 'letter': letter['letter']})
 
             # Fee status
-            invoices = Invoice.objects.filter(student=child).order_by('-issued_date')[:5]
+            invoices = Invoice.objects.filter(student=child).prefetch_related('line_items').order_by('-issued_date')[:5]
 
             children_data.append({
                 'child': child,

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block page_title %}Account Statement{% endblock %}
+{% block breadcrumb %}Admin / Account Statement{% endblock %}
+
+{% block extra_head %}
+<style>
+    .statement-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .summary-card { text-align: center; padding: 1.25rem; border-radius: 0.75rem; }
+    .summary-card.income { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+    .summary-card.expense { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+    .summary-card.balance { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); }
+    .summary-card .value { font-size: 1.5rem; font-weight: 700; }
+    .summary-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+    .ledger-income { color: #065f46; }
+    .ledger-expense { color: #991b1b; }
+    @media print {
+        .no-print { display: none !important; }
+        .main-wrap { margin-left: 0 !important; }
+        .sidebar { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Date Filter -->
+<div class="card no-print">
+    <div class="card-title">📅 Filter Period</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>From</label>
+            <input type="date" name="from" class="form-control" value="{{ date_from }}">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label>To</label>
+            <input type="date" name="to" class="form-control" value="{{ date_to }}">
+        </div>
+        <button type="submit" class="btn btn-primary">🔍 Generate Report</button>
+        <a href="{% url 'account_statement' %}" class="btn" style="background:var(--border);color:var(--text);">Reset</a>
+        <button type="button" class="btn btn-success" onclick="window.print()">🖨️ Print</button>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="statement-summary">
+    <div class="summary-card income">
+        <div class="value" style="color:#065f46;">Rs.{{ total_income }}</div>
+        <div class="label" style="color:#065f46;">Total Income</div>
+    </div>
+    <div class="summary-card expense">
+        <div class="value" style="color:#991b1b;">Rs.{{ total_expenses }}</div>
+        <div class="label" style="color:#991b1b;">Total Expenses</div>
+    </div>
+    <div class="summary-card balance">
+        <div class="value" style="color:#3730a3;">Rs.{{ net_balance }}</div>
+        <div class="label" style="color:#3730a3;">Net Balance</div>
+    </div>
+</div>
+
+<!-- Ledger -->
+<div class="card">
+    <div class="card-title">📒 Ledger{% if date_from %} ({{ date_from }}{% if date_to %} to {{ date_to }}{% endif %}){% endif %}</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th style="text-align:right;">Income</th><th style="text-align:right;">Expense</th></tr></thead>
+            <tbody>
+                {% for entry in ledger %}
+                <tr>
+                    <td>{{ entry.date }}</td>
+                    <td>{{ entry.description }}</td>
+                    <td><span class="badge {% if entry.type == 'income' %}badge-green{% else %}badge-yellow{% endif %}">{{ entry.method }}</span></td>
+                    <td style="text-align:right;">{% if entry.type == 'income' %}<strong class="ledger-income">Rs.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
+                    <td style="text-align:right;">{% if entry.type == 'expense' %}<strong class="ledger-expense">Rs.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty-state">No transactions found for this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

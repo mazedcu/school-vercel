@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block page_title %}Inventory & CAPEX{% endblock %}
+{% block breadcrumb %}Admin / Inventory & CAPEX{% endblock %}
+
+{% block extra_head %}
+<style>
+    .tab-bar { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+    .tab-btn {
+        padding: 0.75rem 1.5rem; font-size: 0.85rem; font-weight: 600;
+        border: none; background: none; cursor: pointer; color: var(--text-muted);
+        border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Summary -->
+<div class="grid grid-2" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--primary);">Rs.{{ total_inventory_value }}</div>
+        <div class="stat-label">Total Inventory Value</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:#8b5cf6;">Rs.{{ total_capex_value }}</div>
+        <div class="stat-label">Total Capital Assets Value</div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('inventory')">📦 Inventory</button>
+    <button class="tab-btn" onclick="switchTab('capex')">🏢 CAPEX / Assets</button>
+</div>
+
+<!-- INVENTORY TAB -->
+<div id="tab-inventory" class="tab-content active">
+    <div class="card">
+        <div class="card-title">📦 Add Inventory Item</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_inventory">
+            <div class="form-row">
+                <div class="form-group"><label>Name *</label><input type="text" name="name" class="form-control" required></div>
+                <div class="form-group"><label>Category</label><input type="text" name="category" class="form-control" placeholder="e.g. Stationery"></div>
+                <div class="form-group"><label>Location</label><input type="text" name="location" class="form-control" placeholder="e.g. Store Room A"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Quantity *</label><input type="number" name="quantity" class="form-control" value="1" required></div>
+                <div class="form-group"><label>Unit</label><input type="text" name="unit" class="form-control" value="pcs"></div>
+                <div class="form-group"><label>Unit Cost (Rs.)</label><input type="number" name="unit_cost" class="form-control" step="0.01" value="0"></div>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-control"></div>
+            <button type="submit" class="btn btn-primary">📦 Add Item</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📋 Inventory List</div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Item</th><th>Category</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th>Total Value</th><th>Location</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in inventory_items %}
+                    <tr>
+                        <td><strong>{{ item.name }}</strong>{% if item.description %}<br><span style="font-size:0.7rem;color:var(--text-muted);">{{ item.description }}</span>{% endif %}</td>
+                        <td>{{ item.category|default:"—" }}</td>
+                        <td><strong>{{ item.quantity }}</strong></td>
+                        <td>{{ item.unit }}</td>
+                        <td>Rs.{{ item.unit_cost }}</td>
+                        <td style="font-weight:600;">Rs.{{ item.total_value }}</td>
+                        <td style="font-size:0.75rem;">{{ item.location|default:"—" }}</td>
+                        <td>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this inventory item?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_inventory">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="empty-state">No inventory items yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- CAPEX TAB -->
+<div id="tab-capex" class="tab-content">
+    <div class="card">
+        <div class="card-title">🏢 Register Capital Asset</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_capex">
+            <div class="form-row">
+                <div class="form-group"><label>Asset Name *</label><input type="text" name="name" class="form-control" required></div>
+                <div class="form-group"><label>Category</label><input type="text" name="capex_category" class="form-control" placeholder="e.g. Electronics"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Purchase Cost (Rs.) *</label><input type="number" name="purchase_cost" class="form-control" step="0.01" required></div>
+                <div class="form-group"><label>Purchase Date</label><input type="date" name="purchase_date" class="form-control"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Location</label><input type="text" name="location" class="form-control"></div>
+                <div class="form-group">
+                    <label>Condition</label>
+                    <select name="condition" class="form-control">
+                        <option value="new">New</option>
+                        <option value="good">Good</option>
+                        <option value="fair">Fair</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Useful Life (Years)</label><input type="number" name="useful_life_years" class="form-control" value="5"></div>
+            </div>
+            <div class="form-group"><label>Description</label><input type="text" name="description" class="form-control"></div>
+            <button type="submit" class="btn btn-primary">🏢 Register Asset</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📋 Capital Assets Register</div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Asset ID</th><th>Name</th><th>Category</th><th>Cost</th><th>Purchase Date</th><th>Location</th><th>Condition</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for item in capex_items %}
+                    <tr>
+                        <td><strong>{{ item.asset_id }}</strong></td>
+                        <td>{{ item.name }}{% if item.description %}<br><span style="font-size:0.7rem;color:var(--text-muted);">{{ item.description }}</span>{% endif %}</td>
+                        <td>{{ item.category|default:"—" }}</td>
+                        <td style="font-weight:600;">Rs.{{ item.purchase_cost }}</td>
+                        <td>{{ item.purchase_date }}</td>
+                        <td>{{ item.location|default:"—" }}</td>
+                        <td><span class="badge {% if item.condition == 'new' %}badge-green{% elif item.condition == 'good' %}badge-blue{% elif item.condition == 'fair' %}badge-yellow{% else %}badge-red{% endif %}">{{ item.get_condition_display }}</span></td>
+                        <td>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this capital asset?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_capex">
+                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="empty-state">No capital assets registered.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}

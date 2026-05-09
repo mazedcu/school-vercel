@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice {{ invoice.invoice_number }} - OpDevSM</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+            padding: 2rem;
+        }
+
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .invoice-header {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            color: #fff;
+            padding: 2rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .invoice-header .brand h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .invoice-header .brand span {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            display: block;
+            margin-top: 2px;
+        }
+        .invoice-header .invoice-meta {
+            text-align: right;
+        }
+        .invoice-header .invoice-meta h2 {
+            font-size: 1.5rem;
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 0.5rem;
+        }
+        .invoice-header .invoice-meta .invoice-number {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #c084fc;
+        }
+
+        /* Body */
+        .invoice-body { padding: 2rem 2.5rem; }
+
+        /* Info Section */
+        .invoice-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-block h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+        .info-block p {
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+            color: #334155;
+        }
+        .info-block p strong { color: #0f172a; }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .status-paid { background: #d1fae5; color: #065f46; }
+        .status-unpaid { background: #fee2e2; color: #991b1b; }
+        .status-partial { background: #fef3c7; color: #92400e; }
+
+        /* Line Items Table */
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+        .items-table thead th {
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .items-table thead th:last-child { text-align: right; }
+        .items-table tbody td {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .items-table tbody td:last-child { text-align: right; font-weight: 600; }
+        .items-table tbody tr:last-child td { border-bottom: none; }
+
+        /* Totals */
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 2rem;
+        }
+        .totals-box {
+            width: 300px;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            font-size: 0.9rem;
+        }
+        .totals-row.discount { color: #10b981; }
+        .totals-row.grand-total {
+            border-top: 2px solid #e2e8f0;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+        .totals-row.paid { color: #10b981; font-weight: 600; }
+        .totals-row.balance {
+            font-weight: 700;
+            font-size: 1rem;
+            color: {% if balance <= 0 %}#10b981{% else %}#ef4444{% endif %};
+        }
+
+        /* Payments Section */
+        .payments-section { margin-bottom: 2rem; }
+        .payments-section h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #334155;
+        }
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            background: #f0fdf4;
+            border-radius: 6px;
+            margin-bottom: 0.35rem;
+            font-size: 0.85rem;
+        }
+        .payment-row .method { color: #64748b; }
+
+        /* Footer */
+        .invoice-footer {
+            background: #f8fafc;
+            padding: 1.5rem 2.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* Print Toolbar */
+        .print-toolbar {
+            max-width: 800px;
+            margin: 0 auto 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        .print-toolbar .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .btn-print { background: #6366f1; color: #fff; }
+        .btn-print:hover { background: #4f46e5; }
+        .btn-back { background: #e2e8f0; color: #334155; }
+        .btn-back:hover { background: #cbd5e1; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .invoice-container { box-shadow: none; border-radius: 0; }
+            .print-toolbar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="print-toolbar">
+    <a href="{% url 'manage_finance' %}" class="btn btn-back">← Back to Finance</a>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Print Invoice</button>
+</div>
+
+<div class="invoice-container">
+    <div class="invoice-header">
+        <div class="brand">
+            <h1>OpDevSM</h1>
+            <span>School Management System</span>
+        </div>
+        <div class="invoice-meta">
+            <h2>Invoice</h2>
+            <div class="invoice-number">{{ invoice.invoice_number }}</div>
+        </div>
+    </div>
+
+    <div class="invoice-body">
+        <div class="invoice-info">
+            <div class="info-block">
+                <h3>Billed To</h3>
+                <p><strong>{{ invoice.student.get_full_name|default:invoice.student.username }}</strong></p>
+                {% if invoice.class_group %}
+                <p>Class: {{ invoice.class_group.name }}</p>
+                {% endif %}
+                {% if invoice.student.email %}
+                <p>{{ invoice.student.email }}</p>
+                {% endif %}
+            </div>
+            <div class="info-block" style="text-align:right;">
+                <h3>Invoice Details</h3>
+                <p>Date: <strong>{{ invoice.issued_date }}</strong></p>
+                <p>Due: <strong>{{ invoice.due_date }}</strong></p>
+                <span class="status-badge status-{{ invoice.status }}">{{ invoice.get_status_display }}</span>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr><th>#</th><th>Description</th><th>Amount</th></tr>
+            </thead>
+            <tbody>
+                {% for item in line_items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>Rs.{{ item.amount }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" style="text-align:center;color:#94a3b8;">No items</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals-section">
+            <div class="totals-box">
+                <div class="totals-row">
+                    <span>Subtotal</span>
+                    <span>Rs.{{ invoice.subtotal }}</span>
+                </div>
+                {% if invoice.discount_amount > 0 %}
+                <div class="totals-row discount">
+                    <span>Discount{% if invoice.discount_description %} ({{ invoice.discount_description }}){% endif %}</span>
+                    <span>- Rs.{{ invoice.discount_amount }}</span>
+                </div>
+                {% endif %}
+                <div class="totals-row grand-total">
+                    <span>Total Due</span>
+                    <span>Rs.{{ invoice.amount_due }}</span>
+                </div>
+                {% if invoice.amount_paid > 0 %}
+                <div class="totals-row paid">
+                    <span>Amount Paid</span>
+                    <span>Rs.{{ invoice.amount_paid }}</span>
+                </div>
+                {% endif %}
+                <div class="totals-row balance">
+                    <span>Balance</span>
+                    <span>Rs.{{ balance }}</span>
+                </div>
+            </div>
+        </div>
+
+        {% if payments %}
+        <div class="payments-section">
+            <h3>💳 Payment History</h3>
+            {% for p in payments %}
+            <div class="payment-row">
+                <span>{{ p.payment_date }} — Rs.{{ p.amount }}</span>
+                <span class="method">{{ p.method }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="invoice-footer">
+        <p>This is a computer-generated invoice. · OpDevSM School Management System</p>
+    </div>
+</div>
+
+</body>
+</html>

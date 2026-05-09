@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import role_required
 from django.contrib import messages
@@ -11,13 +11,7 @@ import datetime
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
 from students.models import StudentProfile, ParentProfile
-from timetable.models import TimeSlot, TimetableEntry
-from timetable.services import generate_timetable_entry
-from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
-from attendance.models import Attendance
-from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
-from finance.models import FeeStructure, Invoice, Payment
-
+from finance.models import FeeStructure, Invoice, InvoiceLineItem, Payment
 
 
 @login_required
@@ -41,13 +35,61 @@ def manage_finance(request):
 
         elif action == 'issue_invoice':
             student_id = request.POST.get('student')
-            fee_id = request.POST.get('fee_structure')
+            class_group_id = request.POST.get('invoice_class_group')
             due_date = request.POST.get('due_date')
+            discount_desc = request.POST.get('discount_description', '').strip()
+            discount_amt = request.POST.get('discount_amount', '0')
+
             try:
                 student = User.objects.get(id=student_id, role=User.Role.STUDENT)
-                fee = FeeStructure.objects.get(id=fee_id)
-                Invoice.objects.create(student=student, fee_structure=fee, amount_due=fee.amount, due_date=due_date)
-                messages.success(request, f"Invoice issued to {student.username} for Rs.{fee.amount}.")
+                class_group = ClassGroup.objects.filter(id=class_group_id).first() if class_group_id else None
+
+                # Collect up to 5 fee line items
+                line_items_data = []
+                for i in range(1, 6):
+                    fee_id = request.POST.get(f'fee_structure_{i}')
+                    if fee_id:
+                        try:
+                            fee = FeeStructure.objects.get(id=fee_id)
+                            line_items_data.append({
+                                'fee_structure': fee,
+                                'description': fee.name,
+                                'amount': fee.amount,
+                            })
+                        except FeeStructure.DoesNotExist:
+                            pass
+
+                if not line_items_data:
+                    messages.error(request, "Please select at least one fee structure.")
+                    return redirect('manage_finance')
+
+                # Calculate totals
+                subtotal = sum(item['amount'] for item in line_items_data)
+                discount = Decimal(discount_amt) if discount_amt else Decimal('0')
+                amount_due = max(subtotal - discount, Decimal('0'))
+
+                # Create invoice
+                invoice = Invoice(
+                    student=student,
+                    class_group=class_group,
+                    subtotal=subtotal,
+                    discount_description=discount_desc,
+                    discount_amount=discount,
+                    amount_due=amount_due,
+                    due_date=due_date,
+                )
+                invoice.save()
+
+                # Create line items
+                for item in line_items_data:
+                    InvoiceLineItem.objects.create(
+                        invoice=invoice,
+                        fee_structure=item['fee_structure'],
+                        description=item['description'],
+                        amount=item['amount'],
+                    )
+
+                messages.success(request, f"Invoice {invoice.invoice_number} issued to {student.get_full_name() or student.username} for Rs.{amount_due}.")
             except Exception as e:
                 messages.error(request, str(e))
 
@@ -58,14 +100,14 @@ def manage_finance(request):
             try:
                 inv = Invoice.objects.get(id=invoice_id)
                 Payment.objects.create(invoice=inv, amount=Decimal(pay_amount), method=method)
-                messages.success(request, f"Payment of Rs.{pay_amount} recorded for Invoice #{inv.pk}.")
+                messages.success(request, f"Payment of Rs.{pay_amount} recorded for Invoice {inv.invoice_number}.")
             except Exception as e:
                 messages.error(request, str(e))
 
         return redirect('manage_finance')
 
     fee_structures = FeeStructure.objects.all().select_related('class_group')
-    invoices = Invoice.objects.all().select_related('student', 'fee_structure').order_by('-issued_date')
+    invoices = Invoice.objects.all().select_related('student', 'class_group').prefetch_related('line_items').order_by('-issued_date')
     class_groups = ClassGroup.objects.all()
     students = User.objects.filter(role=User.Role.STUDENT)
 
@@ -76,3 +118,78 @@ def manage_finance(request):
         'students': students,
     }
     return render(request, 'dashboard/manage_finance.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def print_invoice(request, invoice_id):
+    """Render a print-ready invoice page."""
+    invoice = get_object_or_404(Invoice.objects.select_related('student', 'class_group').prefetch_related('line_items', 'payments'), id=invoice_id)
+    balance = invoice.amount_due - invoice.amount_paid
+
+    context = {
+        'invoice': invoice,
+        'line_items': invoice.line_items.all(),
+        'payments': invoice.payments.all(),
+        'balance': balance,
+    }
+    return render(request, 'dashboard/invoice_print.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def api_students_by_class(request):
+    """Return students filtered by class group (JSON)."""
+    class_group_id = request.GET.get('class_group_id')
+    students = []
+    if class_group_id:
+        profiles = StudentProfile.objects.filter(
+            section__class_group_id=class_group_id
+        ).select_related('user')
+        for p in profiles:
+            students.append({
+                'id': p.user.id,
+                'name': p.user.get_full_name() or p.user.username,
+                'roll': p.roll_number or '',
+            })
+    return JsonResponse({'students': students})
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def api_invoices_by_class(request):
+    """Return unpaid/partial invoices filtered by class group (JSON)."""
+    class_group_id = request.GET.get('class_group_id')
+    invoices = Invoice.objects.exclude(status=Invoice.Status.PAID).select_related('student', 'class_group')
+
+    if class_group_id:
+        invoices = invoices.filter(class_group_id=class_group_id)
+
+    data = []
+    for inv in invoices:
+        data.append({
+            'id': inv.id,
+            'invoice_number': inv.invoice_number,
+            'student': inv.student.get_full_name() or inv.student.username,
+            'amount_due': str(inv.amount_due),
+            'amount_paid': str(inv.amount_paid),
+            'status': inv.get_status_display(),
+        })
+    return JsonResponse({'invoices': data})
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def api_fees_by_class(request):
+    """Return fee structures filtered by class group (JSON)."""
+    class_group_id = request.GET.get('class_group_id')
+    fees = []
+    if class_group_id:
+        fee_structures = FeeStructure.objects.filter(class_group_id=class_group_id)
+        for f in fee_structures:
+            fees.append({
+                'id': f.id,
+                'name': f"{f.name} ({f.class_group.name}) - Rs.{f.amount}",
+                'amount': str(f.amount),
+            })
+    return JsonResponse({'fees': fees})

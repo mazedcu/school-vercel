@@ -386,9 +386,15 @@
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
             <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Attendance</a></li>
             <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
+            <li class="nav-section">Accounts & Procurement</li>
+            <li><a href="{% url 'manage_expenses' %}" class="{% if request.resolver_match.url_name == 'manage_expenses' %}active{% endif %}"><span class="icon">💸</span> Expenses</a></li>
+            <li><a href="{% url 'account_statement' %}" class="{% if request.resolver_match.url_name == 'account_statement' %}active{% endif %}"><span class="icon">📋</span> Account Statement</a></li>
+            <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
+            <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
             <li class="nav-section">Reports</li>
             <li><a href="{% url 'grade_settings' %}" class="{% if request.resolver_match.url_name == 'grade_settings' %}active{% endif %}"><span class="icon">🎓</span> Grade Settings</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
+            <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
 
             {% elif user.role == 'teacher' %}
@@ -398,6 +404,9 @@
             <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
+            <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+            <li class="nav-section">Procurement</li>
+            <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
 
             {% elif user.role == 'student' %}
             <li class="nav-section">My School</li>

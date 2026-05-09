@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CT Progress Report — {{ section }} | {{ report_month_name }} {{ report_year }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; padding: 1.5rem; font-size: 0.8rem; }
+
+        .report-header {
+            text-align: center;
+            border-bottom: 3px solid #4f46e5;
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .report-header h1 { font-size: 1.4rem; color: #4f46e5; letter-spacing: -0.5px; }
+        .report-header h2 { font-size: 1rem; font-weight: 600; color: #1e293b; margin-top: 0.35rem; }
+        .report-header p { color: #64748b; font-size: 0.8rem; margin-top: 0.25rem; }
+
+        .meta-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            background: #f8fafc;
+            padding: 0.85rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.25rem;
+            border: 1px solid #e2e8f0;
+            font-size: 0.75rem;
+        }
+        .meta-bar .label { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.6rem; letter-spacing: 0.5px; }
+        .meta-bar .value { font-weight: 700; margin-top: 0.1rem; }
+
+        .class-avg-bar {
+            text-align: center;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            border: 2px solid #a5b4fc;
+            border-radius: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+        .class-avg-bar .score { font-size: 1.5rem; font-weight: 800; color: #4f46e5; }
+        .class-avg-bar .label { font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+
+        /* Per-student card */
+        .student-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+        .student-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.85rem;
+            background: #1e1b4b;
+            color: #fff;
+        }
+        .student-card-header .name { font-weight: 700; font-size: 0.85rem; }
+        .student-card-header .roll { font-size: 0.7rem; opacity: 0.8; }
+        .student-card-header .overall {
+            font-weight: 800;
+            font-size: 1rem;
+            padding: 0.15rem 0.6rem;
+            border-radius: 0.25rem;
+        }
+        .overall-green { background: #d1fae5; color: #065f46; }
+        .overall-yellow { background: #fef3c7; color: #92400e; }
+        .overall-red { background: #fee2e2; color: #991b1b; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        th {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.45rem 0.6rem;
+            text-align: left;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        td {
+            padding: 0.45rem 0.6rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+        tr:nth-child(even) td { background: #fafbfc; }
+
+        .ct-detail { font-size: 0.65rem; color: #64748b; }
+        .pct-badge {
+            display: inline-block;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.2rem;
+            font-weight: 700;
+            font-size: 0.7rem;
+        }
+        .pct-green { background: #d1fae5; color: #065f46; }
+        .pct-yellow { background: #fef3c7; color: #92400e; }
+        .pct-red { background: #fee2e2; color: #991b1b; }
+
+        .grade-scale {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            padding: 0.5rem 0.75rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.6rem;
+        }
+        .grade-scale span {
+            padding: 0.15rem 0.4rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.2rem;
+        }
+
+        .footer {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+        .sig-line {
+            border-top: 1px solid #94a3b8;
+            padding-top: 0.5rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        @media print {
+            body { padding: 0.5rem; font-size: 0.75rem; }
+            .no-print { display: none !important; }
+            .student-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center;margin-bottom:1.25rem;">
+        <button onclick="window.print()" style="padding:0.6rem 1.5rem;background:#4f46e5;color:#fff;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;">🖨️ Print / Save as PDF</button>
+        <a href="{% url 'ct_progress_report' %}" style="padding:0.6rem 1.5rem;background:#e2e8f0;color:#1e293b;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-left:0.5rem;text-decoration:none;display:inline-block;">← Back</a>
+    </div>
+
+    <div class="report-header">
+        <h1>OpDevSM — CT Progress Report</h1>
+        <h2>{{ section.class_group.name }} – {{ section.name }}</h2>
+        <p>{{ term_label }} | Report as of {{ report_month_name }} {{ report_year }} &nbsp;|&nbsp; Period: {{ term_start|date:"d M Y" }} – {{ term_end|date:"d M Y" }}</p>
+    </div>
+
+    <div class="meta-bar">
+        <div><div class="label">Class</div><div class="value">{{ section.class_group.name }} – {{ section.name }}</div></div>
+        <div><div class="label">Academic Year</div><div class="value">{{ section.academic_year }}</div></div>
+        <div><div class="label">Report Period</div><div class="value">{{ term_start|date:"d M" }} – {{ term_end|date:"d M Y" }}</div></div>
+        <div><div class="label">Students</div><div class="value">{{ students_data|length }}</div></div>
+    </div>
+
+    <div class="class-avg-bar">
+        <div class="label">Class Average CT Performance</div>
+        <div class="score">{{ class_avg }}%</div>
+    </div>
+
+    {% if students_data %}
+    {% for sd in students_data %}
+    <div class="student-card">
+        <div class="student-card-header">
+            <div>
+                <span class="name">{{ sd.student.get_full_name|default:sd.student.username }}</span>
+                <span class="roll" style="margin-left:0.5rem;">Roll: {{ sd.profile.roll_number|default:"—" }}</span>
+            </div>
+            <div>
+                <span class="overall {% if sd.overall_pct >= 80 %}overall-green{% elif sd.overall_pct >= 50 %}overall-yellow{% else %}overall-red{% endif %}">
+                    {{ sd.overall_pct }}% ({{ sd.overall_grade }})
+                </span>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>CT Details</th>
+                    <th>Total Obtained</th>
+                    <th>Total Max</th>
+                    <th>Percentage</th>
+                    <th>Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ss in sd.subjects %}
+                <tr>
+                    <td style="font-weight:600;">{{ ss.subject.name }}</td>
+                    <td class="ct-detail">
+                        {% for d in ss.details %}
+                        {{ d.title }} ({{ d.obtained }}/{{ d.total }}, {{ d.date|date:"d M" }}){% if not forloop.last %}; {% endif %}
+                        {% empty %}
+                        —
+                        {% endfor %}
+                    </td>
+                    <td style="font-weight:600;">{{ ss.total_obtained }}</td>
+                    <td>{{ ss.total_max }}</td>
+                    <td>
+                        <span class="pct-badge {% if ss.percentage >= 80 %}pct-green{% elif ss.percentage >= 50 %}pct-yellow{% else %}pct-red{% endif %}">
+                            {{ ss.percentage }}%
+                        </span>
+                    </td>
+                    <td style="font-weight:700;">{{ ss.grade }}</td>
+                </tr>
+                {% endfor %}
+                <tr style="background:#f1f5f9;font-weight:700;">
+                    <td colspan="4" style="text-align:right;">Overall CT Aggregate:</td>
+                    <td>
+                        <span class="pct-badge {% if sd.overall_pct >= 80 %}pct-green{% elif sd.overall_pct >= 50 %}pct-yellow{% else %}pct-red{% endif %}" style="font-size:0.8rem;">
+                            {{ sd.overall_pct }}%
+                        </span>
+                    </td>
+                    <td style="font-size:0.85rem;">{{ sd.overall_grade }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:#64748b;font-size:0.9rem;">
+        No CT assessment data found for this section in the selected period.
+    </div>
+    {% endif %}
+
+    {% if grade_settings %}
+    <div class="grade-scale">
+        <strong style="margin-right:0.25rem;">Grading Scale:</strong>
+        {% for g in grade_settings %}
+        <span><strong>{{ g.letter }}</strong> {{ g.min_score }}–{{ g.max_score }}%</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <div>
+            <div class="sig-line">Class Teacher's Signature</div>
+        </div>
+        <div>
+            <div class="sig-line">Principal's Signature</div>
+        </div>
+    </div>
+</body>
+</html>

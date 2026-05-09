@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block page_title %}Expense Management{% endblock %}
+{% block breadcrumb %}Admin / Expenses{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+    <!-- Record Expense -->
+    <div class="card">
+        <div class="card-title">💸 Record Expense</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_expense">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date *</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" class="form-control">
+                        {% for val, label in categories %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description *</label>
+                <input type="text" name="description" class="form-control" placeholder="e.g. Electricity bill for May" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Amount (Rs.) *</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Reference/Receipt #</label>
+                    <input type="text" name="reference" class="form-control" placeholder="Optional">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">💸 Record Expense</button>
+        </form>
+    </div>
+
+    <!-- Quick Summary -->
+    <div class="card">
+        <div class="card-title">📊 Quick Links</div>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            <a href="{% url 'account_statement' %}" class="btn btn-primary btn-block">📋 Account Statement</a>
+            <a href="{% url 'purchase_requests' %}" class="btn btn-primary btn-block" style="background:#8b5cf6;">🛒 Purchase Requests</a>
+            <a href="{% url 'inventory_capex' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📦 Inventory & CAPEX</a>
+            <a href="{% url 'manage_finance' %}" class="btn btn-primary btn-block" style="background:#10b981;">💰 Fee Management</a>
+        </div>
+    </div>
+</div>
+
+<!-- Expense List -->
+<div class="card">
+    <div class="card-title">📋 Recent Expenses</div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Reference</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for exp in expenses %}
+                <tr>
+                    <td>{{ exp.date }}</td>
+                    <td>{{ exp.description }}</td>
+                    <td><span class="badge badge-yellow">{{ exp.get_category_display }}</span></td>
+                    <td style="font-weight:600;color:var(--danger);">Rs.{{ exp.amount }}</td>
+                    <td style="font-size:0.75rem;">{{ exp.reference|default:"—" }}</td>
+                    <td>
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this expense?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_expense">
+                            <input type="hidden" name="expense_id" value="{{ exp.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="empty-state">No expenses recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
