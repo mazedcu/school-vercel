@@ -35,6 +35,7 @@ def migrate_fee_structure_to_line_items(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    atomic = False
 
     dependencies = [
         ('academics', '0001_initial'),
