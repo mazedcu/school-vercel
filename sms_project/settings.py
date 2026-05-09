@@ -86,12 +86,22 @@ WSGI_APPLICATION = 'sms_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600
-    )
-}
+db_config = dj_database_url.config(
+    default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+    conn_max_age=600
+)
+
+# SQLite optimization for Vercel's read-only filesystem
+if db_config['ENGINE'] == 'django.db.backends.sqlite3':
+    db_path = BASE_DIR / 'db.sqlite3'
+    if os.environ.get('VERCEL'):
+        # Use URI mode for read-only access
+        db_config['NAME'] = f"file:{db_path}?mode=ro"
+        db_config['OPTIONS'] = {'uri': True}
+    else:
+        db_config['NAME'] = db_path
+
+DATABASES = {'default': db_config}
 
 
 # Password validation
