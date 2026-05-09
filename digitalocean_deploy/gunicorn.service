@@ -6,7 +6,7 @@ After=network.target
 User=root
 Group=www-data
 WorkingDirectory=/root/school-vercel
-Environment="DATABASE_URL=postgresql://neondb_owner:npg_4yIjnd9YbgET@ep-red-snow-apluxk9x-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"
+Environment="DATABASE_URL=postgresql://neondb_owner:npg_n2xScdY5jMtw@ep-raspy-scene-aqz0eau1-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require"
 Environment="DEBUG=False"
 Environment="ALLOWED_HOSTS=104.248.226.234,localhost"
 ExecStart=/root/school-vercel/venv/bin/gunicorn \
