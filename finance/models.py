@@ -21,7 +21,7 @@ class Invoice(models.Model):
         PAID = 'paid', 'Paid'
         PARTIAL = 'partial', 'Partially Paid'
 
-    invoice_number = models.CharField(max_length=30, unique=True, blank=True)
+    invoice_number = models.CharField(max_length=30, unique=True, blank=True, db_index=True)
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='invoices')
     class_group = models.ForeignKey('academics.ClassGroup', on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
 

@@ -42,7 +42,7 @@ class AssessmentRecord(models.Model):
     assessment_type = models.ForeignKey(AssessmentType, on_delete=models.CASCADE)
     title = models.CharField(max_length=100)
     total_marks = models.DecimalField(max_digits=6, decimal_places=2)
-    date_conducted = models.DateField()
+    date_conducted = models.DateField(db_index=True)
 
     def __str__(self):
         return f"{self.title} - {self.section} ({self.subject})"
