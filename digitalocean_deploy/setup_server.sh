@@ -6,10 +6,12 @@ apt update && apt upgrade -y
 # Install dependencies
 apt install -y python3-pip python3-venv nginx git libpq-dev
 
-# Clone repository
-cd /root
-git clone https://github.com/mazedcu/school-vercel.git
-cd school-vercel
+# Clone repository if not already in it
+if [ ! -d "school-vercel" ] && [ "$(basename $(pwd))" != "school-vercel" ]; then
+    cd /root
+    git clone https://github.com/mazedcu/school-vercel.git
+    cd school-vercel
+fi
 
 # Setup virtual environment
 python3 -m venv venv
