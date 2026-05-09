@@ -7,6 +7,7 @@ from django.db.models import Sum, Q
 from django.utils import timezone
 from decimal import Decimal
 import json
+import datetime
 
 from accounts.models import User
 from finance.models import Invoice, Payment
@@ -298,7 +299,7 @@ def api_monthly_finance(request):
 
     data = {'months': [], 'income': [], 'expenses': []}
     for month in range(1, 13):
-        data['months'].append(timezone.datetime(year, month, 1).strftime('%b'))
+        data['months'].append(datetime.date(year, month, 1).strftime('%b'))
 
         income = Payment.objects.filter(
             payment_date__year=year, payment_date__month=month
