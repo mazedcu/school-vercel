@@ -109,7 +109,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='invoice',
             name='invoice_number',
-            field=models.CharField(blank=True, max_length=30, unique=True),
+            field=models.CharField(blank=True, max_length=30),
         ),
 
         # Step 6: Remove old fee_structure FK
