@@ -239,7 +239,7 @@
                     <td>
                         <div style="display:flex;gap:0.4rem;">
                             <a href="{% url 'print_invoice' inv.id %}" class="print-btn" target="_blank">🖨️ Print</a>
-                            <a href="{% url 'delete_invoice' inv.id %}" class="delete-link" onclick="return confirm('⚠️ Are you sure you want to delete Invoice {{ inv.invoice_number }}? This will also remove any payment records associated with it.')">🗑️ Delete</a>
+                            <a href="{% url 'delete_invoice' inv.id %}" class="delete-link" onclick="return confirm('Permanently delete this invoice?')">🗑️ Delete</a>
                         </div>
                     </td>
                 </tr>
