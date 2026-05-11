@@ -33,66 +33,6 @@ def manage_finance(request):
             except Exception as e:
                 messages.error(request, str(e))
 
-        elif action == 'issue_invoice':
-            student_id = request.POST.get('student')
-            class_group_id = request.POST.get('invoice_class_group')
-            due_date = request.POST.get('due_date')
-            discount_desc = request.POST.get('discount_description', '').strip()
-            discount_amt = request.POST.get('discount_amount', '0')
-
-            try:
-                student = User.objects.get(id=student_id, role=User.Role.STUDENT)
-                class_group = ClassGroup.objects.filter(id=class_group_id).first() if class_group_id else None
-
-                # Collect up to 5 fee line items
-                line_items_data = []
-                for i in range(1, 6):
-                    fee_id = request.POST.get(f'fee_structure_{i}')
-                    if fee_id:
-                        try:
-                            fee = FeeStructure.objects.get(id=fee_id)
-                            line_items_data.append({
-                                'fee_structure': fee,
-                                'description': fee.name,
-                                'amount': fee.amount,
-                            })
-                        except FeeStructure.DoesNotExist:
-                            pass
-
-                if not line_items_data:
-                    messages.error(request, "Please select at least one fee structure.")
-                    return redirect('manage_finance')
-
-                # Calculate totals
-                subtotal = sum(item['amount'] for item in line_items_data)
-                discount = Decimal(discount_amt) if discount_amt else Decimal('0')
-                amount_due = max(subtotal - discount, Decimal('0'))
-
-                # Create invoice
-                invoice = Invoice(
-                    student=student,
-                    class_group=class_group,
-                    subtotal=subtotal,
-                    discount_description=discount_desc,
-                    discount_amount=discount,
-                    amount_due=amount_due,
-                    due_date=due_date,
-                )
-                invoice.save()
-
-                # Create line items
-                for item in line_items_data:
-                    InvoiceLineItem.objects.create(
-                        invoice=invoice,
-                        fee_structure=item['fee_structure'],
-                        description=item['description'],
-                        amount=item['amount'],
-                    )
-
-                messages.success(request, f"Invoice {invoice.invoice_number} issued to {student.get_full_name() or student.username} for Rs.{amount_due}.")
-            except Exception as e:
-                messages.error(request, str(e))
-
         elif action == 'record_payment':
             invoice_id = request.POST.get('invoice')
             pay_amount = request.POST.get('pay_amount', '0')
@@ -107,6 +47,7 @@ def manage_finance(request):
         elif action == 'bulk_invoice':
             bulk_class_id = request.POST.get('bulk_class_group')
             bulk_section_id = request.POST.get('bulk_section', '')
+            bulk_student_id = request.POST.get('bulk_student', '')  # optional single student
             due_date = request.POST.get('bulk_due_date')
             discount_desc = request.POST.get('bulk_discount_description', '').strip()
             discount_amt = request.POST.get('bulk_discount_amount', '0')
@@ -140,17 +81,22 @@ def manage_finance(request):
                     messages.error(request, "Please select at least one fee category.")
                     return redirect('manage_finance')
 
-                # Get students — filter by section if given, otherwise entire class
-                if bulk_section_id:
+                # Determine target students
+                if bulk_student_id:
+                    # Single student mode
+                    target_students = [User.objects.get(id=bulk_student_id, role=User.Role.STUDENT)]
+                elif bulk_section_id:
                     student_profiles = StudentProfile.objects.filter(
                         section_id=bulk_section_id
                     ).select_related('user', 'section__class_group')
+                    target_students = [sp.user for sp in student_profiles]
                 else:
                     student_profiles = StudentProfile.objects.filter(
                         section__class_group=class_group
                     ).select_related('user', 'section__class_group')
+                    target_students = [sp.user for sp in student_profiles]
 
-                if not student_profiles.exists():
+                if not target_students:
                     messages.error(request, "No students found in the selected class/section.")
                     return redirect('manage_finance')
 
@@ -160,11 +106,8 @@ def manage_finance(request):
                 amount_due = max(subtotal - discount, Decimal('0'))
 
                 created_count = 0
-                skipped_count = 0
 
-                for sp in student_profiles:
-                    student = sp.user
-
+                for student in target_students:
                     # Create invoice for this student
                     invoice = Invoice(
                         student=student,
@@ -188,13 +131,20 @@ def manage_finance(request):
                     created_count += 1
 
                 fee_names = ', '.join([item['description'] for item in line_items_data])
-                messages.success(
-                    request,
-                    f"✅ Bulk invoices created! {created_count} invoice(s) issued for '{fee_names}' "
-                    f"in {class_group.name} — Rs.{amount_due} each."
-                )
+                if created_count == 1:
+                    student_name = target_students[0].get_full_name() or target_students[0].username
+                    messages.success(
+                        request,
+                        f"✅ Invoice issued to {student_name} for '{fee_names}' — Rs.{amount_due}."
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f"✅ {created_count} invoice(s) issued for '{fee_names}' "
+                        f"in {class_group.name} — Rs.{amount_due} each."
+                    )
             except Exception as e:
-                messages.error(request, f"Bulk invoice error: {str(e)}")
+                messages.error(request, f"Invoice error: {str(e)}")
 
         return redirect('manage_finance')
 

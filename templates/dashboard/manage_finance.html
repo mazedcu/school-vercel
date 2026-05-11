@@ -40,7 +40,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="grid grid-3">
+<div class="grid grid-2">
     <!-- Create Fee Structure -->
     <div class="card">
         <div class="card-title">📋 Create Fee Structure</div>
@@ -67,68 +67,6 @@
                 <input type="text" name="academic_year" class="form-control" value="2026">
             </div>
             <button type="submit" class="btn btn-primary btn-block">Create Fee</button>
-        </form>
-    </div>
-
-    <!-- Issue Invoice (Single Student) -->
-    <div class="card">
-        <div class="card-title">🧾 Issue Invoice</div>
-        <form method="POST" id="invoiceForm">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="issue_invoice">
-
-            <div class="form-group">
-                <label>Filter by Class</label>
-                <select id="invoiceClassFilter" name="invoice_class_group" class="form-control">
-                    <option value="">-- All Classes --</option>
-                    {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Student</label>
-                <select name="student" id="invoiceStudentSelect" class="form-control" required>
-                    <option value="">-- Select Student --</option>
-                    {% for s in students %}<option value="{{ s.id }}">{{ s.get_full_name|default:s.username }}</option>{% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Fee Items <span style="font-weight:400;color:var(--text-muted);">(up to 5)</span></label>
-                <div id="feeItemsContainer">
-                    <div class="fee-row" data-row="1">
-                        <select name="fee_structure_1" class="form-control fee-select" required>
-                            <option value="">-- Select Fee --</option>
-                            {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
-                        </select>
-                        <span class="fee-amount" data-amount-display="1">Rs.0</span>
-                    </div>
-                </div>
-                <button type="button" class="add-fee-btn" id="addFeeBtn" onclick="addFeeRow()">+ Add Fee Item</button>
-            </div>
-
-            <div class="discount-section">
-                <div class="form-group" style="margin-bottom:0.5rem;">
-                    <label>💡 Discount Description</label>
-                    <input type="text" name="discount_description" class="form-control" placeholder="e.g. Sibling Discount, Scholarship">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label>Discount Amount (Rs.)</label>
-                    <input type="number" name="discount_amount" id="discountAmount" class="form-control" step="0.01" value="0" oninput="updateInvoiceSummary()">
-                </div>
-            </div>
-
-            <div class="invoice-summary" id="invoiceSummary">
-                <div class="row"><span>Subtotal:</span><span id="summarySubtotal">Rs.0.00</span></div>
-                <div class="row"><span>Discount:</span><span id="summaryDiscount">- Rs.0.00</span></div>
-                <div class="row total"><span>Total Due:</span><span id="summaryTotal">Rs.0.00</span></div>
-            </div>
-
-            <div class="form-group" style="margin-top:1rem;">
-                <label>Due Date</label>
-                <input type="date" name="due_date" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">🧾 Issue Invoice</button>
         </form>
     </div>
 
@@ -175,11 +113,11 @@
     </div>
 </div>
 
-<!-- ═══ Bulk Invoice — One-Click Class Invoicing ═══ -->
+<!-- ═══ Issue Invoice — Single Student or Entire Class ═══ -->
 <div class="card" style="border:2px solid var(--primary);border-radius:0.75rem;">
     <div class="card-title" style="display:flex;align-items:center;gap:0.5rem;">
-        <span style="font-size:1.25rem;">⚡</span>
-        <span>Bulk Invoice — Invoice Entire Class in One Click</span>
+        <span style="font-size:1.25rem;">🧾</span>
+        <span>Issue Invoice — Single Student or Entire Class</span>
     </div>
     <form method="POST" id="bulkInvoiceForm">
         {% csrf_token %}
@@ -194,7 +132,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Section <span style="font-weight:400;color:var(--text-muted);">(optional — leave blank for entire class)</span></label>
+                <label>Section <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
                 <select name="bulk_section" id="bulkSectionSelect" class="form-control">
                     <option value="">-- All Sections --</option>
                     {% for s in sections %}<option value="{{ s.id }}" data-class="{{ s.class_group.id }}">{{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})</option>{% endfor %}
@@ -204,6 +142,13 @@
                 <label>Due Date *</label>
                 <input type="date" name="bulk_due_date" class="form-control">
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Student <span style="font-weight:400;color:var(--text-muted);">(leave blank to invoice all students in class/section)</span></label>
+            <select name="bulk_student" id="bulkStudentSelect" class="form-control" onchange="onBulkStudentChange()">
+                <option value="">-- All Students (Bulk) --</option>
+            </select>
         </div>
 
         <div id="bulkStudentCount" style="background:var(--primary-light);color:#3730a3;border-radius:0.5rem;padding:0.6rem 1rem;font-size:0.85rem;font-weight:500;margin-bottom:1rem;display:none;">
@@ -295,161 +240,10 @@
 </div>
 
 <script>
-let feeRowCount = 1;
 const MAX_FEE_ROWS = 5;
-
-// Store all students and fee structures for JS filtering
-const allStudents = [
-    {% for s in students %}
-    { id: {{ s.id }}, name: "{{ s.get_full_name|default:s.username|escapejs }}" },
-    {% endfor %}
-];
-
-function addFeeRow() {
-    if (feeRowCount >= MAX_FEE_ROWS) return;
-    feeRowCount++;
-
-    const container = document.getElementById('feeItemsContainer');
-    const row = document.createElement('div');
-    row.className = 'fee-row';
-    row.dataset.row = feeRowCount;
-
-    // Get currently available fee options
-    const firstSelect = document.querySelector('.fee-select');
-    let optionsHtml = '<option value="">-- Select Fee --</option>';
-    firstSelect.querySelectorAll('option').forEach(opt => {
-        if (opt.value) {
-            optionsHtml += `<option value="${opt.value}" data-amount="${opt.dataset.amount}" data-class="${opt.dataset.class}">${opt.text}</option>`;
-        }
-    });
-
-    row.innerHTML = `
-        <select name="fee_structure_${feeRowCount}" class="form-control fee-select" onchange="updateInvoiceSummary()">
-            ${optionsHtml}
-        </select>
-        <span class="fee-amount" data-amount-display="${feeRowCount}">Rs.0</span>
-        <button type="button" class="remove-fee-btn" onclick="removeFeeRow(this)">×</button>
-    `;
-    container.appendChild(row);
-
-    // Apply class filter to new row
-    filterFeesByClass();
-
-    if (feeRowCount >= MAX_FEE_ROWS) {
-        document.getElementById('addFeeBtn').style.display = 'none';
-    }
-}
-
-function removeFeeRow(btn) {
-    btn.closest('.fee-row').remove();
-    feeRowCount--;
-    document.getElementById('addFeeBtn').style.display = '';
-    updateInvoiceSummary();
-}
-
-function updateInvoiceSummary() {
-    let subtotal = 0;
-    document.querySelectorAll('.fee-select').forEach((sel, idx) => {
-        const opt = sel.options[sel.selectedIndex];
-        const amount = opt && opt.dataset.amount ? parseFloat(opt.dataset.amount) : 0;
-        subtotal += amount;
-
-        // Update individual amount display
-        const amountDisplay = sel.closest('.fee-row').querySelector('.fee-amount');
-        if (amountDisplay) {
-            amountDisplay.textContent = amount > 0 ? `Rs.${amount.toFixed(2)}` : 'Rs.0';
-        }
-    });
-
-    const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
-    const total = Math.max(subtotal - discount, 0);
-
-    document.getElementById('summarySubtotal').textContent = `Rs.${subtotal.toFixed(2)}`;
-    document.getElementById('summaryDiscount').textContent = `- Rs.${discount.toFixed(2)}`;
-    document.getElementById('summaryTotal').textContent = `Rs.${total.toFixed(2)}`;
-}
-
-// Filter students when class is selected in invoice form
-document.getElementById('invoiceClassFilter').addEventListener('change', function() {
-    const classId = this.value;
-    const studentSelect = document.getElementById('invoiceStudentSelect');
-
-    if (!classId) {
-        // Show all students
-        studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-        allStudents.forEach(s => {
-            studentSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-        });
-    } else {
-        // Fetch students by class via AJAX
-        fetch(`/api/students-by-class/?class_group_id=${classId}`)
-            .then(r => r.json())
-            .then(data => {
-                studentSelect.innerHTML = '<option value="">-- Select Student --</option>';
-                data.students.forEach(s => {
-                    studentSelect.innerHTML += `<option value="${s.id}">${s.name}${s.roll ? ' (Roll: ' + s.roll + ')' : ''}</option>`;
-                });
-            });
-    }
-
-    // Also filter fee structures by class
-    filterFeesByClass();
-});
-
-function filterFeesByClass() {
-    const classId = document.getElementById('invoiceClassFilter').value;
-    document.querySelectorAll('.fee-select').forEach(sel => {
-        const currentVal = sel.value;
-        sel.querySelectorAll('option').forEach(opt => {
-            if (opt.value && classId) {
-                opt.style.display = opt.dataset.class === classId ? '' : 'none';
-            } else {
-                opt.style.display = '';
-            }
-        });
-    });
-}
-
-// Filter invoices in record payment section by class
-function filterInvoicesByClass() {
-    const classId = document.getElementById('paymentClassFilter').value;
-    const select = document.getElementById('paymentInvoiceSelect');
-    select.querySelectorAll('option').forEach(opt => {
-        if (opt.value && classId) {
-            opt.style.display = opt.dataset.class === classId ? '' : 'none';
-        } else {
-            opt.style.display = '';
-        }
-    });
-    select.value = '';
-}
-
-// Filter invoice table by class
-function filterTableByClass() {
-    const classId = document.getElementById('tableClassFilter').value;
-    document.querySelectorAll('#invoiceTableBody tr').forEach(tr => {
-        if (!classId || tr.dataset.classId === classId) {
-            tr.style.display = '';
-        } else {
-            tr.style.display = 'none';
-        }
-    });
-}
-
-// Attach change listeners to fee selects
-document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('fee-select')) {
-        updateInvoiceSummary();
-    }
-    if (e.target.classList.contains('bulk-fee-select')) {
-        updateBulkSummary();
-    }
-});
-
-// ═══ BULK INVOICE JS ═══════════════════════════════════════════════════
-
 let bulkFeeRowCount = 1;
 let bulkStudentCount = 0;
+let bulkStudentList = [];
 
 function onBulkClassChange() {
     const classId = document.getElementById('bulkClassSelect').value;
@@ -465,54 +259,75 @@ function onBulkClassChange() {
         }
     });
 
-    // Filter fee options in bulk form
+    // Filter fee options
     filterBulkFeesByClass();
 
-    // Fetch student count
-    fetchBulkStudentCount();
+    // Reset student dropdown & fetch students
+    document.getElementById('bulkStudentSelect').value = '';
+    fetchBulkStudents();
 }
 
 document.getElementById('bulkSectionSelect').addEventListener('change', function() {
-    fetchBulkStudentCount();
+    document.getElementById('bulkStudentSelect').value = '';
+    fetchBulkStudents();
 });
 
-function fetchBulkStudentCount() {
+function fetchBulkStudents() {
     const classId = document.getElementById('bulkClassSelect').value;
     const sectionId = document.getElementById('bulkSectionSelect').value;
+    const studentSelect = document.getElementById('bulkStudentSelect');
     const countDiv = document.getElementById('bulkStudentCount');
     const countNum = document.getElementById('bulkCountNum');
 
     if (!classId) {
+        studentSelect.innerHTML = '<option value="">-- All Students (Bulk) --</option>';
         countDiv.style.display = 'none';
         bulkStudentCount = 0;
+        bulkStudentList = [];
         updateBulkSummary();
         return;
     }
 
-    // Fetch count via AJAX
-    let url = `/api/students-by-class/?class_group_id=${classId}`;
+    const url = sectionId
+        ? `/api/students-by-section/?section_id=${sectionId}`
+        : `/api/students-by-class/?class_group_id=${classId}`;
+
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            let students = data.students;
-            // If section is selected, we need to filter — but the API returns by class
-            // We'll use section_id filter on the server side via a new param
-            if (sectionId) {
-                fetch(`/api/students-by-section/?section_id=${sectionId}`)
-                    .then(r2 => r2.json())
-                    .then(data2 => {
-                        bulkStudentCount = data2.students.length;
-                        countNum.textContent = bulkStudentCount;
-                        countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
-                        updateBulkSummary();
-                    });
-            } else {
-                bulkStudentCount = students.length;
-                countNum.textContent = bulkStudentCount;
-                countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
-                updateBulkSummary();
-            }
+            bulkStudentList = data.students;
+            bulkStudentCount = bulkStudentList.length;
+
+            // Populate student dropdown
+            studentSelect.innerHTML = '<option value="">-- All Students (Bulk) --</option>';
+            bulkStudentList.forEach(s => {
+                studentSelect.innerHTML += `<option value="${s.id}">${s.name}${s.roll ? ' (Roll: ' + s.roll + ')' : ''}</option>`;
+            });
+
+            // Update count banner
+            countNum.textContent = bulkStudentCount;
+            countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
+            updateBulkSummary();
         });
+}
+
+function onBulkStudentChange() {
+    const studentId = document.getElementById('bulkStudentSelect').value;
+    const countDiv = document.getElementById('bulkStudentCount');
+    const countNum = document.getElementById('bulkCountNum');
+
+    if (studentId) {
+        // Single student mode
+        bulkStudentCount = 1;
+        countNum.textContent = '1';
+        countDiv.style.display = '';
+    } else {
+        // Back to bulk mode
+        bulkStudentCount = bulkStudentList.length;
+        countNum.textContent = bulkStudentCount;
+        countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
+    }
+    updateBulkSummary();
 }
 
 function filterBulkFeesByClass() {
@@ -602,7 +417,6 @@ function submitBulkInvoice() {
         return;
     }
 
-    // Check at least one fee is selected
     let hasFee = false;
     document.querySelectorAll('.bulk-fee-select').forEach(sel => {
         if (sel.value) hasFee = true;
@@ -612,14 +426,52 @@ function submitBulkInvoice() {
         return;
     }
 
-    if (bulkStudentCount === 0) {
+    const studentId = document.getElementById('bulkStudentSelect').value;
+    if (!studentId && bulkStudentCount === 0) {
         alert('No students found in the selected class/section.');
         return;
     }
 
-    if (confirm('⚠️ This will create invoices for ' + bulkStudentCount + ' student(s) in the selected class/section. Continue?')) {
+    const msg = studentId
+        ? 'Issue invoice for 1 student. Continue?'
+        : '⚠️ This will create invoices for ' + bulkStudentCount + ' student(s). Continue?';
+
+    if (confirm(msg)) {
         document.getElementById('bulkInvoiceForm').submit();
     }
 }
+
+// Filter invoices in record payment section by class
+function filterInvoicesByClass() {
+    const classId = document.getElementById('paymentClassFilter').value;
+    const select = document.getElementById('paymentInvoiceSelect');
+    select.querySelectorAll('option').forEach(opt => {
+        if (opt.value && classId) {
+            opt.style.display = opt.dataset.class === classId ? '' : 'none';
+        } else {
+            opt.style.display = '';
+        }
+    });
+    select.value = '';
+}
+
+// Filter invoice table by class
+function filterTableByClass() {
+    const classId = document.getElementById('tableClassFilter').value;
+    document.querySelectorAll('#invoiceTableBody tr').forEach(tr => {
+        if (!classId || tr.dataset.classId === classId) {
+            tr.style.display = '';
+        } else {
+            tr.style.display = 'none';
+        }
+    });
+}
+
+// Attach change listeners to fee selects
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('bulk-fee-select')) {
+        updateBulkSummary();
+    }
+});
 </script>
 {% endblock %}
