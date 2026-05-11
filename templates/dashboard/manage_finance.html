@@ -214,7 +214,7 @@
             <label>Fee Category <span style="font-weight:400;color:var(--text-muted);">(up to 5)</span></label>
             <div id="bulkFeeItemsContainer">
                 <div class="fee-row" data-row="1">
-                    <select name="bulk_fee_structure_1" class="form-control bulk-fee-select" required onchange="updateBulkSummary()">
+                    <select name="bulk_fee_structure_1" class="form-control bulk-fee-select" onchange="updateBulkSummary()">
                         <option value="">-- Select Fee --</option>
                         {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
                     </select>
@@ -244,7 +244,7 @@
             <div class="row" style="color:var(--primary);font-weight:600;border-top:1px dashed var(--border);padding-top:0.4rem;margin-top:0.4rem;"><span>Grand Total (all students):</span><span id="bulkGrandTotal">Rs.0.00</span></div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="return confirm('⚠️ This will create invoices for ALL students in the selected class/section. Continue?')">
+        <button type="button" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="submitBulkInvoice()">
             ⚡ Issue Bulk Invoices
         </button>
     </form>
@@ -587,6 +587,39 @@ function updateBulkSummary() {
     document.getElementById('bulkDiscount').textContent = `- Rs.${discount.toFixed(2)}`;
     document.getElementById('bulkTotal').textContent = `Rs.${perStudent.toFixed(2)}`;
     document.getElementById('bulkGrandTotal').textContent = `Rs.${grandTotal.toFixed(2)}`;
+}
+
+function submitBulkInvoice() {
+    const classId = document.getElementById('bulkClassSelect').value;
+    if (!classId) {
+        alert('Please select a class.');
+        return;
+    }
+
+    const dueDate = document.querySelector('input[name="bulk_due_date"]').value;
+    if (!dueDate) {
+        alert('Please set a due date.');
+        return;
+    }
+
+    // Check at least one fee is selected
+    let hasFee = false;
+    document.querySelectorAll('.bulk-fee-select').forEach(sel => {
+        if (sel.value) hasFee = true;
+    });
+    if (!hasFee) {
+        alert('Please select at least one fee category.');
+        return;
+    }
+
+    if (bulkStudentCount === 0) {
+        alert('No students found in the selected class/section.');
+        return;
+    }
+
+    if (confirm('⚠️ This will create invoices for ' + bulkStudentCount + ' student(s) in the selected class/section. Continue?')) {
+        document.getElementById('bulkInvoiceForm').submit();
+    }
 }
 </script>
 {% endblock %}
