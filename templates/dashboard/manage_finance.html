@@ -70,7 +70,7 @@
         </form>
     </div>
 
-    <!-- Issue Invoice -->
+    <!-- Issue Invoice (Single Student) -->
     <div class="card">
         <div class="card-title">🧾 Issue Invoice</div>
         <form method="POST" id="invoiceForm">
@@ -173,6 +173,81 @@
             <button type="submit" class="btn btn-success btn-block">💳 Record Payment</button>
         </form>
     </div>
+</div>
+
+<!-- ═══ Bulk Invoice — One-Click Class Invoicing ═══ -->
+<div class="card" style="border:2px solid var(--primary);border-radius:0.75rem;">
+    <div class="card-title" style="display:flex;align-items:center;gap:0.5rem;">
+        <span style="font-size:1.25rem;">⚡</span>
+        <span>Bulk Invoice — Invoice Entire Class in One Click</span>
+    </div>
+    <form method="POST" id="bulkInvoiceForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="bulk_invoice">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Class *</label>
+                <select name="bulk_class_group" id="bulkClassSelect" class="form-control" required onchange="onBulkClassChange()">
+                    <option value="">-- Select Class --</option>
+                    {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Section <span style="font-weight:400;color:var(--text-muted);">(optional — leave blank for entire class)</span></label>
+                <select name="bulk_section" id="bulkSectionSelect" class="form-control">
+                    <option value="">-- All Sections --</option>
+                    {% for s in sections %}<option value="{{ s.id }}" data-class="{{ s.class_group.id }}">{{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Due Date *</label>
+                <input type="date" name="bulk_due_date" class="form-control" required>
+            </div>
+        </div>
+
+        <div id="bulkStudentCount" style="background:var(--primary-light);color:#3730a3;border-radius:0.5rem;padding:0.6rem 1rem;font-size:0.85rem;font-weight:500;margin-bottom:1rem;display:none;">
+            📢 Invoices will be created for <strong><span id="bulkCountNum">0</span> student(s)</strong>
+        </div>
+
+        <div class="form-group">
+            <label>Fee Category <span style="font-weight:400;color:var(--text-muted);">(up to 5)</span></label>
+            <div id="bulkFeeItemsContainer">
+                <div class="fee-row" data-row="1">
+                    <select name="bulk_fee_structure_1" class="form-control bulk-fee-select" required onchange="updateBulkSummary()">
+                        <option value="">-- Select Fee --</option>
+                        {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
+                    </select>
+                    <span class="fee-amount" data-bulk-amount="1">Rs.0</span>
+                </div>
+            </div>
+            <button type="button" class="add-fee-btn" id="addBulkFeeBtn" onclick="addBulkFeeRow()">+ Add Fee Item</button>
+        </div>
+
+        <div class="discount-section">
+            <div class="form-row">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>💡 Discount Description</label>
+                    <input type="text" name="bulk_discount_description" class="form-control" placeholder="e.g. Early Bird Discount">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Discount Amount (Rs.)</label>
+                    <input type="number" name="bulk_discount_amount" id="bulkDiscountAmount" class="form-control" step="0.01" value="0" oninput="updateBulkSummary()">
+                </div>
+            </div>
+        </div>
+
+        <div class="invoice-summary" id="bulkInvoiceSummary" style="margin-top:0.75rem;">
+            <div class="row"><span>Per Student Subtotal:</span><span id="bulkSubtotal">Rs.0.00</span></div>
+            <div class="row"><span>Discount:</span><span id="bulkDiscount">- Rs.0.00</span></div>
+            <div class="row total"><span>Per Student Total:</span><span id="bulkTotal">Rs.0.00</span></div>
+            <div class="row" style="color:var(--primary);font-weight:600;border-top:1px dashed var(--border);padding-top:0.4rem;margin-top:0.4rem;"><span>Grand Total (all students):</span><span id="bulkGrandTotal">Rs.0.00</span></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);" onclick="return confirm('⚠️ This will create invoices for ALL students in the selected class/section. Continue?')">
+            ⚡ Issue Bulk Invoices
+        </button>
+    </form>
 </div>
 
 <!-- All Invoices Table -->
@@ -366,6 +441,152 @@ document.addEventListener('change', function(e) {
     if (e.target.classList.contains('fee-select')) {
         updateInvoiceSummary();
     }
+    if (e.target.classList.contains('bulk-fee-select')) {
+        updateBulkSummary();
+    }
 });
+
+// ═══ BULK INVOICE JS ═══════════════════════════════════════════════════
+
+let bulkFeeRowCount = 1;
+let bulkStudentCount = 0;
+
+function onBulkClassChange() {
+    const classId = document.getElementById('bulkClassSelect').value;
+
+    // Filter sections dropdown
+    const sectionSelect = document.getElementById('bulkSectionSelect');
+    sectionSelect.value = '';
+    sectionSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value && classId) {
+            opt.style.display = opt.dataset.class === classId ? '' : 'none';
+        } else {
+            opt.style.display = '';
+        }
+    });
+
+    // Filter fee options in bulk form
+    filterBulkFeesByClass();
+
+    // Fetch student count
+    fetchBulkStudentCount();
+}
+
+document.getElementById('bulkSectionSelect').addEventListener('change', function() {
+    fetchBulkStudentCount();
+});
+
+function fetchBulkStudentCount() {
+    const classId = document.getElementById('bulkClassSelect').value;
+    const sectionId = document.getElementById('bulkSectionSelect').value;
+    const countDiv = document.getElementById('bulkStudentCount');
+    const countNum = document.getElementById('bulkCountNum');
+
+    if (!classId) {
+        countDiv.style.display = 'none';
+        bulkStudentCount = 0;
+        updateBulkSummary();
+        return;
+    }
+
+    // Fetch count via AJAX
+    let url = `/api/students-by-class/?class_group_id=${classId}`;
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            let students = data.students;
+            // If section is selected, we need to filter — but the API returns by class
+            // We'll use section_id filter on the server side via a new param
+            if (sectionId) {
+                fetch(`/api/students-by-section/?section_id=${sectionId}`)
+                    .then(r2 => r2.json())
+                    .then(data2 => {
+                        bulkStudentCount = data2.students.length;
+                        countNum.textContent = bulkStudentCount;
+                        countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
+                        updateBulkSummary();
+                    });
+            } else {
+                bulkStudentCount = students.length;
+                countNum.textContent = bulkStudentCount;
+                countDiv.style.display = bulkStudentCount > 0 ? '' : 'none';
+                updateBulkSummary();
+            }
+        });
+}
+
+function filterBulkFeesByClass() {
+    const classId = document.getElementById('bulkClassSelect').value;
+    document.querySelectorAll('.bulk-fee-select').forEach(sel => {
+        sel.querySelectorAll('option').forEach(opt => {
+            if (opt.value && classId) {
+                opt.style.display = opt.dataset.class === classId ? '' : 'none';
+            } else {
+                opt.style.display = '';
+            }
+        });
+    });
+}
+
+function addBulkFeeRow() {
+    if (bulkFeeRowCount >= MAX_FEE_ROWS) return;
+    bulkFeeRowCount++;
+
+    const container = document.getElementById('bulkFeeItemsContainer');
+    const row = document.createElement('div');
+    row.className = 'fee-row';
+    row.dataset.row = bulkFeeRowCount;
+
+    const firstSelect = document.querySelector('.bulk-fee-select');
+    let optionsHtml = '<option value="">-- Select Fee --</option>';
+    firstSelect.querySelectorAll('option').forEach(opt => {
+        if (opt.value) {
+            optionsHtml += `<option value="${opt.value}" data-amount="${opt.dataset.amount}" data-class="${opt.dataset.class}" ${opt.style.display === 'none' ? 'style="display:none"' : ''}>${opt.text}</option>`;
+        }
+    });
+
+    row.innerHTML = `
+        <select name="bulk_fee_structure_${bulkFeeRowCount}" class="form-control bulk-fee-select" onchange="updateBulkSummary()">
+            ${optionsHtml}
+        </select>
+        <span class="fee-amount" data-bulk-amount="${bulkFeeRowCount}">Rs.0</span>
+        <button type="button" class="remove-fee-btn" onclick="removeBulkFeeRow(this)">×</button>
+    `;
+    container.appendChild(row);
+
+    if (bulkFeeRowCount >= MAX_FEE_ROWS) {
+        document.getElementById('addBulkFeeBtn').style.display = 'none';
+    }
+}
+
+function removeBulkFeeRow(btn) {
+    btn.closest('.fee-row').remove();
+    bulkFeeRowCount--;
+    document.getElementById('addBulkFeeBtn').style.display = '';
+    updateBulkSummary();
+}
+
+function updateBulkSummary() {
+    let subtotal = 0;
+    document.querySelectorAll('.bulk-fee-select').forEach(sel => {
+        const opt = sel.options[sel.selectedIndex];
+        const amount = opt && opt.dataset.amount ? parseFloat(opt.dataset.amount) : 0;
+        subtotal += amount;
+
+        const amountDisplay = sel.closest('.fee-row').querySelector('.fee-amount');
+        if (amountDisplay) {
+            amountDisplay.textContent = amount > 0 ? `Rs.${amount.toFixed(2)}` : 'Rs.0';
+        }
+    });
+
+    const discount = parseFloat(document.getElementById('bulkDiscountAmount').value) || 0;
+    const perStudent = Math.max(subtotal - discount, 0);
+    const grandTotal = perStudent * bulkStudentCount;
+
+    document.getElementById('bulkSubtotal').textContent = `Rs.${subtotal.toFixed(2)}`;
+    document.getElementById('bulkDiscount').textContent = `- Rs.${discount.toFixed(2)}`;
+    document.getElementById('bulkTotal').textContent = `Rs.${perStudent.toFixed(2)}`;
+    document.getElementById('bulkGrandTotal').textContent = `Rs.${grandTotal.toFixed(2)}`;
+}
 </script>
 {% endblock %}

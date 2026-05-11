@@ -27,3 +27,20 @@ class ParentProfile(models.Model):
         kids = ", ".join([c.get_full_name() or c.username for c in self.children.all()])
         return f"{self.user.get_full_name() or self.user.username} → {kids or 'No children'}"
 
+
+class TeacherProfile(models.Model):
+    """Extended profile for a teacher user."""
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='teacher_profile', limit_choices_to={'role': 'teacher'}
+    )
+    employee_id = models.CharField(max_length=30, blank=True, verbose_name="Employee ID")
+    qualification = models.CharField(max_length=200, blank=True, verbose_name="Qualification")
+    specialization = models.CharField(max_length=200, blank=True, verbose_name="Specialization")
+    date_of_birth = models.DateField(null=True, blank=True, verbose_name="Date of Birth")
+    date_of_joining = models.DateField(null=True, blank=True, verbose_name="Date of Joining")
+    address = models.TextField(blank=True, verbose_name="Address")
+    experience_years = models.PositiveIntegerField(default=0, verbose_name="Years of Experience")
+
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} (Teacher)"

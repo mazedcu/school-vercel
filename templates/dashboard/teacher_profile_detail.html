@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block page_title %}Teacher Profile — {{ teacher.get_full_name|default:teacher.username }}{% endblock %}
+{% block breadcrumb %}{% if is_admin %}Admin / <a href="{% url 'teacher_profiles' %}" style="color:var(--primary);text-decoration:none;">Teacher Profiles</a>{% else %}Teacher{% endif %} / {{ teacher.get_full_name|default:teacher.username }}{% endblock %}
+{% block content %}
+
+<!-- Profile Header -->
+<div class="card" style="background:linear-gradient(135deg,#e0e7ff 0%,#c7d2fe 100%);border:none;">
+    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;font-weight:700;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
+            {{ teacher.username|make_list|first|upper }}
+        </div>
+        <div style="flex:1;">
+            <h2 style="font-size:1.5rem;font-weight:700;color:var(--text);margin-bottom:0.25rem;">{{ teacher.get_full_name|default:teacher.username }}</h2>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+                <span class="badge badge-green" style="font-size:0.75rem;">🏫 Teacher</span>
+                <span style="font-size:0.8rem;color:var(--text-muted);">@{{ teacher.username }}</span>
+                <span style="font-size:0.8rem;color:var(--text-muted);">ID: {{ teacher.id }}</span>
+                {% if profile.employee_id %}
+                <span class="badge badge-blue">EMP: {{ profile.employee_id }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-3" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value">{{ my_sections|length }}</div>
+        <div class="stat-label">Assigned Sections</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ my_subjects|length }}</div>
+        <div class="stat-label">Subjects Teaching</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--warning);">{{ timetable_entries|length }}</div>
+        <div class="stat-label">Timetable Entries</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <!-- Profile Details / Edit Form -->
+    <div class="card">
+        <div class="card-title">📋 Profile Details</div>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" name="first_name" class="form-control" value="{{ teacher.first_name }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" name="last_name" class="form-control" value="{{ teacher.last_name }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ teacher.email }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" class="form-control" value="{{ teacher.phone }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Employee ID</label>
+                    <input type="text" name="employee_id" class="form-control" value="{{ profile.employee_id }}" placeholder="e.g. EMP001" {% if not can_edit %}disabled{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>Years of Experience</label>
+                    <input type="number" name="experience_years" class="form-control" value="{{ profile.experience_years }}" min="0" {% if not can_edit %}disabled{% endif %}>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Qualification</label>
+                <input type="text" name="qualification" class="form-control" value="{{ profile.qualification }}" placeholder="e.g. M.Ed, B.Sc" {% if not can_edit %}disabled{% endif %}>
+            </div>
+            <div class="form-group">
+                <label>Specialization</label>
+                <input type="text" name="specialization" class="form-control" value="{{ profile.specialization }}" placeholder="e.g. Mathematics, Science" {% if not can_edit %}disabled{% endif %}>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input type="date" name="date_of_birth" class="form-control" value="{{ profile.date_of_birth|date:'Y-m-d' }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+                <div class="form-group">
+                    <label>Date of Joining</label>
+                    <input type="date" name="date_of_joining" class="form-control" value="{{ profile.date_of_joining|date:'Y-m-d' }}" {% if not can_edit %}disabled{% endif %}>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Address</label>
+                <textarea name="address" class="form-control" rows="3" {% if not can_edit %}disabled{% endif %}>{{ profile.address }}</textarea>
+            </div>
+            {% if can_edit %}
+            <button type="submit" class="btn btn-primary">💾 Save Profile</button>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Teaching Assignments -->
+    <div>
+        <div class="card">
+            <div class="card-title">🏫 Assigned Sections</div>
+            {% if my_sections %}
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                {% for sec in my_sections %}
+                <span class="badge badge-blue" style="font-size:0.8rem;padding:0.4rem 0.8rem;">{{ sec.class_group.name }} — {{ sec.name }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">No sections assigned yet.</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-title">📚 Subjects Teaching</div>
+            {% if my_subjects %}
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                {% for subj in my_subjects %}
+                <span class="badge badge-green" style="font-size:0.8rem;padding:0.4rem 0.8rem;">{{ subj.name }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">No subjects assigned yet.</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-title">📅 Timetable</div>
+            {% if timetable_entries %}
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Day & Time</th><th>Section</th><th>Subject</th></tr></thead>
+                    <tbody>
+                        {% for e in timetable_entries %}
+                        <tr>
+                            <td>{{ e.time_slot.get_day_display }} {{ e.time_slot.start_time|time:"H:i" }}-{{ e.time_slot.end_time|time:"H:i" }}</td>
+                            <td>{{ e.section.class_group.name }} {{ e.section.name }}</td>
+                            <td>{{ e.subject.name }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">No timetable entries.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

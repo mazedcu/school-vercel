@@ -10,7 +10,7 @@ import datetime
 
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
-from students.models import StudentProfile, ParentProfile
+from students.models import StudentProfile, ParentProfile, TeacherProfile
 from timetable.models import TimeSlot, TimetableEntry
 from timetable.services import generate_timetable_entry
 from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
@@ -119,3 +119,91 @@ def student_profile_detail(request, student_id):
         'parent_users': parent_users,
     }
     return render(request, 'dashboard/student_profile_detail.html', context)
+
+
+# ─── TEACHER PROFILES ────────────────────────────────────────────────────────
+
+@login_required
+@role_required(User.Role.ADMIN)
+def teacher_profiles(request):
+    """Admin: list all teachers with their profile info."""
+    teachers = User.objects.filter(role=User.Role.TEACHER).order_by('first_name', 'last_name')
+
+    teacher_data = []
+    for teacher in teachers:
+        profile, _ = TeacherProfile.objects.get_or_create(user=teacher)
+        # Count assigned sections and timetable entries
+        section_count = Section.objects.filter(timetable_entries__teacher=teacher).distinct().count()
+        entry_count = TimetableEntry.objects.filter(teacher=teacher).count()
+        teacher_data.append({
+            'teacher': teacher,
+            'profile': profile,
+            'section_count': section_count,
+            'entry_count': entry_count,
+        })
+
+    context = {
+        'teacher_data': teacher_data,
+        'total_teachers': teachers.count(),
+    }
+    return render(request, 'dashboard/teacher_profiles.html', context)
+
+
+@login_required
+def teacher_profile_detail(request, teacher_id):
+    """View/Edit a teacher's profile. Admin can edit, teacher can view their own."""
+    teacher = get_object_or_404(User, pk=teacher_id, role=User.Role.TEACHER)
+    is_admin = request.user.role == User.Role.ADMIN
+    is_own = request.user == teacher
+
+    if not is_admin and not is_own:
+        return redirect('dashboard_router')
+
+    profile, _ = TeacherProfile.objects.get_or_create(user=teacher)
+
+    # Handle edit (admin or own)
+    if request.method == 'POST':
+        if not is_admin and not is_own:
+            messages.error(request, "You don't have permission to edit this profile.")
+            return redirect('teacher_profile_detail', teacher_id=teacher.id)
+
+        profile.employee_id = request.POST.get('employee_id', '').strip()
+        profile.qualification = request.POST.get('qualification', '').strip()
+        profile.specialization = request.POST.get('specialization', '').strip()
+        profile.address = request.POST.get('address', '').strip()
+        exp = request.POST.get('experience_years', '0').strip()
+        profile.experience_years = int(exp) if exp.isdigit() else 0
+        dob = request.POST.get('date_of_birth', '').strip()
+        profile.date_of_birth = dob if dob else None
+        doj = request.POST.get('date_of_joining', '').strip()
+        profile.date_of_joining = doj if doj else None
+
+        # Update user fields
+        teacher.first_name = request.POST.get('first_name', '').strip()
+        teacher.last_name = request.POST.get('last_name', '').strip()
+        teacher.email = request.POST.get('email', '').strip()
+        teacher.phone = request.POST.get('phone', '').strip()
+        teacher.save()
+        profile.save()
+        messages.success(request, f"Profile for {teacher.get_full_name() or teacher.username} updated.")
+        return redirect('teacher_profile_detail', teacher_id=teacher.id)
+
+    # Teaching assignments
+    timetable_entries = TimetableEntry.objects.filter(
+        teacher=teacher
+    ).select_related('section__class_group', 'subject', 'time_slot').order_by('time_slot__day', 'time_slot__start_time')
+
+    my_sections = Section.objects.filter(timetable_entries__teacher=teacher).distinct().select_related('class_group')
+    my_subjects = Subject.objects.filter(timetableentry__teacher=teacher).distinct()
+
+    context = {
+        'teacher': teacher,
+        'profile': profile,
+        'is_admin': is_admin,
+        'is_own': is_own,
+        'can_edit': is_admin or is_own,
+        'timetable_entries': timetable_entries,
+        'my_sections': my_sections,
+        'my_subjects': my_subjects,
+    }
+    return render(request, 'dashboard/teacher_profile_detail.html', context)

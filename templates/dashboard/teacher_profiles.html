@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block page_title %}Teacher Profiles{% endblock %}
+{% block breadcrumb %}Admin / Teacher Profiles{% endblock %}
+{% block content %}
+<div class="grid grid-2" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_teachers }}</div>
+        <div class="stat-label">Total Teachers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ teacher_data|length }}</div>
+        <div class="stat-label">With Profiles</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">All Teachers</div>
+    {% if teacher_data %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Employee ID</th>
+                    <th>Qualification</th>
+                    <th>Sections</th>
+                    <th>Classes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for td in teacher_data %}
+                <tr>
+                    <td><span class="badge badge-blue">{{ td.teacher.id }}</span></td>
+                    <td>
+                        <div style="font-weight:600;">{{ td.teacher.get_full_name|default:td.teacher.username }}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">@{{ td.teacher.username }}</div>
+                    </td>
+                    <td style="font-size:0.8rem;">{{ td.teacher.email|default:"—" }}</td>
+                    <td>
+                        {% if td.profile.employee_id %}
+                        <span class="badge badge-green">{{ td.profile.employee_id }}</span>
+                        {% else %}
+                        <span style="color:var(--text-muted);font-size:0.8rem;">Not set</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.8rem;">{{ td.profile.qualification|default:"—" }}</td>
+                    <td><span class="badge badge-blue">{{ td.section_count }}</span></td>
+                    <td><span class="badge badge-green">{{ td.entry_count }}</span></td>
+                    <td>
+                        <a href="{% url 'teacher_profile_detail' td.teacher.id %}" class="btn btn-primary btn-sm">View Profile</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No teachers have been created yet. Add teachers via <a href="{% url 'manage_users' %}" style="color:var(--primary);font-weight:600;">User Management</a>.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -5,7 +5,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from academics.models import Section
 from students.models import ParentProfile
-from .services import create_student_with_parent
+from .services import create_student_with_parent, send_credential_email
 
 @login_required
 @role_required(User.Role.ADMIN)
@@ -36,6 +36,7 @@ def manage_users(request):
         student_email = request.POST.get('student_email', '').strip()
         parent_email = request.POST.get('parent_email', '').strip()
         roll_number = request.POST.get('roll_number', '').strip()
+        parent_username = request.POST.get('parent_username', '').strip()
 
         # ── Validation ───────────────────────────────────────────────────────
         if not username or not password:
@@ -52,15 +53,29 @@ def manage_users(request):
                 # Validate mandatory student fields
                 if not student_email:
                     messages.error(request, "Student email is required.")
+                elif not parent_username:
+                    messages.error(request, "Parent username is required.")
                 elif not parent_email:
                     messages.error(request, "Guardian/Parent email is required.")
                 else:
-                    user, parent_user, section = create_student_with_parent(
-                        username, password, first_name, last_name, section_id,
-                        student_email, parent_email, roll_number
-                    )
-                    section_name = section if section else "Unassigned"
-                    messages.success(request, f"Student '{username}' created in {section_name}. Parent account '{parent_user.username}' auto-created. Credential emails sent.")
+                    # Check: if parent_username is same as student username
+                    if parent_username == username:
+                        messages.error(request, "Parent username cannot be the same as the student username.")
+                    else:
+                        # Check: if parent_username exists but is NOT a parent role
+                        existing = User.objects.filter(username=parent_username).first()
+                        if existing and existing.role != User.Role.PARENT:
+                            messages.error(request, f"Username '{parent_username}' already exists as a {existing.get_role_display()}, not a parent.")
+                        else:
+                            user, parent_user, section, parent_existed = create_student_with_parent(
+                                username, password, first_name, last_name, section_id,
+                                student_email, parent_email, roll_number, parent_username
+                            )
+                            section_name = section if section else "Unassigned"
+                            if parent_existed:
+                                messages.success(request, f"Student '{username}' (ID: {user.id}) created in {section_name}. Linked to existing parent '{parent_user.username}'. Confirmation email sent to student.")
+                            else:
+                                messages.success(request, f"Student '{username}' (ID: {user.id}) created in {section_name}. Parent account '{parent_user.username}' (ID: {parent_user.id}) auto-created. Confirmation emails sent.")
             elif role == User.Role.TEACHER:
                 if not student_email:
                     messages.error(request, "Email address is required.")
@@ -70,14 +85,18 @@ def manage_users(request):
                         first_name=first_name, last_name=last_name,
                         role=role, email=student_email
                     )
-                    messages.success(request, f"User '{username}' created as {user.get_role_display()}.")
+                    # Send confirmation email with user ID
+                    send_credential_email(student_email, user, password, 'Teacher')
+                    messages.success(request, f"Teacher '{username}' (ID: {user.id}) created. Confirmation email sent.")
             else:
                 user = User.objects.create_user(
                     username=username, password=password,
                     first_name=first_name, last_name=last_name,
                     role=role, email=student_email
                 )
-                messages.success(request, f"User '{username}' created as {user.get_role_display()}.")
+                # Send confirmation email with user ID
+                send_credential_email(student_email, user, password, user.get_role_display())
+                messages.success(request, f"User '{username}' (ID: {user.id}) created as {user.get_role_display()}. Confirmation email sent.")
 
         return redirect('manage_users')
 

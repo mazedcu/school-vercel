@@ -61,13 +61,23 @@
                     <input type="text" name="roll_number" class="form-control" placeholder="e.g. R001">
                 </div>
             </div>
-            <div class="form-group">
-                <label>Guardian/Parent Email *</label>
-                <input type="email" name="parent_email" class="form-control" placeholder="parent@email.com">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Parent Username * <span style="font-weight:400;color:var(--text-muted);font-size:0.7rem;">(mandatory)</span></label>
+                    <input type="text" name="parent_username" id="parent_username_input" class="form-control" placeholder="e.g. parent_john or existing parent username">
+                    <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem;">
+                        Enter an existing parent username to link, or a new username to create a parent account.
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Guardian/Parent Email *</label>
+                    <input type="email" name="parent_email" class="form-control" placeholder="parent@email.com">
+                </div>
             </div>
             <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">
-                ✅ A <strong>Parent account</strong> will be auto-created (parent_<em>username</em>).<br>
-                ✅ Credential emails will be sent to both student and parent.
+                ✅ If parent username exists, the student will be <strong>linked</strong> to that parent.<br>
+                ✅ If parent username is new, a <strong>Parent account</strong> will be auto-created.<br>
+                ✅ Confirmation emails with <strong>User ID</strong> will be sent to both student and parent.
             </div>
         </div>
 
@@ -79,10 +89,11 @@
     <div class="card-title">All Users ({{ all_users.count }})</div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Connection</th><th>Actions</th></tr></thead>
+            <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Connection</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for item in user_data %}
                 <tr>
+                    <td><span class="badge badge-blue">{{ item.user.id }}</span></td>
                     <td>{{ item.user.username }}</td>
                     <td>{{ item.user.get_full_name|default:"-" }}</td>
                     <td style="font-size:0.75rem;">{{ item.user.email|default:"—" }}</td>
@@ -120,7 +131,13 @@
 <script>
 function toggleStudentFields() {
     const role = document.getElementById('role_select').value;
-    document.getElementById('student_fields').style.display = role === 'student' ? 'block' : 'none';
+    const isStudent = role === 'student';
+    document.getElementById('student_fields').style.display = isStudent ? 'block' : 'none';
+    // Make parent username required only when student role is selected
+    const parentInput = document.getElementById('parent_username_input');
+    if (parentInput) {
+        parentInput.required = isStudent;
+    }
 }
 toggleStudentFields();
 </script>

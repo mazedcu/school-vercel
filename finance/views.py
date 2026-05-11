@@ -104,18 +104,112 @@ def manage_finance(request):
             except Exception as e:
                 messages.error(request, str(e))
 
+        elif action == 'bulk_invoice':
+            bulk_class_id = request.POST.get('bulk_class_group')
+            bulk_section_id = request.POST.get('bulk_section', '')
+            due_date = request.POST.get('bulk_due_date')
+            discount_desc = request.POST.get('bulk_discount_description', '').strip()
+            discount_amt = request.POST.get('bulk_discount_amount', '0')
+
+            try:
+                if not bulk_class_id:
+                    messages.error(request, "Please select a class.")
+                    return redirect('manage_finance')
+                if not due_date:
+                    messages.error(request, "Please set a due date.")
+                    return redirect('manage_finance')
+
+                class_group = ClassGroup.objects.get(id=bulk_class_id)
+
+                # Collect fee items (up to 5)
+                line_items_data = []
+                for i in range(1, 6):
+                    fee_id = request.POST.get(f'bulk_fee_structure_{i}')
+                    if fee_id:
+                        try:
+                            fee = FeeStructure.objects.get(id=fee_id)
+                            line_items_data.append({
+                                'fee_structure': fee,
+                                'description': fee.name,
+                                'amount': fee.amount,
+                            })
+                        except FeeStructure.DoesNotExist:
+                            pass
+
+                if not line_items_data:
+                    messages.error(request, "Please select at least one fee category.")
+                    return redirect('manage_finance')
+
+                # Get students — filter by section if given, otherwise entire class
+                if bulk_section_id:
+                    student_profiles = StudentProfile.objects.filter(
+                        section_id=bulk_section_id
+                    ).select_related('user', 'section__class_group')
+                else:
+                    student_profiles = StudentProfile.objects.filter(
+                        section__class_group=class_group
+                    ).select_related('user', 'section__class_group')
+
+                if not student_profiles.exists():
+                    messages.error(request, "No students found in the selected class/section.")
+                    return redirect('manage_finance')
+
+                # Calculate totals
+                subtotal = sum(item['amount'] for item in line_items_data)
+                discount = Decimal(discount_amt) if discount_amt else Decimal('0')
+                amount_due = max(subtotal - discount, Decimal('0'))
+
+                created_count = 0
+                skipped_count = 0
+
+                for sp in student_profiles:
+                    student = sp.user
+
+                    # Create invoice for this student
+                    invoice = Invoice(
+                        student=student,
+                        class_group=class_group,
+                        subtotal=subtotal,
+                        discount_description=discount_desc,
+                        discount_amount=discount,
+                        amount_due=amount_due,
+                        due_date=due_date,
+                    )
+                    invoice.save()
+
+                    # Create line items
+                    for item in line_items_data:
+                        InvoiceLineItem.objects.create(
+                            invoice=invoice,
+                            fee_structure=item['fee_structure'],
+                            description=item['description'],
+                            amount=item['amount'],
+                        )
+                    created_count += 1
+
+                fee_names = ', '.join([item['description'] for item in line_items_data])
+                messages.success(
+                    request,
+                    f"✅ Bulk invoices created! {created_count} invoice(s) issued for '{fee_names}' "
+                    f"in {class_group.name} — Rs.{amount_due} each."
+                )
+            except Exception as e:
+                messages.error(request, f"Bulk invoice error: {str(e)}")
+
         return redirect('manage_finance')
 
     fee_structures = FeeStructure.objects.all().select_related('class_group')
     invoices = Invoice.objects.all().select_related('student', 'class_group').prefetch_related('line_items').order_by('-issued_date')
     class_groups = ClassGroup.objects.all()
     students = User.objects.filter(role=User.Role.STUDENT)
+    sections = Section.objects.select_related('class_group').all()
 
     context = {
         'fee_structures': fee_structures,
         'invoices': invoices,
         'class_groups': class_groups,
         'students': students,
+        'sections': sections,
     }
     return render(request, 'dashboard/manage_finance.html', context)
 
@@ -193,3 +287,22 @@ def api_fees_by_class(request):
                 'amount': str(f.amount),
             })
     return JsonResponse({'fees': fees})
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def api_students_by_section(request):
+    """Return students filtered by section (JSON)."""
+    section_id = request.GET.get('section_id')
+    students = []
+    if section_id:
+        profiles = StudentProfile.objects.filter(
+            section_id=section_id
+        ).select_related('user')
+        for p in profiles:
+            students.append({
+                'id': p.user.id,
+                'name': p.user.get_full_name() or p.user.username,
+                'roll': p.roll_number or '',
+            })
+    return JsonResponse({'students': students})

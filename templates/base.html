@@ -379,26 +379,36 @@
             <li class="nav-section">Administration</li>
             <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
             <li><a href="{% url 'student_profiles' %}" class="{% if request.resolver_match.url_name == 'student_profiles' or request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">🎓</span> Student Profiles</a></li>
+            
+            <li class="nav-section">HR</li>
+            <li><a href="{% url 'teacher_profiles' %}" class="{% if request.resolver_match.url_name == 'teacher_profiles' or request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👨‍🏫</span> Teacher Profiles</a></li>
+
+            <li class="nav-section">Academic</li>
             <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes & Subjects</a></li>
             <li><a href="{% url 'timetable_gen' %}" class="{% if request.resolver_match.url_name == 'timetable_gen' %}active{% endif %}"><span class="icon">📅</span> Timetable Setup</a></li>
             <li><a href="{% url 'view_timetable' %}" class="{% if request.resolver_match.url_name == 'view_timetable' %}active{% endif %}"><span class="icon">🗓️</span> View Timetable</a></li>
-            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
             <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Attendance</a></li>
-            <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
+            <li><a href="{% url 'grade_settings' %}" class="{% if request.resolver_match.url_name == 'grade_settings' %}active{% endif %}"><span class="icon">🎓</span> Grade Settings</a></li>
+            <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
+
             <li class="nav-section">Accounts & Procurement</li>
+            <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
             <li><a href="{% url 'manage_expenses' %}" class="{% if request.resolver_match.url_name == 'manage_expenses' %}active{% endif %}"><span class="icon">💸</span> Expenses</a></li>
             <li><a href="{% url 'account_statement' %}" class="{% if request.resolver_match.url_name == 'account_statement' %}active{% endif %}"><span class="icon">📋</span> Account Statement</a></li>
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
             <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
+
             <li class="nav-section">Reports</li>
-            <li><a href="{% url 'grade_settings' %}" class="{% if request.resolver_match.url_name == 'grade_settings' %}active{% endif %}"><span class="icon">🎓</span> Grade Settings</a></li>
+            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
-            <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
 
             {% elif user.role == 'teacher' %}
-            <li class="nav-section">Teaching</li>
+            <li class="nav-section">HR</li>
+            <li><a href="{% url 'teacher_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
+
+            <li class="nav-section">Academic</li>
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
             <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Mark Attendance</a></li>
             <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
