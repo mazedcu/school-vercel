@@ -40,7 +40,7 @@ def manage_finance(request):
             try:
                 inv = Invoice.objects.get(id=invoice_id)
                 Payment.objects.create(invoice=inv, amount=Decimal(pay_amount), method=method)
-                messages.success(request, f"Payment of Rs.{pay_amount} recorded for Invoice {inv.invoice_number}.")
+                messages.success(request, f"Payment of Tk.{pay_amount} recorded for Invoice {inv.invoice_number}.")
             except Exception as e:
                 messages.error(request, str(e))
 
@@ -135,13 +135,13 @@ def manage_finance(request):
                     student_name = target_students[0].get_full_name() or target_students[0].username
                     messages.success(
                         request,
-                        f"✅ Invoice issued to {student_name} for '{fee_names}' — Rs.{amount_due}."
+                        f"✅ Invoice issued to {student_name} for '{fee_names}' — Tk.{amount_due}."
                     )
                 else:
                     messages.success(
                         request,
                         f"✅ {created_count} invoice(s) issued for '{fee_names}' "
-                        f"in {class_group.name} — Rs.{amount_due} each."
+                        f"in {class_group.name} — Tk.{amount_due} each."
                     )
             except Exception as e:
                 messages.error(request, f"Invoice error: {str(e)}")
@@ -247,7 +247,7 @@ def api_fees_by_class(request):
         for f in fee_structures:
             fees.append({
                 'id': f.id,
-                'name': f"{f.name} ({f.class_group.name}) - Rs.{f.amount}",
+                'name': f"{f.name} ({f.class_group.name}) - Tk.{f.amount}",
                 'amount': str(f.amount),
             })
     return JsonResponse({'fees': fees})

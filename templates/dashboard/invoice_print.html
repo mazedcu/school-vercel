@@ -267,7 +267,7 @@
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ item.description }}</td>
-                    <td>Rs.{{ item.amount }}</td>
+                    <td>Tk.{{ item.amount }}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="3" style="text-align:center;color:#94a3b8;">No items</td></tr>
@@ -279,27 +279,27 @@
             <div class="totals-box">
                 <div class="totals-row">
                     <span>Subtotal</span>
-                    <span>Rs.{{ invoice.subtotal }}</span>
+                    <span>Tk.{{ invoice.subtotal }}</span>
                 </div>
                 {% if invoice.discount_amount > 0 %}
                 <div class="totals-row discount">
                     <span>Discount{% if invoice.discount_description %} ({{ invoice.discount_description }}){% endif %}</span>
-                    <span>- Rs.{{ invoice.discount_amount }}</span>
+                    <span>- Tk.{{ invoice.discount_amount }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row grand-total">
                     <span>Total Due</span>
-                    <span>Rs.{{ invoice.amount_due }}</span>
+                    <span>Tk.{{ invoice.amount_due }}</span>
                 </div>
                 {% if invoice.amount_paid > 0 %}
                 <div class="totals-row paid">
                     <span>Amount Paid</span>
-                    <span>Rs.{{ invoice.amount_paid }}</span>
+                    <span>Tk.{{ invoice.amount_paid }}</span>
                 </div>
                 {% endif %}
                 <div class="totals-row balance">
                     <span>Balance</span>
-                    <span>Rs.{{ balance }}</span>
+                    <span>Tk.{{ balance }}</span>
                 </div>
             </div>
         </div>
@@ -309,7 +309,7 @@
             <h3>💳 Payment History</h3>
             {% for p in payments %}
             <div class="payment-row">
-                <span>{{ p.payment_date }} — Rs.{{ p.amount }}</span>
+                <span>{{ p.payment_date }} — Tk.{{ p.amount }}</span>
                 <span class="method">{{ p.method }}</span>
             </div>
             {% endfor %}

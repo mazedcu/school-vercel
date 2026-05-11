@@ -43,15 +43,15 @@
 <!-- Summary Cards -->
 <div class="statement-summary">
     <div class="summary-card income">
-        <div class="value" style="color:#065f46;">Rs.{{ total_income }}</div>
+        <div class="value" style="color:#065f46;">Tk.{{ total_income }}</div>
         <div class="label" style="color:#065f46;">Total Income</div>
     </div>
     <div class="summary-card expense">
-        <div class="value" style="color:#991b1b;">Rs.{{ total_expenses }}</div>
+        <div class="value" style="color:#991b1b;">Tk.{{ total_expenses }}</div>
         <div class="label" style="color:#991b1b;">Total Expenses</div>
     </div>
     <div class="summary-card balance">
-        <div class="value" style="color:#3730a3;">Rs.{{ net_balance }}</div>
+        <div class="value" style="color:#3730a3;">Tk.{{ net_balance }}</div>
         <div class="label" style="color:#3730a3;">Net Balance</div>
     </div>
 </div>
@@ -68,8 +68,8 @@
                     <td>{{ entry.date }}</td>
                     <td>{{ entry.description }}</td>
                     <td><span class="badge {% if entry.type == 'income' %}badge-green{% else %}badge-yellow{% endif %}">{{ entry.method }}</span></td>
-                    <td style="text-align:right;">{% if entry.type == 'income' %}<strong class="ledger-income">Rs.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
-                    <td style="text-align:right;">{% if entry.type == 'expense' %}<strong class="ledger-expense">Rs.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
+                    <td style="text-align:right;">{% if entry.type == 'income' %}<strong class="ledger-income">Tk.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
+                    <td style="text-align:right;">{% if entry.type == 'expense' %}<strong class="ledger-expense">Tk.{{ entry.amount }}</strong>{% else %}—{% endif %}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="empty-state">No transactions found for this period.</td></tr>

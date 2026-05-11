@@ -132,8 +132,8 @@
                 {% for inv in invoices %}
                 <tr>
                     <td>{{ inv.fee_structure.name }}</td>
-                    <td>Rs.{{ inv.amount_due }}</td>
-                    <td>Rs.{{ inv.amount_paid }}</td>
+                    <td>Tk.{{ inv.amount_due }}</td>
+                    <td>Tk.{{ inv.amount_paid }}</td>
                     <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
                 </tr>
                 {% endfor %}

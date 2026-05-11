@@ -56,9 +56,9 @@
         <div class="card-title">💰 This Month's Finance</div>
         <table>
             <tbody>
-                <tr><td style="font-weight:500;">💚 Income (Payments)</td><td style="font-weight:700;color:var(--success);">Rs.{{ month_income }}</td></tr>
-                <tr><td style="font-weight:500;">❤️ Expenses</td><td style="font-weight:700;color:var(--danger);">Rs.{{ month_expenses }}</td></tr>
-                <tr style="border-top:2px solid var(--border);"><td style="font-weight:700;">📊 Net Balance</td><td style="font-weight:700;color:{% if month_net >= 0 %}var(--success){% else %}var(--danger){% endif %};">Rs.{{ month_net }}</td></tr>
+                <tr><td style="font-weight:500;">💚 Income (Payments)</td><td style="font-weight:700;color:var(--success);">Tk.{{ month_income }}</td></tr>
+                <tr><td style="font-weight:500;">❤️ Expenses</td><td style="font-weight:700;color:var(--danger);">Tk.{{ month_expenses }}</td></tr>
+                <tr style="border-top:2px solid var(--border);"><td style="font-weight:700;">📊 Net Balance</td><td style="font-weight:700;color:{% if month_net >= 0 %}var(--success){% else %}var(--danger){% endif %};">Tk.{{ month_net }}</td></tr>
                 <tr><td style="font-weight:500;">📦 Pending Purchase Requests</td><td><span class="badge badge-yellow">{{ pending_pr_count }}</span></td></tr>
             </tbody>
         </table>
@@ -126,7 +126,7 @@ fetch('/api/monthly-finance/?year={{ current_year }}')
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: function(ctx) { return ctx.dataset.label + ': Rs.' + ctx.parsed.y.toLocaleString(); }
+                            label: function(ctx) { return ctx.dataset.label + ': Tk.' + ctx.parsed.y.toLocaleString(); }
                         }
                     }
                 },
@@ -134,7 +134,7 @@ fetch('/api/monthly-finance/?year={{ current_year }}')
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            callback: function(value) { return 'Rs.' + value.toLocaleString(); },
+                            callback: function(value) { return 'Tk.' + value.toLocaleString(); },
                             font: { size: 11 }
                         },
                         grid: { color: 'rgba(0,0,0,0.05)' }

@@ -21,11 +21,11 @@
 <!-- Summary -->
 <div class="grid grid-2" style="margin-bottom:1.5rem;">
     <div class="stat-card">
-        <div class="stat-value" style="color:var(--primary);">Rs.{{ total_inventory_value }}</div>
+        <div class="stat-value" style="color:var(--primary);">Tk.{{ total_inventory_value }}</div>
         <div class="stat-label">Total Inventory Value</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" style="color:#8b5cf6;">Rs.{{ total_capex_value }}</div>
+        <div class="stat-value" style="color:#8b5cf6;">Tk.{{ total_capex_value }}</div>
         <div class="stat-label">Total Capital Assets Value</div>
     </div>
 </div>
@@ -51,7 +51,7 @@
             <div class="form-row">
                 <div class="form-group"><label>Quantity *</label><input type="number" name="quantity" class="form-control" value="1" required></div>
                 <div class="form-group"><label>Unit</label><input type="text" name="unit" class="form-control" value="pcs"></div>
-                <div class="form-group"><label>Unit Cost (Rs.)</label><input type="number" name="unit_cost" class="form-control" step="0.01" value="0"></div>
+                <div class="form-group"><label>Unit Cost (Tk.)</label><input type="number" name="unit_cost" class="form-control" step="0.01" value="0"></div>
             </div>
             <div class="form-group"><label>Description</label><input type="text" name="description" class="form-control"></div>
             <button type="submit" class="btn btn-primary">📦 Add Item</button>
@@ -70,8 +70,8 @@
                         <td>{{ item.category|default:"—" }}</td>
                         <td><strong>{{ item.quantity }}</strong></td>
                         <td>{{ item.unit }}</td>
-                        <td>Rs.{{ item.unit_cost }}</td>
-                        <td style="font-weight:600;">Rs.{{ item.total_value }}</td>
+                        <td>Tk.{{ item.unit_cost }}</td>
+                        <td style="font-weight:600;">Tk.{{ item.total_value }}</td>
                         <td style="font-size:0.75rem;">{{ item.location|default:"—" }}</td>
                         <td>
                             <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this inventory item?')">
@@ -103,7 +103,7 @@
                 <div class="form-group"><label>Category</label><input type="text" name="capex_category" class="form-control" placeholder="e.g. Electronics"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Purchase Cost (Rs.) *</label><input type="number" name="purchase_cost" class="form-control" step="0.01" required></div>
+                <div class="form-group"><label>Purchase Cost (Tk.) *</label><input type="number" name="purchase_cost" class="form-control" step="0.01" required></div>
                 <div class="form-group"><label>Purchase Date</label><input type="date" name="purchase_date" class="form-control"></div>
             </div>
             <div class="form-row">
@@ -134,7 +134,7 @@
                         <td><strong>{{ item.asset_id }}</strong></td>
                         <td>{{ item.name }}{% if item.description %}<br><span style="font-size:0.7rem;color:var(--text-muted);">{{ item.description }}</span>{% endif %}</td>
                         <td>{{ item.category|default:"—" }}</td>
-                        <td style="font-weight:600;">Rs.{{ item.purchase_cost }}</td>
+                        <td style="font-weight:600;">Tk.{{ item.purchase_cost }}</td>
                         <td>{{ item.purchase_date }}</td>
                         <td>{{ item.location|default:"—" }}</td>
                         <td><span class="badge {% if item.condition == 'new' %}badge-green{% elif item.condition == 'good' %}badge-blue{% elif item.condition == 'fair' %}badge-yellow{% else %}badge-red{% endif %}">{{ item.get_condition_display }}</span></td>

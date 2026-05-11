@@ -66,7 +66,7 @@
                 <input type="text" name="fee_name" class="form-control" placeholder="e.g. Tuition Fee" required>
             </div>
             <div class="form-group">
-                <label>Amount (Rs.)</label>
+                <label>Amount (Tk.)</label>
                 <input type="number" name="amount" class="form-control" step="0.01" required>
             </div>
             <div class="form-group">
@@ -98,13 +98,13 @@
                     <option value="">-- Select Invoice --</option>
                     {% for inv in invoices %}
                     {% if inv.status != 'paid' %}
-                    <option value="{{ inv.id }}" data-class="{{ inv.class_group_id }}">{{ inv.invoice_number }} - {{ inv.student.get_full_name|default:inv.student.username }} - Rs.{{ inv.amount_due }} ({{ inv.get_status_display }})</option>
+                    <option value="{{ inv.id }}" data-class="{{ inv.class_group_id }}">{{ inv.invoice_number }} - {{ inv.student.get_full_name|default:inv.student.username }} - Tk.{{ inv.amount_due }} ({{ inv.get_status_display }})</option>
                     {% endif %}
                     {% endfor %}
                 </select>
             </div>
             <div class="form-group">
-                <label>Amount (Rs.)</label>
+                <label>Amount (Tk.)</label>
                 <input type="number" name="pay_amount" class="form-control" step="0.01" required>
             </div>
             <div class="form-group">
@@ -168,9 +168,9 @@
                 <div class="fee-row" data-row="1">
                     <select name="bulk_fee_structure_1" class="form-control bulk-fee-select" onchange="updateBulkSummary()">
                         <option value="">-- Select Fee --</option>
-                        {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Rs.{{ f.amount }}</option>{% endfor %}
+                        {% for f in fee_structures %}<option value="{{ f.id }}" data-amount="{{ f.amount }}" data-class="{{ f.class_group.id }}">{{ f.name }} ({{ f.class_group.name }}) - Tk.{{ f.amount }}</option>{% endfor %}
                     </select>
-                    <span class="fee-amount" data-bulk-amount="1">Rs.0</span>
+                    <span class="fee-amount" data-bulk-amount="1">Tk.0</span>
                 </div>
             </div>
             <button type="button" class="add-fee-btn" id="addBulkFeeBtn" onclick="addBulkFeeRow()">+ Add Fee Item</button>
@@ -183,17 +183,17 @@
                     <input type="text" name="bulk_discount_description" class="form-control" placeholder="e.g. Early Bird Discount">
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
-                    <label>Discount Amount (Rs.)</label>
+                    <label>Discount Amount (Tk.)</label>
                     <input type="number" name="bulk_discount_amount" id="bulkDiscountAmount" class="form-control" step="0.01" value="0" oninput="updateBulkSummary()">
                 </div>
             </div>
         </div>
 
         <div class="invoice-summary" id="bulkInvoiceSummary" style="margin-top:0.75rem;">
-            <div class="row"><span>Per Student Subtotal:</span><span id="bulkSubtotal">Rs.0.00</span></div>
-            <div class="row"><span>Discount:</span><span id="bulkDiscount">- Rs.0.00</span></div>
-            <div class="row total"><span>Per Student Total:</span><span id="bulkTotal">Rs.0.00</span></div>
-            <div class="row" style="color:var(--primary);font-weight:600;border-top:1px dashed var(--border);padding-top:0.4rem;margin-top:0.4rem;"><span>Grand Total (all students):</span><span id="bulkGrandTotal">Rs.0.00</span></div>
+            <div class="row"><span>Per Student Subtotal:</span><span id="bulkSubtotal">Tk.0.00</span></div>
+            <div class="row"><span>Discount:</span><span id="bulkDiscount">- Tk.0.00</span></div>
+            <div class="row total"><span>Per Student Total:</span><span id="bulkTotal">Tk.0.00</span></div>
+            <div class="row" style="color:var(--primary);font-weight:600;border-top:1px dashed var(--border);padding-top:0.4rem;margin-top:0.4rem;"><span>Grand Total (all students):</span><span id="bulkGrandTotal">Tk.0.00</span></div>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);">
@@ -230,10 +230,10 @@
                         —
                         {% endfor %}
                     </td>
-                    <td>Rs.{{ inv.subtotal }}</td>
-                    <td>{% if inv.discount_amount > 0 %}<span style="color:var(--success);">- Rs.{{ inv.discount_amount }}</span>{% else %}—{% endif %}</td>
-                    <td><strong>Rs.{{ inv.amount_due }}</strong></td>
-                    <td>Rs.{{ inv.amount_paid }}</td>
+                    <td>Tk.{{ inv.subtotal }}</td>
+                    <td>{% if inv.discount_amount > 0 %}<span style="color:var(--success);">- Tk.{{ inv.discount_amount }}</span>{% else %}—{% endif %}</td>
+                    <td><strong>Tk.{{ inv.amount_due }}</strong></td>
+                    <td>Tk.{{ inv.amount_paid }}</td>
                     <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
                     <td>{{ inv.due_date }}</td>
                     <td>
@@ -376,7 +376,7 @@ function addBulkFeeRow() {
         <select name="bulk_fee_structure_${bulkFeeRowCount}" class="form-control bulk-fee-select" onchange="updateBulkSummary()">
             ${optionsHtml}
         </select>
-        <span class="fee-amount" data-bulk-amount="${bulkFeeRowCount}">Rs.0</span>
+        <span class="fee-amount" data-bulk-amount="${bulkFeeRowCount}">Tk.0</span>
         <button type="button" class="remove-fee-btn" onclick="removeBulkFeeRow(this)">×</button>
     `;
     container.appendChild(row);
@@ -402,7 +402,7 @@ function updateBulkSummary() {
 
         const amountDisplay = sel.closest('.fee-row').querySelector('.fee-amount');
         if (amountDisplay) {
-            amountDisplay.textContent = amount > 0 ? `Rs.${amount.toFixed(2)}` : 'Rs.0';
+            amountDisplay.textContent = amount > 0 ? `Tk.${amount.toFixed(2)}` : 'Tk.0';
         }
     });
 
@@ -410,10 +410,10 @@ function updateBulkSummary() {
     const perStudent = Math.max(subtotal - discount, 0);
     const grandTotal = perStudent * bulkStudentCount;
 
-    document.getElementById('bulkSubtotal').textContent = `Rs.${subtotal.toFixed(2)}`;
-    document.getElementById('bulkDiscount').textContent = `- Rs.${discount.toFixed(2)}`;
-    document.getElementById('bulkTotal').textContent = `Rs.${perStudent.toFixed(2)}`;
-    document.getElementById('bulkGrandTotal').textContent = `Rs.${grandTotal.toFixed(2)}`;
+    document.getElementById('bulkSubtotal').textContent = `Tk.${subtotal.toFixed(2)}`;
+    document.getElementById('bulkDiscount').textContent = `- Tk.${discount.toFixed(2)}`;
+    document.getElementById('bulkTotal').textContent = `Tk.${perStudent.toFixed(2)}`;
+    document.getElementById('bulkGrandTotal').textContent = `Tk.${grandTotal.toFixed(2)}`;
 }
 
 function submitBulkInvoice() {

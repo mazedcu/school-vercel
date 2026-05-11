@@ -11,7 +11,7 @@ class FeeStructure(models.Model):
     academic_year = models.CharField(max_length=10)
 
     def __str__(self):
-        return f"{self.name} - {self.class_group.name} ({self.academic_year}) - Rs.{self.amount}"
+        return f"{self.name} - {self.class_group.name} ({self.academic_year}) - Tk.{self.amount}"
 
 
 class Invoice(models.Model):
@@ -103,7 +103,7 @@ class InvoiceLineItem(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.description} - Rs.{self.amount}"
+        return f"{self.description} - Tk.{self.amount}"
 
 
 class Payment(models.Model):
@@ -122,4 +122,4 @@ class Payment(models.Model):
         self.invoice.save()
 
     def __str__(self):
-        return f"Payment Rs.{self.amount} for Invoice {self.invoice.invoice_number}"
+        return f"Payment Tk.{self.amount} for Invoice {self.invoice.invoice_number}"

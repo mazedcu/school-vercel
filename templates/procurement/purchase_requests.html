@@ -37,7 +37,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Estimated Cost (Rs.) *</label>
+                <label>Estimated Cost (Tk.) *</label>
                 <input type="number" name="estimated_cost" class="form-control" step="0.01" required>
             </div>
         </div>
@@ -79,7 +79,7 @@
                     <td>{{ pr.title }}</td>
                     <td><span class="badge badge-blue">{{ pr.get_item_type_display }}</span></td>
                     <td>{{ pr.requested_by.get_full_name|default:pr.requested_by.username }}</td>
-                    <td>Rs.{{ pr.estimated_cost }}</td>
+                    <td>Tk.{{ pr.estimated_cost }}</td>
                     <td><span class="badge pr-status-{{ pr.status }}">{{ pr.get_status_display }}</span></td>
                     <td style="font-size:0.75rem;">{{ pr.created_at|date:"d M Y" }}</td>
                     {% if request.user.role == 'admin' %}
@@ -114,7 +114,7 @@
                                     <div class="form-group"><label>Order Date</label><input type="date" name="order_date" class="form-control"></div>
                                     <div class="form-group"><label>Expected Delivery</label><input type="date" name="expected_delivery" class="form-control"></div>
                                 </div>
-                                <div class="form-group"><label>Actual Cost (Rs.)</label><input type="number" name="actual_cost" class="form-control" step="0.01" value="{{ pr.estimated_cost }}"></div>
+                                <div class="form-group"><label>Actual Cost (Tk.)</label><input type="number" name="actual_cost" class="form-control" step="0.01" value="{{ pr.estimated_cost }}"></div>
                                 <button type="submit" class="btn btn-primary btn-sm">Create Purchase Order</button>
                             </form>
                         </div>
@@ -150,7 +150,7 @@
                     <td><strong>{{ po.po_number }}</strong></td>
                     <td>{{ po.purchase_request.title }}</td>
                     <td>{{ po.vendor_name }}</td>
-                    <td>Rs.{{ po.actual_cost }}</td>
+                    <td>Tk.{{ po.actual_cost }}</td>
                     <td>{{ po.order_date }}</td>
                     <td>
                         {% if po.is_received %}

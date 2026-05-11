@@ -29,7 +29,7 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Amount (Rs.) *</label>
+                    <label>Amount (Tk.) *</label>
                     <input type="number" name="amount" class="form-control" step="0.01" required>
                 </div>
                 <div class="form-group">
@@ -65,7 +65,7 @@
                     <td>{{ exp.date }}</td>
                     <td>{{ exp.description }}</td>
                     <td><span class="badge badge-yellow">{{ exp.get_category_display }}</span></td>
-                    <td style="font-weight:600;color:var(--danger);">Rs.{{ exp.amount }}</td>
+                    <td style="font-weight:600;color:var(--danger);">Tk.{{ exp.amount }}</td>
                     <td style="font-size:0.75rem;">{{ exp.reference|default:"—" }}</td>
                     <td>
                         <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this expense?')">

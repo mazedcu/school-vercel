@@ -29,7 +29,7 @@ class Expense(models.Model):
         ordering = ['-date', '-created_at']
 
     def __str__(self):
-        return f"{self.date} - {self.description} - Rs.{self.amount}"
+        return f"{self.date} - {self.description} - Tk.{self.amount}"
 
 
 class PurchaseRequest(models.Model):
@@ -159,4 +159,4 @@ class CapexItem(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.asset_id} | {self.name} - Rs.{self.purchase_cost}"
+        return f"{self.asset_id} | {self.name} - Tk.{self.purchase_cost}"
