@@ -239,7 +239,7 @@
                     <td>
                         <div style="display:flex;gap:0.4rem;">
                             <a href="{% url 'print_invoice' inv.id %}" class="print-btn" target="_blank">🖨️ Print</a>
-                            <a href="{% url 'delete_invoice' inv.id %}" class="delete-link">🗑️ Delete</a>
+                            <a href="{% url 'delete_invoice' inv.id %}" class="delete-link" onclick="return confirm('Are you sure?')">🗑️ Delete</a>
                         </div>
                     </td>
                 </tr>
