@@ -182,6 +182,20 @@ def print_invoice(request, invoice_id):
 
 @login_required
 @role_required(User.Role.ADMIN)
+def delete_invoice(request, invoice_id):
+    """Delete an invoice and redirect back."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    inv_num = invoice.invoice_number
+    try:
+        invoice.delete()
+        messages.success(request, f"Invoice {inv_num} deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Error deleting invoice: {str(e)}")
+    return redirect('manage_finance')
+
+
+@login_required
+@role_required(User.Role.ADMIN)
 def api_students_by_class(request):
     """Return students filtered by class group (JSON)."""
     class_group_id = request.GET.get('class_group_id')
