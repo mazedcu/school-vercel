@@ -244,7 +244,7 @@
             <div class="row" style="color:var(--primary);font-weight:600;border-top:1px dashed var(--border);padding-top:0.4rem;margin-top:0.4rem;"><span>Grand Total (all students):</span><span id="bulkGrandTotal">Rs.0.00</span></div>
         </div>
 
-        <button type="button" id="bulkInvoiceSubmitBtn" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);">
+        <button type="submit" class="btn btn-primary btn-block" style="margin-top:1rem;padding:0.85rem;font-size:0.95rem;background:linear-gradient(135deg,#6366f1,#8b5cf6);">
             ⚡ Issue Bulk Invoices
         </button>
     </form>
@@ -621,9 +621,5 @@ function submitBulkInvoice() {
         document.getElementById('bulkInvoiceForm').submit();
     }
 }
-
-document.getElementById('bulkInvoiceSubmitBtn').addEventListener('click', function() {
-    submitBulkInvoice();
-});
 </script>
 {% endblock %}
