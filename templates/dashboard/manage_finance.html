@@ -188,7 +188,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label>Class *</label>
-                <select name="bulk_class_group" id="bulkClassSelect" class="form-control" required onchange="onBulkClassChange()">
+                <select name="bulk_class_group" id="bulkClassSelect" class="form-control" onchange="onBulkClassChange()">
                     <option value="">-- Select Class --</option>
                     {% for cg in class_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
                 </select>
@@ -202,7 +202,7 @@
             </div>
             <div class="form-group">
                 <label>Due Date *</label>
-                <input type="date" name="bulk_due_date" class="form-control" required>
+                <input type="date" name="bulk_due_date" class="form-control">
             </div>
         </div>
 
