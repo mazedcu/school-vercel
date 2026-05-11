@@ -378,6 +378,7 @@
             {% if user.role == 'admin' %}
             <li class="nav-section">Administration</li>
             <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
+            <li><a href="{% url 'manage_notices' %}" class="{% if request.resolver_match.url_name == 'manage_notices' %}active{% endif %}"><span class="icon">📢</span> Announcements</a></li>
             <li><a href="{% url 'student_profiles' %}" class="{% if request.resolver_match.url_name == 'student_profiles' or request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">🎓</span> Student Profiles</a></li>
             
             <li class="nav-section">HR</li>

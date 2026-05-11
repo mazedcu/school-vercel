@@ -2,6 +2,7 @@
 {% block page_title %}Parent Dashboard{% endblock %}
 {% block breadcrumb %}Parent / Dashboard{% endblock %}
 {% block content %}
+{% include "dashboard/notices_snippet.html" %}
 
 {% if children_data %}
 {% for cd in children_data %}

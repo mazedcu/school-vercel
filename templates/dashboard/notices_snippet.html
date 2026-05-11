@@ -1,0 +1,30 @@
+<!-- 📢 Notice Board Snippet -->
+<div class="card" style="border-left: 5px solid var(--primary);">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span style="font-size:1.25rem;">📢</span>
+            <span>Announcements</span>
+        </div>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'manage_notices' %}" style="font-size:0.75rem;color:var(--primary);text-decoration:none;">Manage All →</a>
+        {% endif %}
+    </div>
+    <div class="notice-list">
+        {% if notices %}
+            {% for n in notices %}
+            <div class="notice-item" style="padding: 1rem 0; border-bottom: 1px solid var(--border);">
+                {% if forloop.last %}<style>.notice-item:last-child { border-bottom: none !important; }</style>{% endif %}
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong style="color:var(--text);font-size:0.95rem;">{{ n.title }}</strong>
+                    <span style="font-size:0.7rem;color:var(--text-muted);">{{ n.created_at|date:"M d" }}</span>
+                </div>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin-top:0.4rem;line-height:1.4;white-space:pre-wrap;">{{ n.content|truncatewords:50 }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.85rem;font-style:italic;">
+                No active announcements at the moment.
+            </div>
+        {% endif %}
+    </div>
+</div>

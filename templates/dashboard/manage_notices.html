@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block page_title %}Announcement Management{% endblock %}
+{% block breadcrumb %}Admin / Announcements{% endblock %}
+
+{% block extra_head %}
+<style>
+    .notice-form-card { background: var(--surface); border: 2px solid var(--primary); border-radius: 1rem; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 10px 25px rgba(99,102,241,0.1); }
+    .notice-list-card { background: var(--surface); border-radius: 1rem; border: 1px solid var(--border); padding: 1.5rem; }
+    .notice-item { border-bottom: 1px solid var(--border); padding: 1rem 0; display: flex; justify-content: space-between; align-items: flex-start; }
+    .notice-item:last-child { border-bottom: none; }
+    .notice-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .badge-target { padding: 0.2rem 0.5rem; border-radius: 0.4rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+    .target-all { background: #e0f2fe; color: #0369a1; }
+    .target-teacher { background: #fef3c7; color: #92400e; }
+    .target-student_parent { background: #d1fae5; color: #065f46; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notice-form-card">
+    <div class="card-title" style="font-size:1.25rem;display:flex;align-items:center;gap:0.75rem;">
+        <span>📢</span> Post a New Notice
+    </div>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" name="title" class="form-control" placeholder="e.g. School Holiday Announcement" required>
+        </div>
+        <div class="form-group">
+            <label>Content</label>
+            <textarea name="content" class="form-control" rows="4" placeholder="Write the notice details here..." required></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Visible To</label>
+                <select name="target_role" class="form-control">
+                    <option value="all">Everyone (All Roles)</option>
+                    <option value="teacher">Teachers Only</option>
+                    <option value="student_parent">Students & Parents Only</option>
+                </select>
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;">
+                <button type="submit" class="btn btn-primary btn-block" style="padding:0.75rem;">🚀 Post Notice</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="notice-list-card">
+    <div class="card-title">📜 Previous Notices</div>
+    {% if notices %}
+        {% for n in notices %}
+        <div class="notice-item">
+            <div>
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <strong style="font-size:1.05rem;color:var(--text);">{{ n.title }}</strong>
+                    <span class="badge-target target-{{ n.target_role }}">{{ n.get_target_role_display }}</span>
+                </div>
+                <div style="margin-top:0.5rem;color:var(--text-muted);font-size:0.9rem;white-space:pre-wrap;">{{ n.content }}</div>
+                <div class="notice-meta">Posted on {{ n.created_at|date:"M d, Y H:i" }} by {{ n.created_by.get_full_name|default:n.created_by.username }}</div>
+            </div>
+            <a href="{% url 'delete_notice' n.id %}" class="btn btn-danger btn-sm" style="background:none;color:var(--danger);border:1px solid var(--danger-light);padding:0.25rem 0.5rem;text-decoration:none;">🗑️ Delete</a>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">No notices have been posted yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

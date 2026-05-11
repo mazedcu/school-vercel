@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from accounts.decorators import role_required
 from django.utils import timezone
 from django.db.models import Sum
@@ -13,6 +14,7 @@ from exams.models import AssessmentRecord, GradeSetting
 from finance.models import Invoice, Payment
 from procurement.models import Expense, PurchaseRequest, InventoryItem, CapexItem
 from exams.views import _calculate_student_grade, _get_letter_grade
+from .models import Notice
 
 # ─── Home & Router ───────────────────────────────────────────────────────────
 
@@ -78,6 +80,7 @@ def admin_dashboard(request):
         'pending_pr_count': pending_pr_count,
         'inventory_count': inventory_count,
         'capex_count': capex_count,
+        'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/admin_dashboard.html', context)
 
@@ -97,6 +100,7 @@ def teacher_dashboard(request):
         'my_sections': my_sections,
         'pending_assessments': pending_assessments,
         'section_count': my_sections.count(),
+        'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'teacher']).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/teacher_dashboard.html', context)
 
@@ -136,6 +140,7 @@ def student_dashboard(request):
         'grades': grades,
         'timetable': timetable,
         'invoices': invoices,
+        'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'student_parent']).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/student_dashboard.html', context)
 
@@ -182,5 +187,35 @@ def parent_dashboard(request):
     context = {
         'parent_profile': parent_profile,
         'children_data': children_data,
+        'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'student_parent']).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/parent_dashboard.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def manage_notices(request):
+    """Admin view to create and delete school notices."""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'create':
+            Notice.objects.create(
+                title=request.POST.get('title'),
+                content=request.POST.get('content'),
+                target_role=request.POST.get('target_role'),
+                created_by=request.user
+            )
+            messages.success(request, "Notice posted successfully!")
+        return redirect('manage_notices')
+
+    notices = Notice.objects.all().order_by('-created_at')
+    return render(request, 'dashboard/manage_notices.html', {'notices': notices})
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def delete_notice(request, notice_id):
+    """Delete a notice via GET (for consistency)."""
+    Notice.objects.filter(id=notice_id).delete()
+    messages.success(request, "Notice deleted.")
+    return redirect('manage_notices')

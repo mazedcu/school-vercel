@@ -30,6 +30,8 @@
     <a href="{% url 'student_profile_detail' request.user.id %}" class="btn" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);">👤 My Profile</a>
 </div>
 
+{% include "dashboard/notices_snippet.html" %}
+
 <div class="grid grid-3" style="margin-bottom:1.5rem;">
     <div class="stat-card">
         <div class="stat-value" style="color:{% if att_pct >= 75 %}var(--success){% elif att_pct >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ att_pct }}%</div>
