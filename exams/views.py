@@ -747,8 +747,23 @@ def period_report_select(request, student_id=None):
 
     configs = []
     if section:
+        # Try exact match first
         config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
-        if config:
+        # Fallback: try partial match (e.g. section="2026" matches config="2025-26")
+        if not config:
+            config = AcademicPeriodConfig.objects.filter(
+                academic_year__icontains=section.academic_year
+            ).first()
+        if not config:
+            # Last resort: show all configs so the user isn't stuck
+            all_configs = AcademicPeriodConfig.objects.all()
+            for c in all_configs:
+                if viewer.role in [User.Role.ADMIN, User.Role.TEACHER]:
+                    periods = c.periods.all()
+                else:
+                    periods = c.periods.filter(is_published=True)
+                configs.append({'config': c, 'periods': periods})
+        else:
             if viewer.role in [User.Role.ADMIN, User.Role.TEACHER]:
                 periods = config.periods.all()
             else:
