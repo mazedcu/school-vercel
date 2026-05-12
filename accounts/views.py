@@ -3,6 +3,7 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import PasswordResetView
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.models import User
@@ -13,24 +14,39 @@ from .services import create_student_with_parent, send_credential_email
 logger = logging.getLogger(__name__)
 
 
-# ── Safe Password Reset (catches SMTP errors) ────────────────────────────────
+# ── Safe Password Reset (catches SMTP errors at EVERY level) ─────────────────
+
+class SafePasswordResetForm(PasswordResetForm):
+    """Catches SMTP errors at the lowest level — inside send_mail()."""
+
+    def send_mail(self, subject_template_name, email_template_name,
+                  context, from_email, to_email, html_email_template_name=None):
+        try:
+            super().send_mail(
+                subject_template_name, email_template_name,
+                context, from_email, to_email,
+                html_email_template_name=html_email_template_name,
+            )
+        except Exception as exc:
+            logger.error(
+                "Password-reset email to %s failed: %s", to_email, exc,
+                exc_info=True,
+            )
+            # Swallow the error — the user still sees the "check your inbox" page
+
+
 class SafePasswordResetView(PasswordResetView):
     """
-    Overrides Django's PasswordResetView so that SMTP / connection errors
-    do NOT produce a 500 Internal Server Error.  Instead the user is
-    redirected to the "done" page as normal (so we don't leak whether an
-    email exists) and the error is logged server-side.
+    Uses SafePasswordResetForm so SMTP failures never crash the page.
+    Also has a belt-and-suspenders try/except around form_valid().
     """
+    form_class = SafePasswordResetForm
 
     def form_valid(self, form):
         try:
             return super().form_valid(form)
         except Exception as exc:
-            # Log the real error for the admin to diagnose
-            logger.error("Password-reset email failed: %s", exc, exc_info=True)
-            # Still redirect to the "done" page so we don't reveal
-            # whether the email address exists in the database.
-            from django.shortcuts import redirect
+            logger.error("Password-reset view failed: %s", exc, exc_info=True)
             return redirect('password_reset_done')
 
 
