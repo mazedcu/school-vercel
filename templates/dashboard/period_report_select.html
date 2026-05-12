@@ -11,7 +11,7 @@
                 Section: {{ section|default:"N/A" }} · Roll: {{ profile.roll_number|default:"N/A" }}
             </div>
         </div>
-        <a href="{% url 'student_report' student.id %}" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">📄 Full Year Report</a>
+        <a href="{% url 'student_report_detail' student.id %}" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">📄 Full Year Report</a>
     </div>
 
     {% for cfg in configs %}
