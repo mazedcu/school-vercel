@@ -19,9 +19,9 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('accounts.urls')),          # Must be before auth.urls for custom password_reset
     path('', include('django.contrib.auth.urls')),
     path('', include('dashboard.urls')),
-    path('', include('accounts.urls')),
     path('', include('academics.urls')),
     path('', include('attendance.urls')),
     path('', include('exams.urls')),

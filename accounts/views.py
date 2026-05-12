@@ -1,11 +1,38 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import PasswordResetView
 from django.contrib import messages
 from accounts.decorators import role_required
 from accounts.models import User
 from academics.models import Section
 from students.models import ParentProfile
 from .services import create_student_with_parent, send_credential_email
+
+logger = logging.getLogger(__name__)
+
+
+# ── Safe Password Reset (catches SMTP errors) ────────────────────────────────
+class SafePasswordResetView(PasswordResetView):
+    """
+    Overrides Django's PasswordResetView so that SMTP / connection errors
+    do NOT produce a 500 Internal Server Error.  Instead the user is
+    redirected to the "done" page as normal (so we don't leak whether an
+    email exists) and the error is logged server-side.
+    """
+
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except Exception as exc:
+            # Log the real error for the admin to diagnose
+            logger.error("Password-reset email failed: %s", exc, exc_info=True)
+            # Still redirect to the "done" page so we don't reveal
+            # whether the email address exists in the database.
+            from django.shortcuts import redirect
+            return redirect('password_reset_done')
+
 
 @login_required
 @role_required(User.Role.ADMIN)
