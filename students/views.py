@@ -205,6 +205,10 @@ def teacher_profile_detail(request, teacher_id):
         if 'photo' in request.FILES:
             profile.photo = request.FILES['photo']
 
+        # Coordinator flag — admin only
+        if request.user.role == User.Role.ADMIN:
+            profile.is_coordinator = bool(request.POST.get('is_coordinator'))
+
         # Update user fields
         teacher.first_name = request.POST.get('first_name', '').strip()
         teacher.last_name = request.POST.get('last_name', '').strip()

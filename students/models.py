@@ -45,6 +45,11 @@ class TeacherProfile(models.Model):
     experience_years = models.PositiveIntegerField(default=0, verbose_name="Years of Experience")
     biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True, help_text="ID from attendance machine")
     photo = models.ImageField(upload_to='teacher_photos/', blank=True, null=True, verbose_name="Photo")
+    is_coordinator = models.BooleanField(
+        default=False,
+        verbose_name="Is Coordinator",
+        help_text="Coordinators can evaluate teachers and have a separate KPI framework."
+    )
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} (Teacher)"

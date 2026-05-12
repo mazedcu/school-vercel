@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Evaluate {{ staff.get_full_name }} — OpDevSM{% endblock %}
+{% block page_title %}Staff Evaluation{% endblock %}
+{% block breadcrumb %}
+    <a href="{% url 'performance_cycle_list' %}">Performance</a> →
+    <a href="{% url 'performance_cycle_detail' cycle.id %}">{{ cycle.name }}</a> →
+    {{ staff.get_full_name|default:staff.username }}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .score-input { width:80px;text-align:center;font-size:1rem;font-weight:600; }
+    .kpi-card { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.75rem;transition:border-color 0.2s; }
+    .kpi-card:focus-within { border-color:var(--primary); }
+    .kpi-header { display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:0.75rem; }
+    .kpi-info { flex:1; }
+    .kpi-title { font-weight:600;font-size:0.95rem; }
+    .kpi-source { font-size:0.78rem;color:var(--text-muted);margin-top:2px; }
+    .kpi-desc { font-size:0.8rem;color:var(--text-muted);margin-top:4px; }
+    .weight-chip { background:var(--primary-light);color:#3730a3;font-size:0.8rem;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap; }
+    .score-section { display:flex;flex-direction:column;align-items:center;gap:4px;min-width:100px; }
+    .score-bar-wrap { width:100%;background:var(--border);border-radius:999px;height:6px;margin-top:4px; }
+    .score-bar { height:6px;border-radius:999px;background:var(--primary);transition:width 0.3s; }
+    .total-box { background:linear-gradient(135deg,#312e81,#4338ca);color:#fff;border-radius:12px;padding:1.5rem;text-align:center;margin-bottom:1.5rem; }
+    .section-label { font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;color:var(--primary);margin:1.5rem 0 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Staff Info + Score Summary -->
+<div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <div class="card" style="flex:2;min-width:280px;">
+        <div style="display:flex;gap:1rem;align-items:center;">
+            <div style="width:52px;height:52px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;color:#fff;flex-shrink:0;">
+                {{ staff.first_name|first|upper }}
+            </div>
+            <div>
+                <div style="font-size:1.1rem;font-weight:700;">{{ staff.get_full_name|default:staff.username }}</div>
+                <div style="color:var(--text-muted);font-size:0.85rem;">@{{ staff.username }} · {{ role_type|title }}</div>
+                <div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px;">
+                    Cycle: {{ cycle.name }} ({{ cycle.start_date|date:"d M Y" }} – {{ cycle.end_date|date:"d M Y" }})
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+            {% if evaluation.status == 'submitted' %}
+                <span class="badge badge-green">✓ Submitted {{ evaluation.submitted_at|date:"d M Y H:i" }}</span>
+            {% else %}
+                <span class="badge badge-yellow">Draft</span>
+            {% endif %}
+            {% if is_closed %}<span class="badge" style="background:#fee2e2;color:#991b1b;">Cycle Closed</span>{% endif %}
+        </div>
+    </div>
+    <div class="total-box" style="flex:1;min-width:200px;">
+        <div style="font-size:0.8rem;opacity:0.7;text-transform:uppercase;letter-spacing:1px;">Current Score</div>
+        <div id="live-score" style="font-size:2.8rem;font-weight:800;margin:0.25rem 0;">
+            {% if current_score %}{{ current_score|floatformat:1 }}{% else %}—{% endif %}
+        </div>
+        <div style="font-size:0.85rem;opacity:0.8;">out of 100</div>
+        {% if grade_info %}
+        <div style="margin-top:0.5rem;font-size:1rem;font-weight:700;">{{ grade_info.letter }} — {{ grade_info.label }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if is_closed %}
+<div style="background:var(--warning-light);border:1px solid var(--warning);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;color:#92400e;">
+    ⚠ This cycle is closed. Scores are read-only.
+</div>
+{% endif %}
+
+<!-- Score Form -->
+<form method="post" id="eval-form">
+    {% csrf_token %}
+    {% for row in section_data %}
+    <div class="section-label">{{ row.section.name }}</div>
+    {% for item in row.kpis %}
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <div class="kpi-info">
+                <div class="kpi-title">{{ item.kpi.title }}</div>
+                <div class="kpi-source">📌 Source: {{ item.kpi.data_source }}</div>
+                {% if item.kpi.description %}
+                <div class="kpi-desc">{{ item.kpi.description }}</div>
+                {% endif %}
+            </div>
+            <div class="score-section">
+                <span class="weight-chip">Weight: {{ item.kpi.max_weight }}%</span>
+                <input type="number" name="score_{{ item.kpi.id }}" id="score_{{ item.kpi.id }}"
+                       class="form-control score-input"
+                       min="0" max="100" step="0.5"
+                       value="{{ item.score }}"
+                       {% if is_closed %}readonly{% endif %}
+                       oninput="updateBar(this, {{ item.kpi.max_weight }})">
+                <small style="color:var(--text-muted);">/ 100</small>
+                <div class="score-bar-wrap">
+                    <div class="score-bar" id="bar_{{ item.kpi.id }}"
+                         style="width:{% if item.score %}{{ item.score }}{% else %}0{% endif %}%"></div>
+                </div>
+                <small id="earned_{{ item.kpi.id }}" style="color:var(--primary);font-weight:600;font-size:0.78rem;">
+                    {% if item.score %}{{ item.score }} × {{ item.kpi.max_weight }}% = {% widthratio item.score 100 item.kpi.max_weight %}pts{% endif %}
+                </small>
+            </div>
+        </div>
+        <div>
+            <input type="text" name="comment_{{ item.kpi.id }}" class="form-control"
+                   style="font-size:0.85rem;" placeholder="Optional comment for this KPI..."
+                   value="{{ item.comment }}"
+                   {% if is_closed %}readonly{% endif %}>
+        </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+
+    <!-- Overall Comment -->
+    <div class="card">
+        <label class="form-label" style="font-weight:600;">Overall Evaluator Remarks</label>
+        <textarea name="overall_comment" class="form-control" rows="3"
+                  placeholder="Overall performance remarks, strengths, areas for improvement..."
+                  {% if is_closed %}readonly{% endif %}>{{ evaluation.overall_comment }}</textarea>
+    </div>
+
+    {% if not is_closed %}
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.5rem;">
+        <button type="submit" name="action" value="save" class="btn btn-secondary">💾 Save as Draft</button>
+        <button type="submit" name="action" value="submit" class="btn btn-primary"
+                onclick="return confirm('Submit this evaluation? The final score will be calculated and locked.')">
+            ✅ Submit Evaluation
+        </button>
+        <a href="{% url 'performance_cycle_detail' cycle.id %}" class="btn btn-secondary">← Back</a>
+    </div>
+    {% else %}
+    <div style="display:flex;gap:0.75rem;margin-top:0.5rem;">
+        {% if evaluation.status == 'submitted' %}
+        <a href="{% url 'performance_report_html' cycle.id staff.id %}" class="btn btn-primary" target="_blank">📄 View Report</a>
+        <a href="{% url 'performance_report_pdf' cycle.id staff.id %}" class="btn btn-secondary">⬇ Download PDF</a>
+        {% endif %}
+        <a href="{% url 'performance_cycle_detail' cycle.id %}" class="btn btn-secondary">← Back</a>
+    </div>
+    {% endif %}
+</form>
+
+<script>
+// KPI data for JS calculations
+const kpiWeights = {
+    {% for row in section_data %}{% for item in row.kpis %}"{{ item.kpi.id }}": {{ item.kpi.max_weight }},{% endfor %}{% endfor %}
+};
+
+function updateBar(input, weight) {
+    const val = parseFloat(input.value) || 0;
+    const clamped = Math.min(100, Math.max(0, val));
+    const bar = document.getElementById('bar_' + input.id.replace('score_', ''));
+    const earned = document.getElementById('earned_' + input.id.replace('score_', ''));
+    if (bar) bar.style.width = clamped + '%';
+    if (earned) {
+        const contribution = (clamped * weight / 100).toFixed(2);
+        earned.textContent = `${clamped} × ${weight}% = ${contribution}pts`;
+    }
+    updateLiveTotal();
+}
+
+function updateLiveTotal() {
+    let total = 0;
+    for (const [kpiId, weight] of Object.entries(kpiWeights)) {
+        const input = document.getElementById('score_' + kpiId);
+        if (input) {
+            const val = parseFloat(input.value) || 0;
+            total += (val * parseFloat(weight)) / 100;
+        }
+    }
+    document.getElementById('live-score').textContent = total.toFixed(1);
+}
+
+// Initialize bars on load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[name^="score_"]').forEach(input => {
+        const kpiId = input.name.replace('score_', '');
+        if (kpiWeights[kpiId]) updateBar(input, kpiWeights[kpiId]);
+    });
+});
+</script>
+{% endblock %}

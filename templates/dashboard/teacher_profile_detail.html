@@ -96,6 +96,13 @@
                 <label>Specialization</label>
                 <input type="text" name="specialization" class="form-control" value="{{ profile.specialization }}" placeholder="e.g. Mathematics, Science" {% if not can_edit %}disabled{% endif %}>
             </div>
+            {% if user.role == 'admin' %}
+            <div class="form-group" style="display:flex;align-items:center;gap:0.75rem;">
+                <input type="checkbox" name="is_coordinator" id="is_coordinator" value="1" {% if profile.is_coordinator %}checked{% endif %} {% if not can_edit %}disabled{% endif %} style="width:18px;height:18px;accent-color:var(--primary);">
+                <label for="is_coordinator" style="margin:0;font-weight:600;">Coordinator Role</label>
+                <span style="color:var(--text-muted);font-size:0.8rem;">— Coordinators can evaluate teachers and use the coordinator KPI framework.</span>
+            </div>
+            {% endif %}
             <div class="form-row">
                 <div class="form-group">
                     <label>Date of Birth</label>

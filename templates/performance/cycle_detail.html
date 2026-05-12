@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}{{ cycle.name }} — OpDevSM{% endblock %}
+{% block page_title %}{{ cycle.name }}{% endblock %}
+{% block breadcrumb %}<a href="{% url 'performance_cycle_list' %}">Performance</a> → Cycle Detail{% endblock %}
+
+{% block extra_head %}
+<style>
+    .weight-badge { font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px; }
+    .weight-ok { background:#d1fae5;color:#065f46; }
+    .weight-warn { background:#fef3c7;color:#92400e; }
+    .weight-zero { background:#f1f5f9;color:#64748b; }
+    .kpi-row { background:#fff;border:1px solid var(--border);border-radius:6px;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;gap:1rem;align-items:flex-start; }
+    .kpi-title { font-weight:600;font-size:0.9rem; }
+    .kpi-meta { font-size:0.78rem;color:var(--text-muted); }
+    .section-header { background:var(--sidebar-bg);color:#fff;border-radius:8px 8px 0 0;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center; }
+    .tab-bar { display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:2px solid var(--border);padding-bottom:0; }
+    .tab-btn { background:none;border:none;padding:0.5rem 1.25rem;font-size:0.9rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;transition:all 0.2s; }
+    .tab-btn.active { color:var(--primary);border-bottom-color:var(--primary); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .staff-eval-row { display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cycle Header -->
+<div class="card" style="margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:0.5rem;">
+                <h2 style="font-size:1.2rem;font-weight:700;margin:0;">{{ cycle.name }}</h2>
+                {% if cycle.status == 'draft' %}
+                    <span class="badge badge-yellow">Draft</span>
+                {% elif cycle.status == 'active' %}
+                    <span class="badge badge-green">Active</span>
+                {% else %}
+                    <span class="badge" style="background:#f1f5f9;color:#64748b;">Closed</span>
+                {% endif %}
+            </div>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin:0;">
+                📅 {{ cycle.start_date|date:"d M Y" }} — {{ cycle.end_date|date:"d M Y" }}
+                &nbsp;|&nbsp; Created by {{ cycle.created_by.get_full_name|default:cycle.created_by.username }}
+            </p>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            {% if cycle.status == 'draft' %}
+                <form method="post" action="{% url 'performance_cycle_activate' cycle.id %}" onsubmit="return confirm('Activate this cycle? The KPI structure will be locked.')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">▶ Activate Cycle</button>
+                </form>
+            {% elif cycle.status == 'active' %}
+                <form method="post" action="{% url 'performance_cycle_close' cycle.id %}" onsubmit="return confirm('Close this cycle? No further evaluations can be submitted.')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary">■ Close Cycle</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Weight Status -->
+    <div style="display:flex;gap:1.5rem;margin-top:1rem;flex-wrap:wrap;">
+        <div style="font-size:0.85rem;">
+            <span style="color:var(--text-muted);">Teacher KPI Weights:</span>
+            <span class="weight-badge {% if teacher_weight == 100 %}weight-ok{% elif teacher_weight > 0 %}weight-warn{% else %}weight-zero{% endif %}">
+                {{ teacher_weight }}%
+            </span>
+            {% if teacher_weight != 100 and teacher_weight > 0 %}
+                <span style="color:var(--danger);font-size:0.75rem;">⚠ Must total 100%</span>
+            {% endif %}
+        </div>
+        <div style="font-size:0.85rem;">
+            <span style="color:var(--text-muted);">Coordinator KPI Weights:</span>
+            <span class="weight-badge {% if coord_weight == 100 %}weight-ok{% elif coord_weight > 0 %}weight-warn{% else %}weight-zero{% endif %}">
+                {{ coord_weight }}%
+            </span>
+            {% if coord_weight != 100 and coord_weight > 0 %}
+                <span style="color:var(--danger);font-size:0.75rem;">⚠ Must total 100%</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(this,'tab-kpi')">🧩 KPI Framework</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-teachers')">👨‍🏫 Teachers ({{ teacher_rows|length }})</button>
+    <button class="tab-btn" onclick="switchTab(this,'tab-coordinators')">🧑‍💼 Coordinators ({{ coord_rows|length }})</button>
+</div>
+
+<!-- TAB: KPI Framework -->
+<div id="tab-kpi" class="tab-content active">
+    {% for role_label, role_val in role_choices %}
+    <div style="margin-bottom:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <h3 style="font-size:1rem;font-weight:700;">{{ role_label }} KPIs</h3>
+            {% if is_editable %}
+            <button class="btn btn-sm btn-primary" onclick="toggleModal('add-section-modal-{{ role_val }}')">＋ Add Section</button>
+            {% endif %}
+        </div>
+
+        {% for section in sections %}
+        {% if section.role_type == role_val %}
+        <div style="border:1px solid var(--border);border-radius:8px;margin-bottom:1rem;overflow:hidden;">
+            <div class="section-header">
+                <span style="font-weight:600;">{{ section.name }}</span>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    {% if is_editable %}
+                    <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:#fff;border:none;"
+                            onclick="toggleModal('add-kpi-modal-{{ section.id }}')">＋ KPI</button>
+                    <form method="post" action="{% url 'performance_section_delete' section.id %}" style="display:inline;"
+                          onsubmit="return confirm('Delete section and all its KPIs?')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm" style="background:rgba(239,68,68,0.3);color:#fca5a5;border:none;">✕</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="padding:0.75rem;">
+                {% for kpi in section.kpis.all %}
+                <div class="kpi-row">
+                    <div style="flex:1;">
+                        <div class="kpi-title">{{ kpi.title }}</div>
+                        {% if kpi.description %}<div class="kpi-meta">{{ kpi.description }}</div>{% endif %}
+                        <div class="kpi-meta" style="margin-top:3px;">📌 Source: {{ kpi.data_source }}</div>
+                    </div>
+                    <div style="text-align:right;min-width:80px;">
+                        <div style="font-size:1.2rem;font-weight:700;color:var(--primary);">{{ kpi.max_weight }}%</div>
+                        {% if is_editable %}
+                        <form method="post" action="{% url 'performance_kpi_delete' kpi.id %}" onsubmit="return confirm('Delete this KPI?')">
+                            {% csrf_token %}
+                            <button type="submit" style="border:none;background:none;color:var(--danger);font-size:0.75rem;cursor:pointer;">✕ Remove</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:0.5rem;">No KPIs yet. Add one above.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Add KPI Modal for this section -->
+        {% if is_editable %}
+        <div id="add-kpi-modal-{{ section.id }}" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-top:-0.5rem;margin-bottom:1rem;">
+            <h4 style="margin-bottom:1rem;">Add KPI to "{{ section.name }}"</h4>
+            <form method="post" action="{% url 'performance_kpi_add' section.id %}">
+                {% csrf_token %}
+                <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;">
+                    <div class="form-group"><label class="form-label">KPI Title *</label>
+                        <input type="text" name="title" class="form-control" required placeholder="e.g., On-time submission of results"></div>
+                    <div class="form-group"><label class="form-label">Weight % *</label>
+                        <input type="number" name="max_weight" class="form-control" min="0.01" max="100" step="0.01" required placeholder="e.g., 15"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Data Source *</label>
+                    <input type="text" name="data_source" class="form-control" required placeholder="e.g., HOD observation, Attendance system, Student survey"></div>
+                <div class="form-group"><label class="form-label">Description (optional)</label>
+                    <input type="text" name="description" class="form-control" placeholder="What exactly is measured?"></div>
+                <div style="display:flex;gap:0.5rem;">
+                    <button type="submit" class="btn btn-primary btn-sm">Add KPI</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleModal('add-kpi-modal-{{ section.id }}')">Cancel</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        {% endif %}
+        {% endfor %}
+
+        <!-- Add Section Modal -->
+        {% if is_editable %}
+        <div id="add-section-modal-{{ role_val }}" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:1rem;">
+            <h4 style="margin-bottom:1rem;">Add Section for {{ role_label }}s</h4>
+            <form method="post" action="{% url 'performance_section_add' cycle.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="role_type" value="{{ role_val }}">
+                <div class="form-row" style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;">
+                    <div class="form-group"><label class="form-label">Section Name *</label>
+                        <input type="text" name="section_name" class="form-control" required placeholder="e.g., Timeliness, Academic Quality"></div>
+                    <div class="form-group"><label class="form-label">Display Order</label>
+                        <input type="number" name="order" class="form-control" value="0" min="0"></div>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <button type="submit" class="btn btn-primary btn-sm">Add Section</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleModal('add-section-modal-{{ role_val }}')">Cancel</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- TAB: Teachers -->
+<div id="tab-teachers" class="tab-content">
+    <div class="card" style="padding:0.5rem 1rem;">
+        {% for row in teacher_rows %}
+        <div class="staff-eval-row">
+            <div>
+                <span style="font-weight:600;">{{ row.user.get_full_name|default:row.user.username }}</span>
+                <span style="color:var(--text-muted);font-size:0.8rem;margin-left:0.5rem;">@{{ row.user.username }}</span>
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:center;">
+                {% if row.eval %}
+                    {% if row.eval.status == 'submitted' %}
+                        <span class="badge badge-green">✓ Submitted — {{ row.eval.final_score|floatformat:1 }}%</span>
+                    {% else %}
+                        <span class="badge badge-yellow">Draft</span>
+                    {% endif %}
+                    <a href="{% url 'performance_report_html' cycle.id row.user.id %}" class="btn btn-sm btn-secondary" target="_blank">📄 Report</a>
+                {% else %}
+                    <span style="color:var(--text-muted);font-size:0.82rem;">Not started</span>
+                {% endif %}
+                {% if cycle.status == 'active' %}
+                <a href="{% url 'performance_evaluate' cycle.id row.user.id %}" class="btn btn-sm btn-primary">
+                    {% if row.eval %}Edit{% else %}Evaluate{% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-state">No teachers found in the system.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- TAB: Coordinators -->
+<div id="tab-coordinators" class="tab-content">
+    <div class="card" style="padding:0.5rem 1rem;">
+        {% for row in coord_rows %}
+        <div class="staff-eval-row">
+            <div>
+                <span style="font-weight:600;">{{ row.user.get_full_name|default:row.user.username }}</span>
+                <span class="badge badge-blue" style="margin-left:0.5rem;">Coordinator</span>
+            </div>
+            <div style="display:flex;gap:0.75rem;align-items:center;">
+                {% if row.eval %}
+                    {% if row.eval.status == 'submitted' %}
+                        <span class="badge badge-green">✓ Submitted — {{ row.eval.final_score|floatformat:1 }}%</span>
+                    {% else %}
+                        <span class="badge badge-yellow">Draft</span>
+                    {% endif %}
+                    <a href="{% url 'performance_report_html' cycle.id row.user.id %}" class="btn btn-sm btn-secondary" target="_blank">📄 Report</a>
+                {% else %}
+                    <span style="color:var(--text-muted);font-size:0.82rem;">Not started</span>
+                {% endif %}
+                {% if cycle.status == 'active' %}
+                <a href="{% url 'performance_evaluate' cycle.id row.user.id %}" class="btn btn-sm btn-primary">
+                    {% if row.eval %}Edit{% else %}Evaluate{% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <p class="empty-state">No coordinators found. Mark a teacher as coordinator in their profile.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function switchTab(btn, tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+}
+function toggleModal(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

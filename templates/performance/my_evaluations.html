@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}My Performance Evaluations — OpDevSM{% endblock %}
+{% block page_title %}My Performance Evaluations{% endblock %}
+{% block breadcrumb %}My Profile → Performance{% endblock %}
+
+{% block content %}
+{% if eval_data %}
+<div class="card" style="padding:0;">
+    <table>
+        <thead>
+            <tr>
+                <th>Cycle</th>
+                <th>Period</th>
+                <th>Score</th>
+                <th>Grade</th>
+                <th>Status</th>
+                <th>Report</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in eval_data %}
+            {% with ev=row.evaluation g=row.grade_info %}
+            <tr>
+                <td style="font-weight:600;">{{ ev.cycle.name }}</td>
+                <td style="color:var(--text-muted);font-size:0.82rem;">
+                    {{ ev.cycle.start_date|date:"d M Y" }} — {{ ev.cycle.end_date|date:"d M Y" }}
+                </td>
+                <td>
+                    {% if ev.final_score %}
+                    <span style="font-size:1.2rem;font-weight:800;
+                        color:{% if ev.final_score >= 80 %}var(--success){% elif ev.final_score >= 60 %}var(--primary){% else %}var(--warning){% endif %};">
+                        {{ ev.final_score|floatformat:1 }}
+                    </span>
+                    <span style="color:var(--text-muted);font-size:0.8rem;">/ 100</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <span class="badge {% if g.colour == 'green' %}badge-green{% elif g.colour == 'blue' %}badge-blue{% elif g.colour == 'yellow' %}badge-yellow{% else %}badge-red{% endif %}">
+                        {{ g.letter }} — {{ g.label }}
+                    </span>
+                </td>
+                <td>
+                    {% if ev.status == 'submitted' %}
+                        <span class="badge badge-green">✓ Submitted</span>
+                    {% else %}
+                        <span class="badge badge-yellow">Pending</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ev.status == 'submitted' %}
+                    <a href="{% url 'performance_report_html' ev.cycle.id ev.staff.id %}" class="btn btn-sm btn-secondary" target="_blank">📄 View Report</a>
+                    <a href="{% url 'performance_report_pdf' ev.cycle.id ev.staff.id %}" class="btn btn-sm btn-primary" style="margin-left:4px;">⬇ PDF</a>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state card">
+    <div style="font-size:3rem;margin-bottom:1rem;">📊</div>
+    <h3>No Evaluations Yet</h3>
+    <p style="color:var(--text-muted);">Your performance evaluations will appear here once the admin submits them.</p>
+</div>
+{% endif %}
+{% endblock %}

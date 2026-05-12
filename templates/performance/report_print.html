@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Report — {{ staff.get_full_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background: #fff; color: #0f172a; font-size: 12px; }
+
+        .page { max-width: 800px; margin: 0 auto; padding: 30px; }
+
+        /* Header */
+        .report-header { text-align: center; border-bottom: 3px solid #312e81; padding-bottom: 16px; margin-bottom: 16px; }
+        .report-header h1 { font-size: 20px; color: #312e81; font-weight: 800; letter-spacing: 1px; }
+        .report-header .cycle-sub { color: #64748b; font-size: 11px; margin-top: 4px; }
+
+        /* Info grid */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 18px; }
+        .info-cell { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 6px; }
+        .info-cell:last-child, .info-cell:nth-last-child(2) { border-bottom: none; }
+        .info-label { color: #64748b; font-weight: 700; min-width: 90px; font-size: 10px; text-transform: uppercase; }
+        .info-value { color: #0f172a; font-weight: 600; }
+
+        /* Score banner */
+        .score-banner { background: linear-gradient(135deg, #312e81, #4338ca); color: #fff; border-radius: 8px; padding: 14px 20px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+        .score-number { font-size: 36px; font-weight: 900; }
+        .score-label { font-size: 11px; opacity: 0.8; }
+        .score-grade { text-align: right; }
+        .grade-letter { font-size: 24px; font-weight: 800; }
+        .grade-label { font-size: 11px; opacity: 0.8; }
+
+        /* Progress bar */
+        .progress-wrap { background: rgba(255,255,255,0.2); border-radius: 999px; height: 8px; width: 220px; margin-top: 6px; }
+        .progress-fill { height: 8px; border-radius: 999px; background: #a5b4fc; }
+
+        /* Sections */
+        .section-block { margin-bottom: 16px; }
+        .section-title { background: #312e81; color: #fff; padding: 6px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-radius: 4px 4px 0 0; }
+        .kpi-table { width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-top: none; }
+        .kpi-table thead th { background: #f8fafc; padding: 6px 10px; text-align: left; font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+        .kpi-table tbody td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11px; vertical-align: top; }
+        .kpi-table tbody tr:last-child td { border-bottom: none; }
+        .kpi-table tbody tr:nth-child(even) { background: #f8fafc; }
+        .section-total td { background: #e0e7ff !important; font-weight: 700; color: #312e81; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+
+        /* Score chip */
+        .score-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px; }
+        .score-high { background: #d1fae5; color: #065f46; }
+        .score-mid { background: #dbeafe; color: #1e40af; }
+        .score-low { background: #fef3c7; color: #92400e; }
+        .score-poor { background: #fee2e2; color: #991b1b; }
+
+        /* Comments */
+        .comments-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 16px; background: #f8fafc; }
+        .comments-box h3 { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+        /* Signature */
+        .signature-row { display: flex; justify-content: space-between; gap: 20px; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        .sig-block { flex: 1; }
+        .sig-line { border-bottom: 1px solid #0f172a; margin-bottom: 4px; height: 28px; }
+        .sig-caption { font-size: 10px; color: #64748b; }
+
+        /* Print */
+        @media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }
+            .page { padding: 10px; }
+            @page { margin: 15mm; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <!-- No-print toolbar -->
+    <div class="no-print" style="display:flex;gap:0.75rem;margin-bottom:1rem;">
+        <button onclick="window.print()" style="background:#312e81;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">🖨 Print Report</button>
+        <a href="{% url 'performance_report_pdf' cycle.id staff.id %}" style="background:#4338ca;color:#fff;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:600;">⬇ Download PDF</a>
+        <a href="{% url 'performance_cycle_detail' cycle.id %}" style="background:#f1f5f9;color:#0f172a;text-decoration:none;padding:8px 16px;border-radius:6px;font-weight:600;">← Back</a>
+    </div>
+
+    <!-- Header -->
+    <div class="report-header">
+        <h1>STAFF PERFORMANCE REPORT</h1>
+        <div class="cycle-sub">{{ cycle.name }}</div>
+        <div class="cycle-sub">Period: {{ cycle.start_date|date:"d M Y" }} — {{ cycle.end_date|date:"d M Y" }}</div>
+    </div>
+
+    <!-- Staff Info -->
+    <div class="info-grid">
+        <div class="info-cell"><span class="info-label">Staff Name</span><span class="info-value">{{ staff.get_full_name|default:staff.username }}</span></div>
+        <div class="info-cell"><span class="info-label">Role</span><span class="info-value">{{ evaluation.get_role_type_display }}</span></div>
+        <div class="info-cell"><span class="info-label">Username</span><span class="info-value">{{ staff.username }}</span></div>
+        <div class="info-cell"><span class="info-label">Evaluated By</span><span class="info-value">{{ evaluation.evaluated_by.get_full_name|default:"—" }}</span></div>
+        <div class="info-cell"><span class="info-label">Report Date</span><span class="info-value">{{ now|date:"d M Y" }}</span></div>
+        <div class="info-cell"><span class="info-label">Status</span><span class="info-value">{{ evaluation.get_status_display }}{% if evaluation.submitted_at %} — {{ evaluation.submitted_at|date:"d M Y" }}{% endif %}</span></div>
+    </div>
+
+    <!-- Score Banner -->
+    {% with score=evaluation.final_score %}
+    <div class="score-banner">
+        <div>
+            <div class="score-label">WEIGHTED FINAL SCORE</div>
+            <div class="score-number">{{ score|floatformat:1|default:"—" }}</div>
+            <div class="score-label">out of 100</div>
+            <div class="progress-wrap">
+                <div class="progress-fill" style="width:{{ score|floatformat:0|default:0 }}%"></div>
+            </div>
+        </div>
+        <div class="score-grade">
+            <div class="grade-letter">{{ grade_info.letter }}</div>
+            <div class="grade-label">{{ grade_info.label }}</div>
+        </div>
+    </div>
+    {% endwith %}
+
+    <!-- KPI Sections -->
+    {% for row in section_data %}
+    <div class="section-block">
+        <div class="section-title">{{ row.section.name }}</div>
+        <table class="kpi-table">
+            <thead>
+                <tr>
+                    <th style="width:35%;">KPI</th>
+                    <th style="width:22%;">Data Source</th>
+                    <th class="text-center" style="width:9%;">Weight</th>
+                    <th class="text-center" style="width:9%;">Score</th>
+                    <th class="text-center" style="width:10%;">Earned</th>
+                    <th style="width:15%;">Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in row.kpis %}
+                <tr>
+                    <td>
+                        <strong>{{ item.kpi.title }}</strong>
+                        {% if item.kpi.description %}<br><span style="color:#64748b;font-size:10px;">{{ item.kpi.description }}</span>{% endif %}
+                    </td>
+                    <td style="color:#64748b;">{{ item.kpi.data_source }}</td>
+                    <td class="text-center"><strong>{{ item.kpi.max_weight }}%</strong></td>
+                    <td class="text-center">
+                        {% if item.score >= 80 %}<span class="score-chip score-high">
+                        {% elif item.score >= 60 %}<span class="score-chip score-mid">
+                        {% elif item.score >= 50 %}<span class="score-chip score-low">
+                        {% else %}<span class="score-chip score-poor">
+                        {% endif %}{{ item.score|floatformat:0 }}</span>
+                    </td>
+                    <td class="text-center" style="font-weight:700;color:#312e81;">{{ item.earned }}</td>
+                    <td style="color:#64748b;font-size:10px;">{{ item.comment|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="section-total">
+                    <td colspan="2"><strong>Section Total</strong></td>
+                    <td class="text-center">{{ row.section_max }}%</td>
+                    <td></td>
+                    <td class="text-center">{{ row.section_earned }}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+
+    <!-- Evaluator Comments -->
+    <div class="comments-box">
+        <h3>Evaluator's Overall Remarks</h3>
+        <p>{{ evaluation.overall_comment|default:"No overall remarks provided." }}</p>
+    </div>
+
+    <!-- Signature Block -->
+    <div class="signature-row">
+        <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-caption">Staff Signature &amp; Date</div>
+        </div>
+        <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-caption">Evaluator Signature &amp; Date</div>
+        </div>
+        <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-caption">Principal / HOD Signature &amp; Date</div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Performance Cycles — OpDevSM{% endblock %}
+{% block page_title %}Performance Management{% endblock %}
+{% block breadcrumb %}HR → Performance{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <div>
+        <h2 style="font-size:1.4rem;font-weight:700;">Performance Cycles</h2>
+        <p style="color:var(--text-muted);font-size:0.85rem;">Define review periods, build KPI frameworks, and evaluate staff.</p>
+    </div>
+    <a href="{% url 'performance_cycle_create' %}" class="btn btn-primary">＋ New Cycle</a>
+</div>
+
+{% if cycle_data %}
+<div class="card" style="padding:0;">
+    <table>
+        <thead>
+            <tr>
+                <th>Cycle Name</th>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Teacher KPIs</th>
+                <th>Coordinator KPIs</th>
+                <th>Evaluations</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in cycle_data %}
+            {% with c=row.cycle %}
+            <tr>
+                <td>
+                    <a href="{% url 'performance_cycle_detail' c.id %}" style="font-weight:600;color:var(--primary);">
+                        {{ c.name }}
+                    </a>
+                </td>
+                <td style="color:var(--text-muted);font-size:0.82rem;">
+                    {{ c.start_date|date:"d M Y" }} — {{ c.end_date|date:"d M Y" }}
+                </td>
+                <td>
+                    {% if c.status == 'draft' %}
+                        <span class="badge badge-yellow">Draft</span>
+                    {% elif c.status == 'active' %}
+                        <span class="badge badge-green">Active</span>
+                    {% else %}
+                        <span class="badge" style="background:#f1f5f9;color:#64748b;">Closed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.teacher_weight == 100 %}
+                        <span class="badge badge-green">✓ 100%</span>
+                    {% elif row.teacher_weight > 0 %}
+                        <span class="badge badge-yellow">{{ row.teacher_weight }}%</span>
+                    {% else %}
+                        <span style="color:var(--text-muted);font-size:0.8rem;">Not set</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if row.coord_weight == 100 %}
+                        <span class="badge badge-green">✓ 100%</span>
+                    {% elif row.coord_weight > 0 %}
+                        <span class="badge badge-yellow">{{ row.coord_weight }}%</span>
+                    {% else %}
+                        <span style="color:var(--text-muted);font-size:0.8rem;">Not set</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="font-weight:600;">{{ row.submitted }}</span>
+                    <span style="color:var(--text-muted);">/ {{ row.total }} submitted</span>
+                </td>
+                <td>
+                    <a href="{% url 'performance_cycle_detail' c.id %}" class="btn btn-sm btn-secondary">Manage</a>
+                </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state card">
+    <div style="font-size:3rem;margin-bottom:1rem;">📊</div>
+    <h3>No Performance Cycles Yet</h3>
+    <p style="color:var(--text-muted);margin:0.5rem 0 1.5rem;">Create your first cycle to start building KPI frameworks and evaluating staff.</p>
+    <a href="{% url 'performance_cycle_create' %}" class="btn btn-primary">＋ Create First Cycle</a>
+</div>
+{% endif %}
+{% endblock %}
