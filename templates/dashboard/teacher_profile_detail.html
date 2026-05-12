@@ -6,9 +6,14 @@
 <!-- Profile Header -->
 <div class="card" style="background:linear-gradient(135deg,#e0e7ff 0%,#c7d2fe 100%);border:none;">
     <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+        {% if profile.photo %}
+        <img src="{{ profile.photo.url }}" alt="Photo"
+             style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #6366f1;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
+        {% else %}
         <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem;font-weight:700;box-shadow:0 4px 12px rgba(99,102,241,0.3);">
             {{ teacher.username|make_list|first|upper }}
         </div>
+        {% endif %}
         <div style="flex:1;">
             <h2 style="font-size:1.5rem;font-weight:700;color:var(--text);margin-bottom:0.25rem;">{{ teacher.get_full_name|default:teacher.username }}</h2>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
@@ -20,6 +25,14 @@
                 {% endif %}
             </div>
         </div>
+        {% if is_admin %}
+        <div style="margin-left:auto;">
+            <a href="{% url 'teacher_id_card_pdf' teacher.id %}" target="_blank"
+               class="btn btn-sm" style="background:#d1fae5;color:#064e3b;border:1px solid #6ee7b7;">
+                🪪 Download ID Card
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -43,7 +56,7 @@
     <!-- Profile Details / Edit Form -->
     <div class="card">
         <div class="card-title">📋 Profile Details</div>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="form-row">
                 <div class="form-group">
@@ -104,6 +117,19 @@
                 </div>
             </div>
             {% if can_edit %}
+            <div class="form-row" style="margin-top:0.5rem;">
+                <div class="form-group">
+                    <label>📷 Photo <span style="font-weight:400;color:var(--text-muted);font-size:0.75rem;">(for ID card — square portrait recommended)</span></label>
+                    {% if profile.photo %}
+                    <div style="margin-bottom:0.5rem;">
+                        <img src="{{ profile.photo.url }}" alt="Current photo"
+                             style="width:64px;height:64px;border-radius:0.5rem;object-fit:cover;border:2px solid var(--border);">
+                        <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">Current photo</span>
+                    </div>
+                    {% endif %}
+                    <input type="file" name="photo" class="form-control" accept="image/*">
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary">💾 Save Profile</button>
             {% endif %}
         </form>

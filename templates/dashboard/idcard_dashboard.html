@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block page_title %}ID Card Management{% endblock %}
+{% block breadcrumb %}Admin / ID Cards{% endblock %}
+{% block content %}
+
+<!-- ── Student Cards by Section ─────────────────────────────────────── -->
+<div class="card">
+    <div class="card-title">🎓 Student ID Cards — by Section</div>
+    {% if sections %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Section</th>
+                <th>Academic Year</th>
+                <th>Students</th>
+                <th>Bulk Print</th>
+                <th>Individual Cards</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for section in sections %}
+            <tr>
+                <td><strong>{{ section.class_group.name }} — {{ section.name }}</strong></td>
+                <td><span class="badge badge-blue">{{ section.academic_year }}</span></td>
+                <td>{{ section.students.count }}</td>
+                <td>
+                    {% if section.students.count > 0 %}
+                    <a href="{% url 'bulk_student_id_cards' section.id %}" target="_blank"
+                       class="btn btn-primary btn-sm">🖨️ Print All (PDF)</a>
+                    {% else %}
+                    <span style="color:var(--text-muted);font-size:0.8rem;">No students</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% for sp in section.students.all %}
+                    <div style="display:inline-block;margin:2px;">
+                        <a href="{% url 'student_id_card_pdf' sp.user.id %}" target="_blank"
+                           title="{{ sp.user.get_full_name|default:sp.user.username }}"
+                           class="btn btn-sm"
+                           style="background:var(--primary-light);color:#312e81;border:1px solid #c7d2fe;">
+                            🪪 {{ sp.user.first_name|default:sp.user.username }}
+                        </a>
+                    </div>
+                    {% empty %}
+                    <span style="color:var(--text-muted);font-size:0.8rem;">—</span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No sections found. Create sections in Classes & Subjects first.</div>
+    {% endif %}
+</div>
+
+<!-- ── Teacher Cards ─────────────────────────────────────────────────── -->
+<div class="card">
+    <div class="card-title">👨‍🏫 Teacher ID Cards</div>
+    {% if teacher_data %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Photo</th>
+                <th>Name</th>
+                <th>Employee ID</th>
+                <th>Specialization</th>
+                <th>ID Card</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in teacher_data %}
+            <tr>
+                <td>
+                    {% if item.profile and item.profile.photo %}
+                    <img src="{{ item.profile.photo.url }}" alt="Photo"
+                         style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #d1fae5;">
+                    {% else %}
+                    <div style="width:36px;height:36px;border-radius:50%;background:#064e3b;color:#fff;
+                                display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;">
+                        {{ item.user.first_name|make_list|first|upper|default:"?" }}
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="font-weight:600;">{{ item.user.get_full_name|default:item.user.username }}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">{{ item.user.email|default:"—" }}</div>
+                </td>
+                <td>{{ item.profile.employee_id|default:"—" }}</td>
+                <td>{{ item.profile.specialization|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'teacher_id_card_pdf' item.user.id %}" target="_blank"
+                       class="btn btn-sm" style="background:#d1fae5;color:#064e3b;border:1px solid #6ee7b7;">
+                        🪪 Download Card
+                    </a>
+                    <a href="{% url 'teacher_profile_detail' item.user.id %}"
+                       class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);margin-left:4px;">
+                        📷 Upload Photo
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state">No teachers found.</div>
+    {% endif %}
+</div>
+
+<!-- ── Help note ─────────────────────────────────────────────────────── -->
+<div class="card" style="background:var(--primary-light);border-color:#c7d2fe;">
+    <div style="display:flex;gap:1rem;align-items:flex-start;">
+        <span style="font-size:1.5rem;">💡</span>
+        <div>
+            <div style="font-weight:600;color:#312e81;margin-bottom:0.35rem;">Tips for best ID cards</div>
+            <ul style="font-size:0.82rem;color:#3730a3;padding-left:1.2rem;line-height:1.8;">
+                <li>Upload a square <strong>passport-style photo</strong> from each student/teacher's profile page for best results.</li>
+                <li>The <strong>bulk PDF</strong> prints 4 cards per A4 page with cut guides — just print and cut.</li>
+                <li>Individual cards open inline in the browser — use <kbd>Ctrl+P</kbd> to print.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

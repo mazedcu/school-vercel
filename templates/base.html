@@ -381,6 +381,7 @@
             <li><a href="{% url 'manage_notices' %}" class="{% if request.resolver_match.url_name == 'manage_notices' %}active{% endif %}"><span class="icon">📢</span> Announcements</a></li>
             <li><a href="{% url 'student_profiles' %}" class="{% if request.resolver_match.url_name == 'student_profiles' or request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">🎓</span> Student Profiles</a></li>
             <li><a href="{% url 'parent_profiles' %}" class="{% if request.resolver_match.url_name == 'parent_profiles' or request.resolver_match.url_name == 'parent_profile_detail' %}active{% endif %}"><span class="icon">👪</span> Parent Profiles</a></li>
+            <li><a href="{% url 'idcard_dashboard' %}" class="{% if 'idcard' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">🪪</span> ID Cards</a></li>
             
             <li class="nav-section">HR</li>
             <li><a href="{% url 'teacher_profiles' %}" class="{% if request.resolver_match.url_name == 'teacher_profiles' or request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👨‍🏫</span> Teacher Profiles</a></li>

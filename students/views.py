@@ -69,6 +69,10 @@ def student_profile_detail(request, student_id):
         profile.date_of_birth = dob if dob else None
         profile.biometric_id = request.POST.get('biometric_id', '').strip() or None
 
+        # Handle photo upload
+        if 'photo' in request.FILES:
+            profile.photo = request.FILES['photo']
+
         # Update user fields
         student.first_name = request.POST.get('first_name', '').strip()
         student.last_name = request.POST.get('last_name', '').strip()
@@ -179,6 +183,10 @@ def teacher_profile_detail(request, teacher_id):
         doj = request.POST.get('date_of_joining', '').strip()
         profile.date_of_joining = doj if doj else None
         profile.biometric_id = request.POST.get('biometric_id', '').strip() or None
+
+        # Handle photo upload
+        if 'photo' in request.FILES:
+            profile.photo = request.FILES['photo']
 
         # Update user fields
         teacher.first_name = request.POST.get('first_name', '').strip()

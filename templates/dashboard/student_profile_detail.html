@@ -65,7 +65,12 @@
 {% block content %}
 <div class="card">
     <div class="profile-header">
+        {% if profile.photo %}
+        <img src="{{ profile.photo.url }}" alt="Photo"
+             style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);flex-shrink:0;">
+        {% else %}
         <div class="profile-avatar">{{ student.first_name|make_list|first|upper|default:"?" }}</div>
+        {% endif %}
         <div>
             <h2 style="margin:0;font-size:1.3rem;">{{ student.get_full_name|default:student.username }}</h2>
             <div class="profile-meta">
@@ -79,6 +84,7 @@
         </div>
         <div style="margin-left:auto;display:flex;gap:0.5rem;">
             <a href="{% url 'student_report_detail' student.id %}" class="btn btn-primary btn-sm">📄 Report Card</a>
+            {% if is_admin %}<a href="{% url 'student_id_card_pdf' student.id %}" target="_blank" class="btn btn-sm" style="background:#e0e7ff;color:#312e81;border:1px solid #c7d2fe;">🪪 ID Card</a>{% endif %}
         </div>
     </div>
 
@@ -147,7 +153,7 @@
 {% if is_admin %}
 <div class="card">
     <div class="card-title">✏️ Edit Profile</div>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="form-row">
             <div class="form-group">
@@ -202,6 +208,19 @@
             <div class="form-group" style="width: 220px;">
                 <label>Biometric ID (Machine ID)</label>
                 <input type="text" name="biometric_id" class="form-control" value="{{ profile.biometric_id|default:'' }}" placeholder="e.g. 101">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>📷 Photo <span style="font-weight:400;color:var(--text-muted);font-size:0.75rem;">(for ID card — square portrait recommended)</span></label>
+                {% if profile.photo %}
+                <div style="margin-bottom:0.5rem;">
+                    <img src="{{ profile.photo.url }}" alt="Current photo"
+                         style="width:64px;height:64px;border-radius:0.5rem;object-fit:cover;border:2px solid var(--border);">
+                    <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">Current photo</span>
+                </div>
+                {% endif %}
+                <input type="file" name="photo" class="form-control" accept="image/*">
             </div>
         </div>
         <button type="submit" class="btn btn-success">Save Changes</button>
