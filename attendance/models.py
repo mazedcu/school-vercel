@@ -9,11 +9,11 @@ class Attendance(models.Model):
         ABSENT = 'absent', 'Absent'
         LATE = 'late', 'Late'
 
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='attendances')
-    section = models.ForeignKey('academics.Section', on_delete=models.CASCADE)
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='attendances')
+    section = models.ForeignKey('academics.Section', on_delete=models.SET_NULL, null=True, blank=True)
     date = models.DateField()
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PRESENT)
-    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='attendances_marked')
+    marked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='attendances_marked', blank=True)
 
     class Meta:
         constraints = [

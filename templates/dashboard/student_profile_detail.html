@@ -194,9 +194,15 @@
                 <input type="text" name="guardian_phone" class="form-control" value="{{ profile.guardian_phone }}">
             </div>
         </div>
-        <div class="form-group">
-            <label>Address</label>
-            <textarea name="address" class="form-control" rows="2">{{ profile.address }}</textarea>
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label>Address</label>
+                <textarea name="address" class="form-control" rows="2">{{ profile.address }}</textarea>
+            </div>
+            <div class="form-group" style="width: 220px;">
+                <label>Biometric ID (Machine ID)</label>
+                <input type="text" name="biometric_id" class="form-control" value="{{ profile.biometric_id|default:'' }}" placeholder="e.g. 101">
+            </div>
         </div>
         <button type="submit" class="btn btn-success">Save Changes</button>
     </form>
@@ -215,6 +221,7 @@
         <div class="info-item"><div class="lbl">Date of Birth</div><div class="val">{{ profile.date_of_birth|date:"M d, Y"|default:"-" }}</div></div>
         <div class="info-item"><div class="lbl">Address</div><div class="val">{{ profile.address|default:"-" }}</div></div>
         <div class="info-item"><div class="lbl">Guardian</div><div class="val">{{ profile.guardian_name|default:"-" }} {{ profile.guardian_phone|default:"" }}</div></div>
+        <div class="info-item"><div class="lbl">Biometric ID</div><div class="val">{{ profile.biometric_id|default:"-" }}</div></div>
         <div class="info-item"><div class="lbl">Admission Date</div><div class="val">{{ profile.admission_date|date:"M d, Y" }}</div></div>
     </div>
 </div>

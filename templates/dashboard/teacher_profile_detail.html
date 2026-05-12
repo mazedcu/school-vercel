@@ -93,9 +93,15 @@
                     <input type="date" name="date_of_joining" class="form-control" value="{{ profile.date_of_joining|date:'Y-m-d' }}" {% if not can_edit %}disabled{% endif %}>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Address</label>
-                <textarea name="address" class="form-control" rows="3" {% if not can_edit %}disabled{% endif %}>{{ profile.address }}</textarea>
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label>Address</label>
+                    <textarea name="address" class="form-control" rows="3" {% if not can_edit %}disabled{% endif %}>{{ profile.address }}</textarea>
+                </div>
+                <div class="form-group" style="width: 220px;">
+                    <label>Biometric ID (Machine ID)</label>
+                    <input type="text" name="biometric_id" class="form-control" value="{{ profile.biometric_id|default:'' }}" placeholder="e.g. T101" {% if not can_edit %}disabled{% endif %}>
+                </div>
             </div>
             {% if can_edit %}
             <button type="submit" class="btn btn-primary">💾 Save Profile</button>

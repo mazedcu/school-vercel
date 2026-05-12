@@ -12,6 +12,7 @@ class StudentProfile(models.Model):
     guardian_name = models.CharField(max_length=100, blank=True)
     guardian_phone = models.CharField(max_length=15, blank=True)
     admission_date = models.DateField(auto_now_add=True)
+    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="ID from attendance machine")
 
     def __str__(self):
         section_str = self.section if self.section else "Unassigned"
@@ -41,6 +42,7 @@ class TeacherProfile(models.Model):
     date_of_joining = models.DateField(null=True, blank=True, verbose_name="Date of Joining")
     address = models.TextField(blank=True, verbose_name="Address")
     experience_years = models.PositiveIntegerField(default=0, verbose_name="Years of Experience")
+    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="ID from attendance machine")
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} (Teacher)"

@@ -67,6 +67,7 @@ def student_profile_detail(request, student_id):
         profile.guardian_phone = request.POST.get('guardian_phone', '').strip()
         dob = request.POST.get('date_of_birth', '').strip()
         profile.date_of_birth = dob if dob else None
+        profile.biometric_id = request.POST.get('biometric_id', '').strip() or None
 
         # Update user fields
         student.first_name = request.POST.get('first_name', '').strip()
@@ -177,6 +178,7 @@ def teacher_profile_detail(request, teacher_id):
         profile.date_of_birth = dob if dob else None
         doj = request.POST.get('date_of_joining', '').strip()
         profile.date_of_joining = doj if doj else None
+        profile.biometric_id = request.POST.get('biometric_id', '').strip() or None
 
         # Update user fields
         teacher.first_name = request.POST.get('first_name', '').strip()
