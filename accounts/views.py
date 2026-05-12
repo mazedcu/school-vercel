@@ -110,9 +110,11 @@ def manage_users(request):
                         if existing and existing.role != User.Role.PARENT:
                             messages.error(request, f"Username '{parent_username}' already exists as a {existing.get_role_display()}, not a parent.")
                         else:
+                            parent_password = request.POST.get('parent_password', '').strip() or None
                             user, parent_user, section, parent_existed = create_student_with_parent(
                                 username, password, first_name, last_name, section_id,
-                                student_email, parent_email, roll_number, parent_username
+                                student_email, parent_email, roll_number, parent_username,
+                                parent_password=parent_password
                             )
                             section_name = section if section else "Unassigned"
                             if parent_existed:
@@ -160,8 +162,8 @@ def manage_users(request):
             child_of = ", ".join([p.user.get_full_name() or p.user.username for p in parents])
         user_data.append({'user': u, 'parent_of': parent_of, 'child_of': child_of})
 
-    # Filter out admin role from role choices for the create form
-    roles_for_create = [(val, label) for val, label in User.Role.choices if val != User.Role.ADMIN]
+    # Filter out admin and parent roles from role choices for the create form
+    roles_for_create = [(val, label) for val, label in User.Role.choices if val not in [User.Role.ADMIN, User.Role.PARENT]]
 
     context = {
         'user_data': user_data,
@@ -170,3 +172,45 @@ def manage_users(request):
         'roles': roles_for_create,
     }
     return render(request, 'dashboard/manage_users.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def parent_profiles(request):
+    """Admin: list all parents."""
+    parents = User.objects.filter(role=User.Role.PARENT).order_by('username')
+    
+    parent_data = []
+    for p in parents:
+        profile, _ = ParentProfile.objects.get_or_create(user=p)
+        parent_data.append({
+            'user': p,
+            'children': profile.children.all()
+        })
+        
+    context = {'parent_data': parent_data}
+    return render(request, 'dashboard/parent_profiles.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def parent_profile_detail(request, parent_id):
+    """Admin: edit parent profile."""
+    parent = get_object_or_404(User, pk=parent_id, role=User.Role.PARENT)
+    profile, _ = ParentProfile.objects.get_or_create(user=parent)
+    
+    if request.method == 'POST':
+        parent.first_name = request.POST.get('first_name', '').strip()
+        parent.last_name = request.POST.get('last_name', '').strip()
+        parent.email = request.POST.get('email', '').strip()
+        parent.phone = request.POST.get('phone', '').strip()
+        parent.save()
+        messages.success(request, f"Profile for parent '{parent.username}' updated.")
+        return redirect('parent_profiles')
+        
+    context = {
+        'parent': parent,
+        'profile': profile,
+        'children': profile.children.all()
+    }
+    return render(request, 'dashboard/parent_profile_detail.html', context)

@@ -44,7 +44,8 @@ def send_credential_email(email, user, password, role, section=None):
 
 def create_student_with_parent(
     username, password, first_name, last_name, section_id,
-    student_email, parent_email, roll_number, parent_username
+    student_email, parent_email, roll_number, parent_username,
+    parent_password=None
 ):
     """
     Creates a Student User, StudentProfile, links to existing or new Parent,
@@ -61,7 +62,7 @@ def create_student_with_parent(
     StudentProfile.objects.create(user=user, section=section, roll_number=roll_number)
 
     # ── Link or create parent ────────────────────────────────────────────
-    parent_password = None
+    actual_parent_password = None
     existing_parent = User.objects.filter(username=parent_username).first()
 
     if existing_parent:
@@ -69,12 +70,12 @@ def create_student_with_parent(
         parent_user = existing_parent
         parent_profile, _ = ParentProfile.objects.get_or_create(user=parent_user)
         parent_profile.children.add(user)
-        parent_password = None  # don't send credentials for existing parent
+        actual_parent_password = None  # don't send credentials for existing parent
     else:
         # Create a new parent account
-        parent_password = _generate_password()
+        actual_parent_password = parent_password if parent_password else _generate_password()
         parent_user = User.objects.create_user(
-            username=parent_username, password=parent_password,
+            username=parent_username, password=actual_parent_password,
             first_name=f"Parent of {first_name}", last_name=last_name,
             role=User.Role.PARENT, email=parent_email
         )
@@ -86,10 +87,10 @@ def create_student_with_parent(
         student_email, user, password,
         'Student', section
     )
-    if parent_password:
+    if actual_parent_password:
         # Only send credentials for newly created parent
         send_credential_email(
-            parent_email, parent_user, parent_password,
+            parent_email, parent_user, actual_parent_password,
             'Parent', section
         )
 
