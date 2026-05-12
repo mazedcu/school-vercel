@@ -15,7 +15,7 @@ from timetable.models import TimeSlot, TimetableEntry
 from timetable.services import generate_timetable_entry
 from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
 from attendance.models import Attendance
-from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
+from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment, AcademicPeriodConfig, ReportPeriod, PeriodWeighting
 from finance.models import FeeStructure, Invoice, Payment
 
 
@@ -593,4 +593,323 @@ def ct_progress_report_print(request):
         'ct_type': ct_type,
         'grade_settings': grade_settings,
     }
-    return render(request, 'dashboard/ct_progress_print.html', context)
+    return render(request, 'dashboard/ct_progress_print.html', context)
+
+
+# ─── PERIOD-BASED REPORTING ──────────────────────────────────────────────────
+
+@login_required
+@role_required(User.Role.ADMIN)
+def period_setup(request):
+    """Admin: configure reporting mode, period date ranges, and weights."""
+    assessment_types = AssessmentType.objects.all()
+    configs = AcademicPeriodConfig.objects.prefetch_related(
+        'periods__weightings__assessment_type'
+    ).all()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'create_config':
+            academic_year = request.POST.get('academic_year', '').strip()
+            mode = request.POST.get('mode')
+            if not academic_year or not mode:
+                messages.error(request, "Please fill in all fields.")
+                return redirect('period_setup')
+
+            if AcademicPeriodConfig.objects.filter(academic_year=academic_year).exists():
+                messages.error(request, f"Configuration for {academic_year} already exists. Delete it first to recreate.")
+                return redirect('period_setup')
+
+            config = AcademicPeriodConfig.objects.create(
+                academic_year=academic_year, mode=mode, created_by=request.user
+            )
+
+            if mode == AcademicPeriodConfig.Mode.QUARTERLY:
+                period_count = 4
+                default_labels = ['1st Quarter', '2nd Quarter', '3rd Quarter', '4th Quarter']
+            else:
+                period_count = 2
+                default_labels = ['Mid-Term', 'Final-Term']
+
+            for i in range(period_count):
+                start_date = request.POST.get(f'start_date_{i+1}', '')
+                end_date = request.POST.get(f'end_date_{i+1}', '')
+                label = request.POST.get(f'label_{i+1}', default_labels[i]).strip() or default_labels[i]
+
+                if not start_date or not end_date:
+                    messages.error(request, "Please provide dates for all periods.")
+                    config.delete()
+                    return redirect('period_setup')
+
+                ReportPeriod.objects.create(
+                    config=config,
+                    label=label,
+                    sequence=i + 1,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+
+            messages.success(request, f"Reporting periods for {academic_year} created successfully!")
+
+        elif action == 'save_weights':
+            period_id = request.POST.get('period_id')
+            period = get_object_or_404(ReportPeriod, id=period_id)
+            period.weightings.filter(subject__isnull=True).delete()
+
+            total_weight = Decimal('0')
+            for at in assessment_types:
+                w = request.POST.get(f'weight_{period_id}_{at.id}', '0')
+                try:
+                    w = Decimal(w)
+                except Exception:
+                    w = Decimal('0')
+                if w > 0:
+                    PeriodWeighting.objects.create(
+                        period=period, assessment_type=at, weight_percentage=w
+                    )
+                    total_weight += w
+
+            if total_weight != Decimal('100'):
+                messages.warning(request, f"Default weights for '{period.label}' saved but total is {total_weight}%, not 100%.")
+            else:
+                messages.success(request, f"Default weights for '{period.label}' saved (100%). ✅")
+
+        elif action == 'save_subject_weights':
+            period_id = request.POST.get('period_id')
+            subject_id = request.POST.get('subject_id')
+            period = get_object_or_404(ReportPeriod, id=period_id)
+            subject = get_object_or_404(Subject, id=subject_id)
+            period.weightings.filter(subject=subject).delete()
+
+            total_weight = Decimal('0')
+            for at in assessment_types:
+                w = request.POST.get(f'sw_{period_id}_0_{at.id}', '0')
+                try:
+                    w = Decimal(w)
+                except Exception:
+                    w = Decimal('0')
+                if w > 0:
+                    PeriodWeighting.objects.create(
+                        period=period, assessment_type=at, subject=subject, weight_percentage=w
+                    )
+                    total_weight += w
+
+            if total_weight == Decimal('0'):
+                messages.success(request, f"Subject override for '{subject.name}' in '{period.label}' removed (using defaults).")
+            elif total_weight != Decimal('100'):
+                messages.warning(request, f"Weights for '{subject.name}' in '{period.label}' saved but total is {total_weight}%, not 100%.")
+            else:
+                messages.success(request, f"Weights for '{subject.name}' in '{period.label}' saved (100%). ✅")
+
+        elif action == 'toggle_publish':
+            period_id = request.POST.get('period_id')
+            period = get_object_or_404(ReportPeriod, id=period_id)
+            period.is_published = not period.is_published
+            period.save()
+            status = 'published' if period.is_published else 'unpublished'
+            messages.success(request, f"'{period.label}' is now {status}.")
+
+        elif action == 'delete_config':
+            config_id = request.POST.get('config_id')
+            AcademicPeriodConfig.objects.filter(id=config_id).delete()
+            messages.success(request, "Configuration deleted.")
+
+        return redirect('period_setup')
+
+    subjects = Subject.objects.all()
+    context = {
+        'configs': configs,
+        'assessment_types': assessment_types,
+        'modes': AcademicPeriodConfig.Mode.choices,
+        'subjects': subjects,
+    }
+    return render(request, 'dashboard/period_setup.html', context)
+
+
+@login_required
+def period_report_select(request, student_id=None):
+    """Show available published periods for report generation."""
+    viewer = request.user
+
+    if student_id:
+        student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    elif viewer.role == User.Role.STUDENT:
+        student = viewer
+    else:
+        return redirect('view_reports')
+
+    if viewer.role == User.Role.STUDENT and viewer != student:
+        return redirect('dashboard_router')
+
+    profile = StudentProfile.objects.filter(user=student).first()
+    section = profile.section if profile else None
+
+    configs = []
+    if section:
+        config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
+        if config:
+            if viewer.role in [User.Role.ADMIN, User.Role.TEACHER]:
+                periods = config.periods.all()
+            else:
+                periods = config.periods.filter(is_published=True)
+            configs.append({'config': config, 'periods': periods})
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'section': section,
+        'configs': configs,
+    }
+    return render(request, 'dashboard/period_report_select.html', context)
+
+
+@login_required
+def period_report(request, period_id, student_id):
+    """View a student's report card for a specific period."""
+    viewer = request.user
+    period = get_object_or_404(ReportPeriod.objects.select_related('config'), id=period_id)
+    student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    printable = request.GET.get('print', '') == '1'
+
+    if viewer.role == User.Role.STUDENT and viewer != student:
+        return redirect('dashboard_router')
+    if viewer.role == User.Role.PARENT:
+        parent_profile = ParentProfile.objects.filter(user=viewer).first()
+        if not parent_profile or student not in parent_profile.children.all():
+            return redirect('dashboard_router')
+
+    if viewer.role not in [User.Role.ADMIN, User.Role.TEACHER] and not period.is_published:
+        messages.error(request, "This report period is not yet published.")
+        return redirect('dashboard_router')
+
+    profile = StudentProfile.objects.filter(user=student).first()
+    section = profile.section if profile else None
+    grade_settings = GradeSetting.objects.all()
+
+    grades = []
+    overall_total = Decimal('0')
+    subject_count = 0
+
+    if section:
+        subjects = Subject.objects.filter(
+            assessmentrecord__section=section,
+            assessmentrecord__date_conducted__gte=period.start_date,
+            assessmentrecord__date_conducted__lte=period.end_date,
+        ).distinct()
+
+        # Load all period weightings (defaults + subject-specific)
+        all_weightings = period.weightings.select_related('assessment_type', 'subject').all()
+        default_weights = {pw.assessment_type_id: pw.weight_percentage for pw in all_weightings if pw.subject is None}
+
+        # Build per-subject override map: {subject_id: {at_id: weight}}
+        subject_weight_overrides = {}
+        for pw in all_weightings:
+            if pw.subject_id:
+                subject_weight_overrides.setdefault(pw.subject_id, {})[pw.assessment_type_id] = pw.weight_percentage
+
+        for subj in subjects:
+            # Use subject-specific weights if available, else defaults
+            weights_for_subj = subject_weight_overrides.get(subj.id, default_weights)
+            score, details = _calculate_period_grade(student, subj, section, period, weights_for_subj)
+            letter = _get_letter_grade(score, grade_settings)
+            comment_obj = SubjectComment.objects.filter(
+                student=student, subject=subj, section=section, academic_year=section.academic_year
+            ).first()
+            grades.append({
+                'subject': subj,
+                'score': score,
+                'letter': letter['letter'],
+                'remark': letter['remark'],
+                'grade_point': letter['grade_point'],
+                'details': details,
+                'comment': comment_obj.comment if comment_obj else '',
+            })
+            overall_total += score
+            subject_count += 1
+
+    overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
+    overall_letter = _get_letter_grade(overall_avg, grade_settings)
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'section': section,
+        'period': period,
+        'grades': grades,
+        'overall_avg': overall_avg,
+        'overall_letter': overall_letter,
+        'grade_settings': grade_settings,
+    }
+
+    if printable:
+        return render(request, 'dashboard/period_report_print.html', context)
+    return render(request, 'dashboard/period_report.html', context)
+
+
+def _calculate_period_grade(student, subject, section, period, period_weights):
+    """Calculate weighted grade for a student in a subject within a specific period."""
+    details = []
+
+    if not period_weights:
+        scores = StudentScore.objects.filter(
+            student=student,
+            assessment__subject=subject,
+            assessment__section=section,
+            assessment__date_conducted__gte=period.start_date,
+            assessment__date_conducted__lte=period.end_date,
+        ).select_related('assessment')
+        if not scores.exists():
+            return Decimal('0'), details
+        total_pct = Decimal('0')
+        count = 0
+        for s in scores:
+            if s.assessment.total_marks > 0:
+                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
+                count += 1
+        return (round(total_pct / count, 1) if count > 0 else Decimal('0')), details
+
+    total_weighted = Decimal('0')
+    for at_id, weight_pct in period_weights.items():
+        weight = weight_pct / Decimal('100')
+        scores = StudentScore.objects.filter(
+            student=student,
+            assessment__subject=subject,
+            assessment__section=section,
+            assessment__assessment_type_id=at_id,
+            assessment__date_conducted__gte=period.start_date,
+            assessment__date_conducted__lte=period.end_date,
+        ).select_related('assessment')
+
+        at_name = AssessmentType.objects.filter(id=at_id).values_list('name', flat=True).first() or ''
+
+        if not scores.exists():
+            details.append({
+                'type': at_name,
+                'weight': weight_pct,
+                'avg_pct': Decimal('0'),
+                'weighted_score': Decimal('0'),
+            })
+            continue
+
+        total_pct = Decimal('0')
+        count = 0
+        for s in scores:
+            if s.assessment.total_marks > 0:
+                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
+                count += 1
+
+        avg = round(total_pct / count, 1) if count > 0 else Decimal('0')
+        weighted = round(avg * weight, 1)
+        total_weighted += weighted
+
+        details.append({
+            'type': at_name,
+            'weight': weight_pct,
+            'avg_pct': avg,
+            'weighted_score': weighted,
+        })
+
+    return round(total_weighted, 1), details
+
+

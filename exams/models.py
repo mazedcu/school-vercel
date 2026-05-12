@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
@@ -102,3 +103,66 @@ class SubjectComment(models.Model):
     def __str__(self):
         return f"Comment for {self.student.username} in {self.subject.name}"
 
+
+# ─── PERIOD-BASED REPORTING ──────────────────────────────────────────────────
+
+class AcademicPeriodConfig(models.Model):
+    """School-wide reporting mode for an academic year."""
+    class Mode(models.TextChoices):
+        QUARTERLY = 'quarterly', 'Quarterly (4 Reports)'
+        TERM = 'term', 'Term (2 Reports — Mid & Final)'
+
+    academic_year = models.CharField(max_length=10, unique=True, help_text="e.g. 2026")
+    mode = models.CharField(max_length=10, choices=Mode.choices)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='period_configs'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-academic_year']
+
+    def __str__(self):
+        return f"{self.academic_year} — {self.get_mode_display()}"
+
+
+class ReportPeriod(models.Model):
+    """An individual reporting period (e.g., Q1, Mid-Term) with date range."""
+    config = models.ForeignKey(AcademicPeriodConfig, on_delete=models.CASCADE, related_name='periods')
+    label = models.CharField(max_length=50, help_text="e.g. 1st Quarter, Mid-Term")
+    sequence = models.PositiveIntegerField(help_text="Display order: 1, 2, 3, 4")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_published = models.BooleanField(default=False, help_text="If checked, visible to students/parents")
+
+    class Meta:
+        ordering = ['config', 'sequence']
+        constraints = [
+            models.UniqueConstraint(fields=['config', 'sequence'], name='unique_period_sequence')
+        ]
+
+    def __str__(self):
+        return f"{self.label} ({self.start_date} — {self.end_date})"
+
+
+class PeriodWeighting(models.Model):
+    """Assessment type weights for a specific reporting period.
+    If subject is NULL, the weight is the default for all subjects.
+    If subject is set, it overrides the default for that specific subject.
+    """
+    period = models.ForeignKey(ReportPeriod, on_delete=models.CASCADE, related_name='weightings')
+    assessment_type = models.ForeignKey(AssessmentType, on_delete=models.CASCADE)
+    subject = models.ForeignKey(
+        'academics.Subject', on_delete=models.CASCADE, null=True, blank=True,
+        help_text="Leave blank for default weights. Set for subject-specific override."
+    )
+    weight_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="e.g. 20.00 for 20%")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['period', 'assessment_type', 'subject'], name='unique_period_subject_weight')
+        ]
+
+    def __str__(self):
+        subj = f" [{self.subject.name}]" if self.subject else ""
+        return f"{self.period.label}{subj} — {self.assessment_type.name}: {self.weight_percentage}%"

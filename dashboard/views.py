@@ -10,7 +10,7 @@ from academics.models import Section, Subject
 from students.models import StudentProfile, ParentProfile
 from timetable.models import TimetableEntry
 from attendance.models import Attendance
-from exams.models import AssessmentRecord, GradeSetting
+from exams.models import AssessmentRecord, GradeSetting, AcademicPeriodConfig
 from finance.models import Invoice, Payment
 from procurement.models import Expense, PurchaseRequest, InventoryItem, CapexItem
 from exams.views import _calculate_student_grade, _get_letter_grade
@@ -133,6 +133,13 @@ def student_dashboard(request):
     # Invoices
     invoices = Invoice.objects.filter(student=request.user).prefetch_related('line_items').order_by('-issued_date')[:5]
 
+    # Published periods for this student's academic year
+    published_periods = []
+    if section:
+        config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
+        if config:
+            published_periods = config.periods.filter(is_published=True)
+
     context = {
         'profile': profile,
         'section': section,
@@ -140,6 +147,7 @@ def student_dashboard(request):
         'grades': grades,
         'timetable': timetable,
         'invoices': invoices,
+        'published_periods': published_periods,
         'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'student_parent']).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/student_dashboard.html', context)
@@ -175,6 +183,13 @@ def parent_dashboard(request):
             # Fee status
             invoices = Invoice.objects.filter(student=child).prefetch_related('line_items').order_by('-issued_date')[:5]
 
+            # Published periods
+            published_periods = []
+            if section:
+                config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
+                if config:
+                    published_periods = config.periods.filter(is_published=True)
+
             children_data.append({
                 'child': child,
                 'profile': profile,
@@ -182,6 +197,7 @@ def parent_dashboard(request):
                 'att_pct': att_pct,
                 'grades': grades,
                 'invoices': invoices,
+                'published_periods': published_periods,
             })
 
     context = {

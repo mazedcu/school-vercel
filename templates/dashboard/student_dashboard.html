@@ -66,7 +66,8 @@
         <div class="card-title">Quick Links</div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;">
             <a href="{% url 'student_profile_detail' request.user.id %}" class="btn btn-primary btn-block">👤 My Profile</a>
-            <a href="{% url 'student_report' %}" class="btn btn-primary btn-block" style="background:#7c3aed;">📄 Full Report Card</a>
+            <a href="{% url 'period_report_select' %}" class="btn btn-primary btn-block" style="background:#7c3aed;">📅 Period Report Cards</a>
+            <a href="{% url 'student_report' %}" class="btn btn-block" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">📄 Full Year Report</a>
             <a href="{% url 'my_timetable' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 My Timetable</a>
             {% if section %}
             <a href="{% url 'download_timetable_pdf' section.id %}" class="btn btn-block" style="background:#059669;color:#fff;">📥 Download Timetable PDF</a>
@@ -75,6 +76,26 @@
         </div>
     </div>
 </div>
+
+{% if published_periods %}
+<div class="card">
+    <div class="card-title">📅 Period Report Cards</div>
+    <div class="grid grid-{% if published_periods|length > 2 %}4{% else %}2{% endif %}">
+        {% for p in published_periods %}
+        <a href="{% url 'period_report' p.id request.user.id %}" style="text-decoration:none;">
+            <div style="background:linear-gradient(135deg,{% cycle '#4f46e5' '#7c3aed' '#06b6d4' '#059669' %},{% cycle '#6366f1' '#8b5cf6' '#0891b2' '#047857' %});color:#fff;padding:1.25rem;border-radius:0.75rem;text-align:center;transition:transform 0.2s,box-shadow 0.2s;"
+                 onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'"
+                 onmouseleave="this.style.transform='';this.style.boxShadow=''">
+                <div style="font-size:1.15rem;font-weight:700;">{{ p.label }}</div>
+                <div style="font-size:0.75rem;opacity:0.85;margin-top:0.35rem;">
+                    {{ p.start_date|date:"M d" }} — {{ p.end_date|date:"M d, Y" }}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-title">💰 Fee Status</div>

@@ -12,5 +12,9 @@ urlpatterns = [
     path('report_settings/', views.report_settings, name='report_settings'),
     path('ct-progress/', views.ct_progress_report, name='ct_progress_report'),
     path('ct-progress/print/', views.ct_progress_report_print, name='ct_progress_report_print'),
+    path('period_setup/', views.period_setup, name='period_setup'),
+    path('period_reports/', views.period_report_select, name='period_report_select'),
+    path('period_reports/<int:student_id>/', views.period_report_select, name='period_report_select_student'),
+    path('period_report/<int:period_id>/<int:student_id>/', views.period_report, name='period_report'),
 ]
 

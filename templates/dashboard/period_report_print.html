@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ period.label }} Report Card — {{ student.get_full_name|default:student.username }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; padding: 2rem; }
+
+        .report-header {
+            text-align: center;
+            border-bottom: 3px solid #4f46e5;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .report-header h1 { font-size: 1.5rem; color: #4f46e5; letter-spacing: -0.5px; }
+        .report-header p { color: #64748b; font-size: 0.85rem; margin-top: 0.25rem; }
+        .report-header .period-badge {
+            display: inline-block; margin-top: 0.5rem; padding: 0.3rem 1rem;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff;
+            border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600;
+        }
+
+        .student-info {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
+            background: #f8fafc; padding: 1rem 1.25rem; border-radius: 0.5rem;
+            margin-bottom: 1.5rem; border: 1px solid #e2e8f0;
+        }
+        .student-info div { font-size: 0.8rem; }
+        .student-info .label { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px; }
+        .student-info .value { font-weight: 600; margin-top: 0.15rem; }
+
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.8rem; }
+        th { background: #1e1b4b; color: #fff; padding: 0.6rem 0.75rem; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+
+        .grade-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-weight: 700; font-size: 0.75rem; }
+        .grade-green { background: #d1fae5; color: #065f46; }
+        .grade-yellow { background: #fef3c7; color: #92400e; }
+        .grade-red { background: #fee2e2; color: #991b1b; }
+
+        .overall-box {
+            text-align: center; padding: 1rem;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            border: 2px solid #a5b4fc; border-radius: 0.75rem; margin-bottom: 1.5rem;
+        }
+        .overall-box .score { font-size: 2rem; font-weight: 800; color: #4f46e5; }
+        .overall-box .label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+
+        .grade-scale { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; margin-bottom: 1rem; }
+        .grade-scale span { font-size: 0.65rem; padding: 0.2rem 0.5rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.25rem; }
+
+        .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; font-size: 0.75rem; color: #64748b; }
+        .sig-line { border-top: 1px solid #94a3b8; padding-top: 0.5rem; margin-top: 2rem; text-align: center; }
+
+        @media print { body { padding: 0.5rem; } .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
+        <button onclick="window.print()" style="padding:0.6rem 1.5rem;background:#4f46e5;color:#fff;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;">🖨️ Print / Save as PDF</button>
+        <button onclick="window.close()" style="padding:0.6rem 1.5rem;background:#e2e8f0;color:#1e293b;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-left:0.5rem;">Close</button>
+    </div>
+
+    <div class="report-header">
+        <h1>OpDevSM — Student Report Card</h1>
+        <p>Academic Year {{ section.academic_year|default:"2026" }}</p>
+        <div class="period-badge">📅 {{ period.label }} ({{ period.start_date|date:"M d" }} — {{ period.end_date|date:"M d, Y" }})</div>
+    </div>
+
+    <div class="student-info">
+        <div><div class="label">Student Name</div><div class="value">{{ student.get_full_name|default:student.username }}</div></div>
+        <div><div class="label">Class / Section</div><div class="value">{{ section|default:"N/A" }}</div></div>
+        <div><div class="label">Roll Number</div><div class="value">{{ profile.roll_number|default:"N/A" }}</div></div>
+    </div>
+
+    <div class="overall-box">
+        <div class="label">Overall Average</div>
+        <div class="score">{{ overall_avg }}%
+            {% if overall_letter.letter != '-' %}
+            <span class="grade-badge {% if overall_avg >= 80 %}grade-green{% elif overall_avg >= 50 %}grade-yellow{% else %}grade-red{% endif %}" style="font-size:1.2rem;padding:0.3rem 0.8rem;vertical-align:middle;">{{ overall_letter.letter }}</span>
+            {% endif %}
+        </div>
+        {% if overall_letter.remark %}<div style="font-size:0.85rem;color:#4f46e5;margin-top:0.25rem;font-weight:600;">{{ overall_letter.remark }}</div>{% endif %}
+    </div>
+
+    {% if grades %}
+    <table>
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Score</th>
+                <th>Grade</th>
+                <th>Remark</th>
+                <th>Breakdown</th>
+                <th>Teacher Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grades %}
+            <tr>
+                <td style="font-weight:600;">{{ g.subject.name }}</td>
+                <td style="font-weight:700;color:{% if g.score >= 80 %}#059669{% elif g.score >= 50 %}#d97706{% else %}#dc2626{% endif %};">{{ g.score }}%</td>
+                <td>
+                    {% if g.letter != '-' %}
+                    <span class="grade-badge {% if g.score >= 80 %}grade-green{% elif g.score >= 50 %}grade-yellow{% else %}grade-red{% endif %}">{{ g.letter }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td style="font-size:0.75rem;color:#64748b;">{{ g.remark|default:"—" }}</td>
+                <td style="font-size:0.7rem;">
+                    {% for d in g.details %}{{ d.type }}: {{ d.weighted_score }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                </td>
+                <td style="font-size:0.75rem;font-style:italic;color:#475569;">{{ g.comment|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if grade_settings %}
+    <div class="grade-scale">
+        <strong style="font-size:0.65rem;margin-right:0.25rem;">Scale:</strong>
+        {% for g in grade_settings %}
+        <span><strong>{{ g.letter }}</strong> {{ g.min_score }}–{{ g.max_score }}%</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <div><div class="sig-line">Class Teacher's Signature</div></div>
+        <div><div class="sig-line">Principal's Signature</div></div>
+    </div>
+</body>
+</html>

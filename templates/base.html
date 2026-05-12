@@ -401,7 +401,7 @@
             <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
 
             <li class="nav-section">Reports</li>
-            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
+            <li><a href="{% url 'period_setup' %}" class="{% if request.resolver_match.url_name == 'period_setup' %}active{% endif %}"><span class="icon">📅</span> Period Setup</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
 

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block page_title %}{{ period.label }} Report — {{ student.get_full_name|default:student.username }}{% endblock %}
+{% block breadcrumb %}Reports / {{ student.username }} / {{ period.label }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <div>
+            <h3 style="margin:0;font-size:1.15rem;">{{ student.get_full_name|default:student.username }}</h3>
+            <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.2rem;">
+                Section: {{ section|default:"N/A" }} · Roll: {{ profile.roll_number|default:"N/A" }}
+            </div>
+            <div style="margin-top:0.4rem;">
+                <span style="display:inline-block;padding:0.25rem 0.75rem;border-radius:0.5rem;font-size:0.8rem;font-weight:600;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
+                    📅 {{ period.label }} ({{ period.start_date|date:"M d" }} — {{ period.end_date|date:"M d, Y" }})
+                </span>
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            <div style="text-align:right;">
+                <div style="font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Overall</div>
+                <span style="font-size:1.6rem;font-weight:800;color:{% if overall_avg >= 80 %}var(--success){% elif overall_avg >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ overall_avg }}%</span>
+                {% if overall_letter.letter != '-' %}
+                <span style="display:inline-block;padding:0.2rem 0.6rem;border-radius:0.375rem;font-weight:700;font-size:0.85rem;margin-left:0.5rem;
+                    {% if overall_avg >= 80 %}background:#d1fae5;color:#065f46;
+                    {% elif overall_avg >= 50 %}background:#fef3c7;color:#92400e;
+                    {% else %}background:#fee2e2;color:#991b1b;{% endif %}">{{ overall_letter.letter }}</span>
+                {% endif %}
+            </div>
+            <a href="{% url 'period_report' period.id student.id %}?print=1" target="_blank" class="btn btn-primary btn-sm" style="margin-left:1rem;">🖨️ Print</a>
+        </div>
+    </div>
+
+    {% if grades %}
+    <table>
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Breakdown</th>
+                <th>Score</th>
+                <th>Grade</th>
+                <th>Teacher Comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grades %}
+            <tr>
+                <td style="font-weight:600;">{{ g.subject.name }}</td>
+                <td style="font-size:0.75rem;">
+                    {% for d in g.details %}
+                    <div style="display:inline-block;margin-right:0.25rem;margin-bottom:0.2rem;">
+                        <span class="badge badge-blue">{{ d.type }} ({{ d.weight }}%): {{ d.avg_pct }}% → {{ d.weighted_score }}</span>
+                    </div>
+                    {% empty %}
+                    <span style="color:var(--text-muted);">No weights</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <span style="font-size:1.05rem;font-weight:700;color:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ g.score }}%</span>
+                </td>
+                <td>
+                    {% if g.letter != '-' %}
+                    <span style="display:inline-block;padding:0.25rem 0.6rem;border-radius:0.375rem;font-weight:700;font-size:0.8rem;
+                        {% if g.score >= 80 %}background:#d1fae5;color:#065f46;
+                        {% elif g.score >= 50 %}background:#fef3c7;color:#92400e;
+                        {% else %}background:#fee2e2;color:#991b1b;{% endif %}">{{ g.letter }}</span>
+                    <div style="font-size:0.65rem;color:var(--text-muted);margin-top:0.15rem;">{{ g.remark }}</div>
+                    {% else %}
+                    <span style="color:var(--text-muted);">-</span>
+                    {% endif %}
+                </td>
+                <td style="max-width:200px;font-size:0.8rem;color:var(--text-muted);font-style:italic;">
+                    {{ g.comment|default:"—" }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No grades recorded for this period.</div>
+    {% endif %}
+</div>
+
+<div style="display:flex;gap:0.75rem;margin-top:1rem;">
+    <a href="{% url 'period_report_select' student.id %}" class="btn" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">← Back to All Periods</a>
+</div>
+
+{% if grade_settings %}
+<div class="card" style="margin-top:1rem;">
+    <div class="card-title">Grading Scale</div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        {% for g in grade_settings %}
+        <div style="padding:0.4rem 0.75rem;border-radius:0.5rem;font-size:0.75rem;border:1px solid var(--border);background:var(--bg);">
+            <strong>{{ g.letter }}</strong> {{ g.min_score }}–{{ g.max_score }}%
+            {% if g.remark %}<span style="color:var(--text-muted);">({{ g.remark }})</span>{% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

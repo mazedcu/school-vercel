@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block page_title %}Period Setup{% endblock %}
+{% block breadcrumb %}Settings / Period Setup{% endblock %}
+
+{% block extra_head %}
+<style>
+    .config-card { background: var(--surface); border: 2px solid var(--primary); border-radius: 1rem; padding: 1.75rem; margin-bottom: 2rem; box-shadow: 0 10px 25px rgba(99,102,241,0.1); }
+    .period-row { background: var(--bg); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem; }
+    .period-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .period-header h4 { margin: 0; font-size: 0.95rem; }
+    .weight-grid { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1rem; align-items: center; padding: 0.75rem; background: var(--surface); border-radius: 0.5rem; border: 1px solid var(--border); }
+    .weight-grid .at-name { font-size: 0.85rem; font-weight: 500; }
+    .weight-grid input { width: 70px; text-align: center; }
+    .existing-config { background: var(--surface); border-radius: 1rem; border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 2rem; }
+    .mode-badge { padding: 0.3rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+    .mode-quarterly { background: #e0f2fe; color: #0369a1; }
+    .mode-term { background: #fef3c7; color: #92400e; }
+    .publish-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 0.375rem; font-size: 0.7rem; font-weight: 600; }
+    .published { background: #d1fae5; color: #065f46; }
+    .unpublished { background: #fee2e2; color: #991b1b; }
+    .dynamic-periods { display: none; }
+    .dynamic-periods.show { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="config-card">
+    <div class="card-title" style="font-size:1.25rem;display:flex;align-items:center;gap:0.75rem;">
+        <span>📅</span> Create Reporting Period Configuration
+    </div>
+    <form method="POST" id="configForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_config">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Academic Year</label>
+                <input type="text" name="academic_year" class="form-control" placeholder="e.g. 2026" required>
+            </div>
+            <div class="form-group">
+                <label>Reporting Mode</label>
+                <select name="mode" class="form-control" id="modeSelect" required onchange="showPeriodFields()">
+                    <option value="">-- Select --</option>
+                    {% for value, label in modes %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Quarterly periods -->
+        <div id="quarterlyPeriods" class="dynamic-periods">
+            <h4 style="margin:1rem 0 0.75rem;font-size:0.9rem;color:var(--text-muted);">📆 Define Quarterly Date Ranges</h4>
+            {% for i in "1234" %}
+            <div class="period-row">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{{ forloop.counter }}{% if forloop.counter == 1 %}st{% elif forloop.counter == 2 %}nd{% elif forloop.counter == 3 %}rd{% else %}th{% endif %} Quarter Label</label>
+                        <input type="text" name="label_{{ forloop.counter }}" class="form-control" value="{{ forloop.counter }}{% if forloop.counter == 1 %}st{% elif forloop.counter == 2 %}nd{% elif forloop.counter == 3 %}rd{% else %}th{% endif %} Quarter">
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" name="start_date_{{ forloop.counter }}" class="form-control quarterly-date" required disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" name="end_date_{{ forloop.counter }}" class="form-control quarterly-date" required disabled>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Term periods -->
+        <div id="termPeriods" class="dynamic-periods">
+            <h4 style="margin:1rem 0 0.75rem;font-size:0.9rem;color:var(--text-muted);">📆 Define Term Date Ranges</h4>
+            {% for label in "12" %}
+            <div class="period-row">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>{% if forloop.counter == 1 %}Mid-Term{% else %}Final-Term{% endif %} Label</label>
+                        <input type="text" name="label_{{ forloop.counter }}" class="form-control" value="{% if forloop.counter == 1 %}Mid-Term{% else %}Final-Term{% endif %}">
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" name="start_date_{{ forloop.counter }}" class="form-control term-date" required disabled>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" name="end_date_{{ forloop.counter }}" class="form-control term-date" required disabled>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:1rem;padding:0.75rem 2rem;">🚀 Create Configuration</button>
+    </form>
+</div>
+
+{% for c in configs %}
+<div class="existing-config">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div>
+            <h3 style="margin:0;font-size:1.15rem;">{{ c.academic_year }}</h3>
+            <span class="mode-badge mode-{{ c.mode }}">{{ c.get_mode_display }}</span>
+        </div>
+        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this entire configuration?')">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_config">
+            <input type="hidden" name="config_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete</button>
+        </form>
+    </div>
+
+    {% for p in c.periods.all %}
+    <div class="period-row">
+        <div class="period-header">
+            <h4>
+                {{ p.label }}
+                <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;">
+                    ({{ p.start_date|date:"M d, Y" }} — {{ p.end_date|date:"M d, Y" }})
+                </span>
+                <span class="publish-badge {% if p.is_published %}published{% else %}unpublished{% endif %}">
+                    {% if p.is_published %}✅ Published{% else %}🔒 Draft{% endif %}
+                </span>
+            </h4>
+            <form method="POST" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_publish">
+                <input type="hidden" name="period_id" value="{{ p.id }}">
+                <button type="submit" class="btn btn-sm" style="font-size:0.75rem;padding:0.3rem 0.6rem;background:{% if p.is_published %}var(--warning){% else %}var(--success){% endif %};color:#fff;border:none;">
+                    {% if p.is_published %}Unpublish{% else %}Publish{% endif %}
+                </button>
+            </form>
+        </div>
+
+        <!-- Current default weights display -->
+        {% with default_weights=p.weightings.all %}
+        {% if default_weights %}
+        <div style="margin-bottom:0.75rem;">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:0.3rem;">Default Weights:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.3rem;">
+                {% for w in default_weights %}
+                {% if not w.subject %}
+                <span class="badge badge-blue" style="font-size:0.7rem;">{{ w.assessment_type.name }}: {{ w.weight_percentage }}%</span>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% for w in default_weights %}
+            {% if w.subject %}
+            <div style="font-size:0.7rem;margin-top:0.3rem;color:var(--text-muted);">
+                <strong>{{ w.subject.name }}</strong>: {{ w.assessment_type.name }} {{ w.weight_percentage }}%
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;font-style:italic;">⚠️ No weights configured yet</div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Default Weight form -->
+        <details style="margin-top:0.5rem;">
+            <summary style="cursor:pointer;font-size:0.8rem;color:var(--primary);font-weight:600;">⚙️ Configure Default Weights</summary>
+            <form method="POST" style="margin-top:0.75rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_weights">
+                <input type="hidden" name="period_id" value="{{ p.id }}">
+                <div class="weight-grid">
+                    {% for at in assessment_types %}
+                    <span class="at-name">{{ at.name }}</span>
+                    <div style="display:flex;align-items:center;gap:0.25rem;">
+                        <input type="number" name="weight_{{ p.id }}_{{ at.id }}" value="{% for w in p.weightings.all %}{% if w.assessment_type_id == at.id and not w.subject %}{{ w.weight_percentage }}{% endif %}{% endfor %}" min="0" max="100" step="0.01" class="form-control">
+                        <span>%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.75rem;">💾 Save Default Weights</button>
+            </form>
+        </details>
+
+        <!-- Per-Subject Override -->
+        <details style="margin-top:0.5rem;">
+            <summary style="cursor:pointer;font-size:0.8rem;color:#7c3aed;font-weight:600;">📚 Subject-Specific Weight Override</summary>
+            <form method="POST" style="margin-top:0.75rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_subject_weights">
+                <input type="hidden" name="period_id" value="{{ p.id }}">
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label style="font-size:0.8rem;">Select Subject to Override</label>
+                    <select name="subject_id" class="form-control" required>
+                        <option value="">-- Select Subject --</option>
+                        {% for s in subjects %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="weight-grid">
+                    {% for at in assessment_types %}
+                    <span class="at-name">{{ at.name }}</span>
+                    <div style="display:flex;align-items:center;gap:0.25rem;">
+                        <input type="number" name="sw_{{ p.id }}_0_{{ at.id }}" value="0" min="0" max="100" step="0.01" class="form-control subject-weight-input" data-period="{{ p.id }}" data-at="{{ at.id }}">
+                        <span>%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;">💡 Set all to 0 to remove override and use defaults. Must total 100% otherwise.</div>
+                <button type="submit" class="btn btn-sm" style="margin-top:0.5rem;background:#7c3aed;color:#fff;border:none;">💾 Save Subject Override</button>
+            </form>
+        </details>
+    </div>
+    {% endfor %}
+</div>
+{% empty %}
+<div class="card">
+    <div class="empty-state">No reporting period configurations yet. Create one above.</div>
+</div>
+{% endfor %}
+
+<script>
+function showPeriodFields() {
+    const mode = document.getElementById('modeSelect').value;
+    const quarterly = document.getElementById('quarterlyPeriods');
+    const term = document.getElementById('termPeriods');
+
+    quarterly.classList.remove('show');
+    term.classList.remove('show');
+    document.querySelectorAll('.quarterly-date').forEach(el => el.disabled = true);
+    document.querySelectorAll('.term-date').forEach(el => el.disabled = true);
+
+    if (mode === 'quarterly') {
+        quarterly.classList.add('show');
+        document.querySelectorAll('.quarterly-date').forEach(el => el.disabled = false);
+    } else if (mode === 'term') {
+        term.classList.add('show');
+        document.querySelectorAll('.term-date').forEach(el => el.disabled = false);
+    }
+}
+</script>
+{% endblock %}

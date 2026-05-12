@@ -15,7 +15,8 @@
             </div>
         </div>
         <div style="display:flex;gap:0.5rem;">
-            <a href="{% url 'student_report_detail' cd.child.id %}" class="btn btn-primary btn-sm">📄 Full Report Card</a>
+            <a href="{% url 'period_report_select_student' cd.child.id %}" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;">📅 Period Reports</a>
+            <a href="{% url 'student_report_detail' cd.child.id %}" class="btn btn-primary btn-sm">📄 Full Report</a>
         </div>
     </div>
 
@@ -33,6 +34,24 @@
             <div class="stat-label">Invoices</div>
         </div>
     </div>
+
+    {% if cd.published_periods %}
+    <div style="margin-bottom:1rem;">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">📅 Period Report Cards</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            {% for p in cd.published_periods %}
+            <a href="{% url 'period_report' p.id cd.child.id %}" style="text-decoration:none;">
+                <div style="background:linear-gradient(135deg,{% cycle '#4f46e5' '#7c3aed' '#06b6d4' '#059669' %},{% cycle '#6366f1' '#8b5cf6' '#0891b2' '#047857' %});color:#fff;padding:0.75rem 1.25rem;border-radius:0.5rem;text-align:center;font-size:0.85rem;font-weight:600;transition:transform 0.2s;"
+                     onmouseenter="this.style.transform='translateY(-2px)'"
+                     onmouseleave="this.style.transform=''">
+                    {{ p.label }}
+                    <div style="font-size:0.65rem;opacity:0.8;">{{ p.start_date|date:"M d" }} — {{ p.end_date|date:"M d" }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     {% if cd.grades %}
     <div style="margin-bottom:1rem;">

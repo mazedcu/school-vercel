@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block page_title %}Select Report Period — {{ student.get_full_name|default:student.username }}{% endblock %}
+{% block breadcrumb %}Reports / {{ student.username }} / Select Period{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <div>
+            <h3 style="margin:0;font-size:1.15rem;">📄 {{ student.get_full_name|default:student.username }}</h3>
+            <div style="color:var(--text-muted);font-size:0.8rem;margin-top:0.2rem;">
+                Section: {{ section|default:"N/A" }} · Roll: {{ profile.roll_number|default:"N/A" }}
+            </div>
+        </div>
+        <a href="{% url 'student_report' student.id %}" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">📄 Full Year Report</a>
+    </div>
+
+    {% for cfg in configs %}
+    <div style="margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-muted);">
+        <strong>{{ cfg.config.academic_year }}</strong> — {{ cfg.config.get_mode_display }}
+    </div>
+    <div class="grid grid-{% if cfg.periods|length > 2 %}4{% else %}2{% endif %}" style="margin-bottom:1.5rem;">
+        {% for p in cfg.periods %}
+        <a href="{% url 'period_report' p.id student.id %}" style="text-decoration:none;">
+            <div style="background:linear-gradient(135deg,{% cycle '#4f46e5' '#7c3aed' '#06b6d4' '#059669' %},{% cycle '#6366f1' '#8b5cf6' '#0891b2' '#047857' %});color:#fff;padding:1.25rem;border-radius:0.75rem;text-align:center;transition:transform 0.2s,box-shadow 0.2s;"
+                 onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'"
+                 onmouseleave="this.style.transform='';this.style.boxShadow=''">
+                <div style="font-size:1.15rem;font-weight:700;">{{ p.label }}</div>
+                <div style="font-size:0.75rem;opacity:0.85;margin-top:0.35rem;">
+                    {{ p.start_date|date:"M d" }} — {{ p.end_date|date:"M d, Y" }}
+                </div>
+                {% if not p.is_published %}
+                <div style="font-size:0.65rem;margin-top:0.4rem;background:rgba(255,255,255,0.2);display:inline-block;padding:0.15rem 0.5rem;border-radius:0.25rem;">🔒 Draft</div>
+                {% endif %}
+            </div>
+        </a>
+        {% empty %}
+        <div class="empty-state" style="grid-column:1/-1;">No reporting periods defined for this academic year.</div>
+        {% endfor %}
+    </div>
+    {% empty %}
+    <div class="empty-state">No reporting period configuration found. Ask the administrator to set up periods.</div>
+    {% endfor %}
+</div>
+{% endblock %}
