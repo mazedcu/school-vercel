@@ -97,7 +97,7 @@ def generate_performance_report_pdf(evaluation):
 
     score_data = [[
         Paragraph(f"<b>FINAL SCORE</b>", styles['Normal']),
-        Paragraph(f"<font size='22' color='{grade_colour.hexval()}'><b>{score_display}</b></font> / 100", styles['Normal']),
+        Paragraph(f"<font size='16' color='{grade_colour.hexval()}'><b>{score_display}</b></font> / 100", styles['Normal']),
         Paragraph(f"<b>{grade_info['letter']}</b> — {grade_info['label']}", styles['Normal']),
     ]]
     score_table = Table(score_data, colWidths=[45 * mm, 65 * mm, 70 * mm])
