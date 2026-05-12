@@ -4,14 +4,12 @@ Generates class-wise and teacher-wise timetable PDFs using ReportLab.
 """
 import io
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm, cm
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
+from utils.pdf_base import get_base_styles, PRIMARY_DARK, BORDER, BG_LIGHT, TEXT_MUTED
 from timetable.models import TimeSlot, TimetableEntry
 
 
@@ -21,26 +19,21 @@ DAY_LABELS = {
     'thursday': 'Thu', 'friday': 'Fri', 'saturday': 'Sat', 'sunday': 'Sun',
 }
 
-# ── Colour palette ────────────────────────────────────────────────────────────
-HEADER_BG = colors.HexColor('#312e81')
+# ── Using Shared Palette ──────────────────────────────────────────────────
+HEADER_BG = PRIMARY_DARK
 HEADER_FG = colors.white
-ROW_ALT   = colors.HexColor('#f1f5f9')
+ROW_ALT   = BG_LIGHT
 CELL_BG   = colors.HexColor('#eef2ff')
-GRID_CLR  = colors.HexColor('#cbd5e1')
+GRID_CLR  = BORDER
 ACCENT    = colors.HexColor('#6366f1')
 
 
 def _build_styles():
     """Return custom paragraph styles for the PDF."""
-    styles = getSampleStyleSheet()
+    styles = get_base_styles()
     styles.add(ParagraphStyle(
-        'TitleCustom', parent=styles['Title'],
-        fontSize=16, textColor=HEADER_BG, spaceAfter=2 * mm,
-    ))
-    styles.add(ParagraphStyle(
-        'SubTitle', parent=styles['Normal'],
-        fontSize=10, textColor=colors.HexColor('#64748b'),
-        spaceAfter=6 * mm, alignment=TA_CENTER,
+        'TitleCustom', parent=styles['MainTitle'],
+        fontSize=16, spaceAfter=2 * mm,
     ))
     styles.add(ParagraphStyle(
         'CellSubject', parent=styles['Normal'],

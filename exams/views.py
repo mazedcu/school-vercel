@@ -1,6 +1,8 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
 from accounts.decorators import role_required
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
@@ -10,13 +12,20 @@ import datetime
 
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
-from students.models import StudentProfile, ParentProfile
-from timetable.models import TimeSlot, TimetableEntry
-from timetable.services import generate_timetable_entry
-from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
-from attendance.models import Attendance
-from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment, AcademicPeriodConfig, ReportPeriod, PeriodWeighting
-from finance.models import FeeStructure, Invoice, Payment
+from students.models import StudentProfile
+from timetable.models import TimetableEntry
+from timetable.pdf_utils import generate_section_timetable_pdf
+from exams.models import (
+    AssessmentType, AssessmentRecord, StudentScore, GradeSetting,
+    SubjectComment, SubjectWeighting, WeightingComponent,
+    AcademicPeriodConfig, ReportPeriod, PeriodWeighting
+)
+from exams.services import (
+    calculate_student_grade, get_grade_details,
+    get_letter_grade, calculate_period_grade
+)
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -93,8 +102,9 @@ def manage_assessments(request):
                 title=title, total_marks=Decimal(total_marks), date_conducted=date_conducted
             )
             messages.success(request, f"Assessment '{title}' created. Now enter marks.")
-            return redirect(f'/enter_marks/{record.id}/')
+            return redirect(reverse('enter_marks', args=[record.id]))
         except Exception as e:
+            logger.error("Failed to create assessment: %s", e, exc_info=True)
             messages.error(request, str(e))
         return redirect('manage_assessments')
 
@@ -128,10 +138,10 @@ def enter_marks(request, assessment_id):
                         assessment=assessment, student=p.user,
                         defaults={'marks_obtained': m}
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Could not save mark for student %s: %s", p.user_id, e)
         messages.success(request, f"Marks saved for '{assessment.title}'.")
-        return redirect(f'/enter_marks/{assessment_id}/')
+        return redirect(reverse('enter_marks', args=[assessment_id]))
 
     students_marks = []
     for p in profiles:
@@ -201,8 +211,8 @@ def student_report(request, student_id=None):
     if section:
         subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
         for subj in subjects:
-            score = _calculate_student_grade(student, subj, section)
-            letter = _get_letter_grade(score, grade_settings)
+            score = calculate_student_grade(student, subj, section)
+            letter = get_letter_grade(score, grade_settings)
             comment_obj = SubjectComment.objects.filter(
                 student=student, subject=subj, section=section, academic_year=section.academic_year
             ).first()
@@ -212,14 +222,14 @@ def student_report(request, student_id=None):
                 'letter': letter['letter'],
                 'remark': letter['remark'],
                 'grade_point': letter['grade_point'],
-                'details': _get_grade_details(student, subj, section),
+                'details': get_grade_details(student, subj, section),
                 'comment': comment_obj.comment if comment_obj else '',
             })
             overall_total += score
             subject_count += 1
 
     overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
-    overall_letter = _get_letter_grade(overall_avg, grade_settings)
+    overall_letter = get_letter_grade(overall_avg, grade_settings)
 
     context = {
         'student': student,
@@ -256,6 +266,7 @@ def grade_settings_view(request):
                 )
                 messages.success(request, f"Grade '{letter}' added.")
             except Exception as e:
+                logger.error("Failed to create GradeSetting: %s", e, exc_info=True)
                 messages.error(request, str(e))
 
         elif action == 'delete':
@@ -295,7 +306,8 @@ def subject_comments_view(request):
                         defaults={'comment': comment_text, 'commented_by': request.user}
                     )
             messages.success(request, f"Comments saved for {subject.name} in {section}.")
-        return redirect(f'/subject_comments/?section={section_id}&subject={subject_id}')
+        url = reverse('subject_comments') + f'?section={section_id}&subject={subject_id}'
+        return redirect(url)
 
     if request.GET.get('section') and request.GET.get('subject'):
         selected_section = Section.objects.filter(id=request.GET['section']).first()
@@ -322,85 +334,11 @@ def subject_comments_view(request):
     }
     return render(request, 'dashboard/subject_comments.html', context)
 
-def _calculate_student_grade(student, subject, section):
-    """Calculate weighted final grade for a student in a subject."""
-    try:
-        weighting = SubjectWeighting.objects.get(
-            section=section, subject=subject, academic_year=section.academic_year
-        )
-    except SubjectWeighting.DoesNotExist:
-        # Fall back to simple average
-        scores = StudentScore.objects.filter(student=student, assessment__subject=subject, assessment__section=section)
-        if not scores.exists():
-            return Decimal('0')
-        total_pct = Decimal('0')
-        count = 0
-        for s in scores:
-            if s.assessment.total_marks > 0:
-                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
-                count += 1
-        return round(total_pct / count, 1) if count > 0 else Decimal('0')
-
-    total_weighted = Decimal('0')
-    for comp in weighting.components.all():
-        weight = comp.weight_percentage / Decimal('100')
-        scores = StudentScore.objects.filter(
-            student=student,
-            assessment__subject=subject,
-            assessment__section=section,
-            assessment__assessment_type=comp.assessment_type
-        )
-        if not scores.exists():
-            continue
-        total_pct = Decimal('0')
-        count = 0
-        for s in scores:
-            if s.assessment.total_marks > 0:
-                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
-                count += 1
-        if count > 0:
-            avg = total_pct / count
-            total_weighted += avg * weight
-    return round(total_weighted, 1)
-
-def _get_grade_details(student, subject, section):
-    """Return breakdown by assessment type for report card."""
-    details = []
-    try:
-        weighting = SubjectWeighting.objects.get(section=section, subject=subject, academic_year=section.academic_year)
-    except SubjectWeighting.DoesNotExist:
-        return details
-
-    for comp in weighting.components.all():
-        scores = StudentScore.objects.filter(
-            student=student,
-            assessment__subject=subject,
-            assessment__section=section,
-            assessment__assessment_type=comp.assessment_type
-        ).select_related('assessment')
-
-        total_pct = Decimal('0')
-        count = 0
-        for s in scores:
-            if s.assessment.total_marks > 0:
-                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
-                count += 1
-        avg = round(total_pct / count, 1) if count > 0 else Decimal('0')
-        weighted = round(avg * comp.weight_percentage / Decimal('100'), 1)
-        details.append({
-            'type': comp.assessment_type.name,
-            'weight': comp.weight_percentage,
-            'avg_pct': avg,
-            'weighted_score': weighted,
-        })
-    return details
-
-def _get_letter_grade(score, grade_settings):
-    """Return letter grade, remark, and grade point for a given score."""
-    for g in grade_settings:
-        if g.min_score <= score <= g.max_score:
-            return {'letter': g.letter, 'remark': g.remark, 'grade_point': g.grade_point}
-    return {'letter': '-', 'remark': '', 'grade_point': Decimal('0')}
+# Grade helpers are now in exams/services.py — imported at the top of this file.
+# Legacy aliases kept temporarily to avoid breaking any external references.
+_calculate_student_grade = calculate_student_grade
+_get_grade_details = get_grade_details
+_get_letter_grade = get_letter_grade
 
 
 # ─── CT PROGRESS REPORT ──────────────────────────────────────────────────────
@@ -520,6 +458,18 @@ def ct_progress_report_print(request):
 
     # Build student data
     grade_settings = GradeSetting.objects.all()
+
+    # Pre-fetch ALL scores for these assessments in one query (fixes N+1)
+    all_ct_ids = [a.id for cts in subject_assessments.values() for a in cts]
+    all_student_ids = [p.user_id for p in profiles]
+    all_scores_qs = StudentScore.objects.filter(
+        assessment_id__in=all_ct_ids,
+        student_id__in=all_student_ids,
+    ).select_related('assessment')
+    score_map = {}  # {(assessment_id, student_id): StudentScore}
+    for s in all_scores_qs:
+        score_map[(s.assessment_id, s.student_id)] = s
+
     students_data = []
     for profile in profiles:
         student = profile.user
@@ -534,7 +484,7 @@ def ct_progress_report_print(request):
             total_max = Decimal('0')
 
             for ct in subj_cts:
-                score = StudentScore.objects.filter(assessment=ct, student=student).first()
+                score = score_map.get((ct.id, student.id))
                 obtained = score.marks_obtained if score else Decimal('0')
                 ct_details.append({
                     'title': ct.title,
@@ -550,7 +500,7 @@ def ct_progress_report_print(request):
             else:
                 pct = Decimal('0')
 
-            letter = _get_letter_grade(pct, grade_settings)
+            letter = get_letter_grade(pct, grade_settings)
             subject_scores.append({
                 'subject': subj,
                 'details': ct_details,
@@ -564,7 +514,7 @@ def ct_progress_report_print(request):
             subject_count += 1
 
         overall_pct = round(total_pct / subject_count, 1) if subject_count > 0 else Decimal('0')
-        overall_letter = _get_letter_grade(overall_pct, grade_settings)
+        overall_letter = get_letter_grade(overall_pct, grade_settings)
 
         students_data.append({
             'student': student,
@@ -823,11 +773,23 @@ def period_report(request, period_id, student_id):
             if pw.subject_id:
                 subject_weight_overrides.setdefault(pw.subject_id, {})[pw.assessment_type_id] = pw.weight_percentage
 
+        # Pre-fetch all assessment type names to avoid N+1 inside loop
+        all_at_ids = set()
+        for wt in default_weights.keys():
+            all_at_ids.add(wt)
+        for overrides in subject_weight_overrides.values():
+            all_at_ids.update(overrides.keys())
+        at_name_map = dict(
+            AssessmentType.objects.filter(id__in=all_at_ids).values_list('id', 'name')
+        )
+
         for subj in subjects:
             # Use subject-specific weights if available, else defaults
             weights_for_subj = subject_weight_overrides.get(subj.id, default_weights)
-            score, details = _calculate_period_grade(student, subj, section, period, weights_for_subj)
-            letter = _get_letter_grade(score, grade_settings)
+            score, details = calculate_period_grade(
+                student, subj, section, period, weights_for_subj, at_name_map=at_name_map
+            )
+            letter = get_letter_grade(score, grade_settings)
             comment_obj = SubjectComment.objects.filter(
                 student=student, subject=subj, section=section, academic_year=section.academic_year
             ).first()
@@ -844,7 +806,7 @@ def period_report(request, period_id, student_id):
             subject_count += 1
 
     overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
-    overall_letter = _get_letter_grade(overall_avg, grade_settings)
+    overall_letter = get_letter_grade(overall_avg, grade_settings)
 
     context = {
         'student': student,
@@ -862,69 +824,7 @@ def period_report(request, period_id, student_id):
     return render(request, 'dashboard/period_report.html', context)
 
 
-def _calculate_period_grade(student, subject, section, period, period_weights):
-    """Calculate weighted grade for a student in a subject within a specific period."""
-    details = []
-
-    if not period_weights:
-        scores = StudentScore.objects.filter(
-            student=student,
-            assessment__subject=subject,
-            assessment__section=section,
-            assessment__date_conducted__gte=period.start_date,
-            assessment__date_conducted__lte=period.end_date,
-        ).select_related('assessment')
-        if not scores.exists():
-            return Decimal('0'), details
-        total_pct = Decimal('0')
-        count = 0
-        for s in scores:
-            if s.assessment.total_marks > 0:
-                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
-                count += 1
-        return (round(total_pct / count, 1) if count > 0 else Decimal('0')), details
-
-    total_weighted = Decimal('0')
-    for at_id, weight_pct in period_weights.items():
-        weight = weight_pct / Decimal('100')
-        scores = StudentScore.objects.filter(
-            student=student,
-            assessment__subject=subject,
-            assessment__section=section,
-            assessment__assessment_type_id=at_id,
-            assessment__date_conducted__gte=period.start_date,
-            assessment__date_conducted__lte=period.end_date,
-        ).select_related('assessment')
-
-        at_name = AssessmentType.objects.filter(id=at_id).values_list('name', flat=True).first() or ''
-
-        if not scores.exists():
-            details.append({
-                'type': at_name,
-                'weight': weight_pct,
-                'avg_pct': Decimal('0'),
-                'weighted_score': Decimal('0'),
-            })
-            continue
-
-        total_pct = Decimal('0')
-        count = 0
-        for s in scores:
-            if s.assessment.total_marks > 0:
-                total_pct += (s.marks_obtained / s.assessment.total_marks) * 100
-                count += 1
-
-        avg = round(total_pct / count, 1) if count > 0 else Decimal('0')
-        weighted = round(avg * weight, 1)
-        total_weighted += weighted
-
-        details.append({
-            'type': at_name,
-            'weight': weight_pct,
-            'avg_pct': avg,
-            'weighted_score': weighted,
-        })
-
-    return round(total_weighted, 1), details
-
+# _calculate_period_grade is now in exams/services.py as calculate_period_grade.
+# Alias kept for any external code that may reference it.
+_calculate_period_grade = calculate_period_grade
 

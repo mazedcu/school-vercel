@@ -26,7 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-*whwm=emn^x5sqhcof0mvwo7%ni&^&ml#l0=%ze*5^dj!zcbq=')
+# In production, SECRET_KEY must be set in the .env file.
+# Using a fallback here would expose it in version control — fail loudly instead.
+if os.environ.get('DEBUG', 'True') == 'True':
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-*whwm=emn^x5sqhcof0mvwo7%ni&^&ml#l0=%ze*5^dj!zcbq=')
+else:
+    SECRET_KEY = os.environ['SECRET_KEY']  # Raises KeyError if missing — intentional
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
@@ -154,6 +159,14 @@ STATICFILES_DIRS = [
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Caching (Local memory cache for timetable and subject lists)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/login/'
@@ -181,7 +194,15 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'ad
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '5'))  # seconds — prevents Gunicorn worker timeout on SMTP hang
 
 # Attendance Machine API Security
-ATTENDANCE_API_TOKEN = os.environ.get('ATTENDANCE_API_TOKEN', 'opdev_default_secret')
+# Must be set in .env on production — fallback only for local development.
+ATTENDANCE_API_TOKEN = os.environ.get('ATTENDANCE_API_TOKEN')
+if not ATTENDANCE_API_TOKEN:
+    if not DEBUG:
+        raise RuntimeError(
+            "ATTENDANCE_API_TOKEN must be set in production .env. "
+            "Set it to a long random string."
+        )
+    ATTENDANCE_API_TOKEN = 'opdev_local_dev_only'  # Safe fallback for local only
 
 # Logging — write errors to file so we can diagnose SMTP issues etc.
 LOGGING = {
@@ -207,15 +228,15 @@ LOGGING = {
         },
     },
     'loggers': {
-        'accounts': {
+        '': {
             'handlers': ['file', 'console'],
-            'level': 'ERROR',
-            'propagate': True,
+            'level': 'WARNING',
+            'propagate': False,
         },
         'django': {
             'handlers': ['file', 'console'],
             'level': 'ERROR',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }

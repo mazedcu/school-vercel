@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from accounts.decorators import role_required
 from django.utils import timezone
@@ -13,7 +14,7 @@ from attendance.models import Attendance
 from exams.models import AssessmentRecord, GradeSetting, AcademicPeriodConfig
 from finance.models import Invoice, Payment
 from procurement.models import Expense, PurchaseRequest, InventoryItem, CapexItem
-from exams.views import _calculate_student_grade, _get_letter_grade
+from exams.services import calculate_student_grade, get_letter_grade
 from .models import Notice
 
 # ─── Home & Router ───────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ def student_dashboard(request):
     if section:
         subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
         for subj in subjects:
-            score = _calculate_student_grade(request.user, subj, section)
+            score = calculate_student_grade(request.user, subj, section)
             grades.append({'subject': subj, 'score': score})
 
     # Timetable for the student's section
@@ -176,8 +177,8 @@ def parent_dashboard(request):
                 grade_settings = GradeSetting.objects.all()
                 subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
                 for subj in subjects:
-                    score = _calculate_student_grade(child, subj, section)
-                    letter = _get_letter_grade(score, grade_settings)
+                    score = calculate_student_grade(child, subj, section)
+                    letter = get_letter_grade(score, grade_settings)
                     grades.append({'subject': subj, 'score': score, 'letter': letter['letter']})
 
             # Fee status
@@ -230,8 +231,9 @@ def manage_notices(request):
 
 @login_required
 @role_required(User.Role.ADMIN)
+@require_POST
 def delete_notice(request, notice_id):
-    """Delete a notice via GET (for consistency)."""
+    """Delete a notice (POST only)."""
     Notice.objects.filter(id=notice_id).delete()
     messages.success(request, "Notice deleted.")
     return redirect('manage_notices')

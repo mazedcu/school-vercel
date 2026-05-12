@@ -3,20 +3,15 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import role_required
 from django.contrib import messages
-from django.db.models import Count, Q, Avg
 from django.utils import timezone
-from decimal import Decimal
-import datetime
+from django.core.cache import cache
 
 from accounts.models import User
-from academics.models import ClassGroup, Section, Subject
-from students.models import StudentProfile, ParentProfile
+from academics.models import Section, Subject
+from students.models import StudentProfile
 from timetable.models import TimeSlot, TimetableEntry
 from timetable.services import generate_timetable_entry
 from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
-from attendance.models import Attendance
-from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
-from finance.models import FeeStructure, Invoice, Payment
 
 
 
@@ -77,6 +72,10 @@ def timetable_gen(request):
                     messages.error(request, msg)
             except Exception as e:
                 messages.error(request, f"Error: {str(e)}")
+            
+            # Clear cache for this section
+            if section_id:
+                cache.delete(f"timetable_grid_{section_id}")
 
         return redirect('timetable_gen')
 
@@ -142,25 +141,36 @@ def view_timetable(request):
 
             day_headers = [{'key': d, 'label': day_labels_map.get(d, d)} for d in active_days]
 
-            # Get unique time slots
-            unique_times = TimeSlot.objects.values_list('start_time', 'end_time').distinct().order_by('start_time')
+            # Try to get from cache
+            cache_key = f"timetable_grid_{selected_section.id}"
+            cached_data = cache.get(cache_key)
+            
+            if cached_data:
+                grid_rows = cached_data.get('grid_rows')
+                day_headers = cached_data.get('day_headers')
+            else:
+                # Get unique time slots
+                unique_times = TimeSlot.objects.values_list('start_time', 'end_time').distinct().order_by('start_time')
 
-            # Build grid rows
-            for start_time, end_time in unique_times:
-                time_label = f"{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}"
-                cells = []
-                for day in active_days:
-                    entry = lookup.get((day, str(start_time), str(end_time)))
-                    cells.append({
-                        'entry': entry,
-                        'subject': entry.subject.name if entry else '',
-                        'teacher': (entry.teacher.get_full_name() or entry.teacher.username) if entry else '',
-                        'room': entry.room if entry and entry.room else '',
+                # Build grid rows
+                for start_time, end_time in unique_times:
+                    time_label = f"{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}"
+                    cells = []
+                    for day in active_days:
+                        entry = lookup.get((day, str(start_time), str(end_time)))
+                        cells.append({
+                            'entry': entry,
+                            'subject': entry.subject.name if entry else '',
+                            'teacher': (entry.teacher.get_full_name() or entry.teacher.username) if entry else '',
+                            'room': entry.room if entry and entry.room else '',
+                        })
+                    grid_rows.append({
+                        'time': time_label,
+                        'cells': cells,
                     })
-                grid_rows.append({
-                    'time': time_label,
-                    'cells': cells,
-                })
+                
+                # Cache for 1 hour
+                cache.set(cache_key, {'grid_rows': grid_rows, 'day_headers': day_headers}, 3600)
 
     context = {
         'sections': sections,

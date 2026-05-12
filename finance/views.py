@@ -1,12 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from decimal import Decimal
 import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
@@ -182,8 +186,9 @@ def print_invoice(request, invoice_id):
 
 @login_required
 @role_required(User.Role.ADMIN)
+@require_POST
 def delete_invoice(request, invoice_id):
-    """Delete an invoice and redirect back."""
+    """Delete an invoice (POST only)."""
     invoice = get_object_or_404(Invoice, id=invoice_id)
     inv_num = invoice.invoice_number
     try:

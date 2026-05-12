@@ -29,9 +29,8 @@ def sync_attendance(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    # Simple token security (Add ATTENDANCE_API_TOKEN to settings.py)
-    expected_token = getattr(settings, 'ATTENDANCE_API_TOKEN', 'opdev_default_secret')
-    if data.get('token') != expected_token:
+    # Token validated against settings (configured in settings.py with fail-loud in production)
+    if data.get('token') != settings.ATTENDANCE_API_TOKEN:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
 
     logs = data.get('logs', [])

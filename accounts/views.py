@@ -178,11 +178,15 @@ def manage_users(request):
 @role_required(User.Role.ADMIN)
 def parent_profiles(request):
     """Admin: list all parents."""
-    parents = User.objects.filter(role=User.Role.PARENT).order_by('username')
+    parents = User.objects.filter(role=User.Role.PARENT).prefetch_related(
+        'parent_profile__children'
+    ).order_by('username')
     
     parent_data = []
     for p in parents:
-        profile, _ = ParentProfile.objects.get_or_create(user=p)
+        profile = getattr(p, 'parent_profile', None)
+        if not profile:
+            profile = ParentProfile.objects.create(user=p)
         parent_data.append({
             'user': p,
             'children': profile.children.all()

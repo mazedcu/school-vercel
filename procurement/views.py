@@ -3,15 +3,18 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import role_required
 from django.contrib import messages
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, ExpressionWrapper, F, DecimalField
 from django.utils import timezone
 from decimal import Decimal
 import json
 import datetime
+import logging
 
 from accounts.models import User
 from finance.models import Invoice, Payment
 from .models import Expense, PurchaseRequest, PurchaseOrder, InventoryItem, CapexItem
+
+logger = logging.getLogger(__name__)
 
 
 # ─── EXPENSE MANAGEMENT ──────────────────────────────────────────────────────
@@ -35,6 +38,7 @@ def manage_expenses(request):
                 )
                 messages.success(request, "Expense recorded successfully.")
             except Exception as e:
+                logger.error("Failed to record expense: %s", e, exc_info=True)
                 messages.error(request, str(e))
 
         elif action == 'delete_expense':
@@ -109,6 +113,7 @@ def account_statement(request):
 # ─── PURCHASE REQUEST ────────────────────────────────────────────────────────
 
 @login_required
+@role_required(User.Role.ADMIN, User.Role.TEACHER)
 def purchase_requests(request):
     """Teachers and admins can create purchase requests. Admins see all."""
     if request.method == 'POST':
@@ -276,8 +281,13 @@ def inventory_capex(request):
 
     inventory_items = InventoryItem.objects.all()
     capex_items = CapexItem.objects.all()
-    total_inventory_value = sum(i.total_value for i in inventory_items)
-    total_capex_value = capex_items.aggregate(total=Sum('purchase_cost'))['total'] or 0
+    # Compute value in DB instead of Python loop
+    total_inventory_value = InventoryItem.objects.aggregate(
+        total=Sum(
+            ExpressionWrapper(F('quantity') * F('unit_cost'), output_field=DecimalField())
+        )
+    )['total'] or Decimal('0')
+    total_capex_value = capex_items.aggregate(total=Sum('purchase_cost'))['total'] or Decimal('0')
 
     context = {
         'inventory_items': inventory_items,

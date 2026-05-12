@@ -1,3 +1,5 @@
+import logging
+from django.db import transaction
 from accounts.models import User
 from academics.models import Section
 from students.models import StudentProfile, ParentProfile
@@ -5,6 +7,8 @@ from django.core.mail import send_mail
 from django.conf import settings as django_settings
 import secrets
 import string
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_password(length=10):
@@ -38,8 +42,12 @@ def send_credential_email(email, user, password, role, section=None):
     )
     try:
         send_mail(subject, message, django_settings.DEFAULT_FROM_EMAIL, [email])
-    except Exception:
-        pass  # Silently fail in dev
+    except Exception as exc:
+        logger.warning(
+            "Credential email to %s failed (role=%s): %s",
+            email, role, exc, exc_info=True
+        )
+        # Swallow the error — account is created; admin can resend manually
 
 
 def create_student_with_parent(
@@ -51,38 +59,41 @@ def create_student_with_parent(
     Creates a Student User, StudentProfile, links to existing or new Parent,
     and sends confirmation emails with User IDs to both.
     """
-    # ── Create the student user ──────────────────────────────────────────
-    user = User.objects.create_user(
-        username=username, password=password,
-        first_name=first_name, last_name=last_name,
-        role=User.Role.STUDENT, email=student_email
-    )
-
-    section = Section.objects.filter(id=section_id).first() if section_id else None
-    StudentProfile.objects.create(user=user, section=section, roll_number=roll_number)
-
-    # ── Link or create parent ────────────────────────────────────────────
-    actual_parent_password = None
-    existing_parent = User.objects.filter(username=parent_username).first()
-
-    if existing_parent:
-        # Parent user already exists — just link the child
-        parent_user = existing_parent
-        parent_profile, _ = ParentProfile.objects.get_or_create(user=parent_user)
-        parent_profile.children.add(user)
-        actual_parent_password = None  # don't send credentials for existing parent
-    else:
-        # Create a new parent account
-        actual_parent_password = parent_password if parent_password else _generate_password()
-        parent_user = User.objects.create_user(
-            username=parent_username, password=actual_parent_password,
-            first_name=f"Parent of {first_name}", last_name=last_name,
-            role=User.Role.PARENT, email=parent_email
+    # Wrap DB operations in a transaction — if parent creation fails,
+    # the student won't be orphaned.
+    with transaction.atomic():
+        # ── Create the student user ──────────────────────────────────────
+        user = User.objects.create_user(
+            username=username, password=password,
+            first_name=first_name, last_name=last_name,
+            role=User.Role.STUDENT, email=student_email
         )
-        parent_profile = ParentProfile.objects.create(user=parent_user)
-        parent_profile.children.add(user)
 
-    # ── Send confirmation emails ─────────────────────────────────────────
+        section = Section.objects.filter(id=section_id).first() if section_id else None
+        StudentProfile.objects.create(user=user, section=section, roll_number=roll_number)
+
+        # ── Link or create parent ────────────────────────────────────────
+        actual_parent_password = None
+        existing_parent = User.objects.filter(username=parent_username).first()
+
+        if existing_parent:
+            # Parent user already exists — just link the child
+            parent_user = existing_parent
+            parent_profile, _ = ParentProfile.objects.get_or_create(user=parent_user)
+            parent_profile.children.add(user)
+            actual_parent_password = None  # don't send credentials for existing parent
+        else:
+            # Create a new parent account
+            actual_parent_password = parent_password if parent_password else _generate_password()
+            parent_user = User.objects.create_user(
+                username=parent_username, password=actual_parent_password,
+                first_name=f"Parent of {first_name}", last_name=last_name,
+                role=User.Role.PARENT, email=parent_email
+            )
+            parent_profile = ParentProfile.objects.create(user=parent_user)
+            parent_profile.children.add(user)
+
+    # ── Send confirmation emails (outside transaction — email failure shouldn't roll back DB)
     send_credential_email(
         student_email, user, password,
         'Student', section

@@ -11,19 +11,21 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 
+from utils.pdf_base import PRIMARY_DARK, BG_LIGHT, TEXT_MAIN, TEXT_MUTED, SUCCESS
+
 # ── Card dimensions (CR80 credit card standard) ────────────────────────────
 CARD_W = 85.6 * mm
 CARD_H = 54.0 * mm
 
-# ── Palette ────────────────────────────────────────────────────────────────
-STUDENT_HEADER  = colors.HexColor('#312e81')   # Indigo
-TEACHER_HEADER  = colors.HexColor('#064e3b')   # Emerald
+# ── Palette (Using shared values where possible) ───────────────────────────
+STUDENT_HEADER  = PRIMARY_DARK
+TEACHER_HEADER  = colors.HexColor('#064e3b')   # Emerald 900 (Teacher specific)
 WHITE           = colors.white
-LIGHT_GRAY      = colors.HexColor('#f1f5f9')
-DARK_TEXT       = colors.HexColor('#0f172a')
-MUTED_TEXT      = colors.HexColor('#64748b')
+LIGHT_GRAY      = BG_LIGHT
+DARK_TEXT       = TEXT_MAIN
+MUTED_TEXT      = TEXT_MUTED
 STUDENT_BADGE   = colors.HexColor('#6366f1')
-TEACHER_BADGE   = colors.HexColor('#10b981')
+TEACHER_BADGE   = SUCCESS
 
 SCHOOL_NAME = "OpDevSM"
 SCHOOL_SUB  = "School Management System"

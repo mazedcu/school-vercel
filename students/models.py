@@ -6,13 +6,13 @@ class StudentProfile(models.Model):
     """Extended profile for a student user."""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='student_profile', limit_choices_to={'role': 'student'})
     section = models.ForeignKey('academics.Section', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
-    roll_number = models.CharField(max_length=20, blank=True)
+    roll_number = models.CharField(max_length=20, blank=True, db_index=True)
     date_of_birth = models.DateField(null=True, blank=True)
     address = models.TextField(blank=True)
     guardian_name = models.CharField(max_length=100, blank=True)
     guardian_phone = models.CharField(max_length=15, blank=True)
     admission_date = models.DateField(auto_now_add=True)
-    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="ID from attendance machine")
+    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True, help_text="ID from attendance machine")
     photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, verbose_name="Photo")
 
     def __str__(self):
@@ -43,7 +43,7 @@ class TeacherProfile(models.Model):
     date_of_joining = models.DateField(null=True, blank=True, verbose_name="Date of Joining")
     address = models.TextField(blank=True, verbose_name="Address")
     experience_years = models.PositiveIntegerField(default=0, verbose_name="Years of Experience")
-    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="ID from attendance machine")
+    biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True, help_text="ID from attendance machine")
     photo = models.ImageField(upload_to='teacher_photos/', blank=True, null=True, verbose_name="Photo")
 
     def __str__(self):

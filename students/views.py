@@ -1,6 +1,8 @@
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
 from accounts.decorators import role_required
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
@@ -17,7 +19,9 @@ from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher
 from attendance.models import Attendance
 from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
 from finance.models import FeeStructure, Invoice, Payment
-from exams.views import _calculate_student_grade, _get_letter_grade
+from exams.services import calculate_student_grade, get_letter_grade
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -96,8 +100,8 @@ def student_profile_detail(request, student_id):
     if section:
         subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
         for subj in subjects:
-            score = _calculate_student_grade(student, subj, section)
-            letter = _get_letter_grade(score, grade_settings)
+            score = calculate_student_grade(student, subj, section)
+            letter = get_letter_grade(score, grade_settings)
             grades.append({'subject': subj, 'score': score, 'letter': letter['letter'], 'remark': letter['remark']})
             overall_total += score
             subject_count += 1
@@ -132,19 +136,32 @@ def student_profile_detail(request, student_id):
 @role_required(User.Role.ADMIN)
 def teacher_profiles(request):
     """Admin: list all teachers with their profile info."""
-    teachers = User.objects.filter(role=User.Role.TEACHER).order_by('first_name', 'last_name')
+    # Single annotated query instead of 3 queries per teacher in a loop
+    teachers = User.objects.filter(role=User.Role.TEACHER).annotate(
+        section_count=Count('timetableentry__section', distinct=True),
+        entry_count=Count('timetableentry', distinct=True),
+    ).order_by('first_name', 'last_name')
+
+    # Bulk fetch all teacher profiles to avoid get_or_create in a loop
+    existing_profiles = {p.user_id: p for p in TeacherProfile.objects.filter(user__in=teachers)}
+
+    # Create missing profiles in bulk (rare — happens on first access)
+    missing = [t for t in teachers if t.pk not in existing_profiles]
+    if missing:
+        created = TeacherProfile.objects.bulk_create(
+            [TeacherProfile(user=t) for t in missing], ignore_conflicts=True
+        )
+        for p in TeacherProfile.objects.filter(user__in=missing):
+            existing_profiles[p.user_id] = p
 
     teacher_data = []
     for teacher in teachers:
-        profile, _ = TeacherProfile.objects.get_or_create(user=teacher)
-        # Count assigned sections and timetable entries
-        section_count = Section.objects.filter(timetable_entries__teacher=teacher).distinct().count()
-        entry_count = TimetableEntry.objects.filter(teacher=teacher).count()
+        profile = existing_profiles.get(teacher.pk)
         teacher_data.append({
             'teacher': teacher,
             'profile': profile,
-            'section_count': section_count,
-            'entry_count': entry_count,
+            'section_count': teacher.section_count,
+            'entry_count': teacher.entry_count,
         })
 
     context = {

@@ -1,22 +1,14 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
 from accounts.decorators import role_required
 from django.contrib import messages
-from django.db.models import Count, Q, Avg
 from django.utils import timezone
-from decimal import Decimal
-import datetime
 
 from accounts.models import User
-from academics.models import ClassGroup, Section, Subject
-from students.models import StudentProfile, ParentProfile
-from timetable.models import TimeSlot, TimetableEntry
-from timetable.services import generate_timetable_entry
-from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher_timetable_pdf
+from academics.models import Section
+from students.models import StudentProfile
 from attendance.models import Attendance
-from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
-from finance.models import FeeStructure, Invoice, Payment
 
 
 
@@ -35,12 +27,19 @@ def mark_attendance(request):
         selected_section = Section.objects.filter(id=section_id).first()
         if selected_section:
             profiles = StudentProfile.objects.filter(section=selected_section).select_related('user')
+            # Pre-fetch all attendance for the date in one query (avoids N+1)
+            existing_attendance = {
+                a.student_id: a.status
+                for a in Attendance.objects.filter(
+                    student__in=[p.user for p in profiles],
+                    date=selected_date
+                )
+            }
             for p in profiles:
-                existing = Attendance.objects.filter(student=p.user, date=selected_date).first()
                 students_list.append({
                     'user': p.user,
                     'roll': p.roll_number,
-                    'existing_status': existing.status if existing else '',
+                    'existing_status': existing_attendance.get(p.user_id, ''),
                 })
 
     if request.method == 'POST':
@@ -56,7 +55,8 @@ def mark_attendance(request):
                     defaults={'section': selected_section, 'status': status, 'marked_by': request.user}
                 )
             messages.success(request, f"Attendance saved for {selected_section} on {date_str}.")
-        return redirect(f'/mark_attendance/?section={section_id}&date={date_str}')
+        url = reverse('mark_attendance') + f'?section={section_id}&date={date_str}'
+        return redirect(url)
 
     context = {
         'sections': sections,

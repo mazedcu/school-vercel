@@ -35,61 +35,21 @@ class Invoice(models.Model):
     due_date = models.DateField()
 
     def recalculate_totals(self):
-        """Recalculate subtotal and amount_due from line items."""
-        from decimal import Decimal
-        self.subtotal = sum(item.amount for item in self.line_items.all()) or Decimal('0.00')
-        self.amount_due = max(self.subtotal - self.discount_amount, Decimal('0.00'))
+        """Recalculate subtotal and amount_due using service."""
+        from .services import update_invoice_status_and_totals
+        update_invoice_status_and_totals(self)
 
     def save(self, *args, **kwargs):
-        from decimal import Decimal
+        from .services import generate_invoice_number, update_invoice_status_and_totals
         # Auto-generate invoice number if not set
         if not self.invoice_number:
-            self.invoice_number = self._generate_invoice_number()
+            self.invoice_number = generate_invoice_number(self)
 
-        # Update status based on payment
-        if self.amount_due > 0 and self.amount_paid >= self.amount_due:
-            self.status = self.Status.PAID
-        elif self.amount_paid > 0:
-            self.status = self.Status.PARTIAL
-        else:
-            self.status = self.Status.UNPAID
+        # Update status and totals (only if already exists, otherwise no line items yet)
+        if self.pk:
+            update_invoice_status_and_totals(self)
         super().save(*args, **kwargs)
 
-    def _generate_invoice_number(self):
-        """Generate invoice number in format: ClassName-YYMM-NNN"""
-        now = timezone.now()
-        yymm = now.strftime('%y%m')
-
-        # Get class name abbreviation (remove spaces, take first 8 chars)
-        class_name = ''
-        if self.class_group:
-            class_name = self.class_group.name.replace(' ', '')[:8]
-        else:
-            # Try to derive from student's section
-            try:
-                profile = self.student.student_profile
-                if profile and profile.section:
-                    class_name = profile.section.class_group.name.replace(' ', '')[:8]
-            except Exception:
-                class_name = 'GEN'
-
-        prefix = f"{class_name}-{yymm}"
-
-        # Find next serial number for this month
-        last_invoice = Invoice.objects.filter(
-            invoice_number__startswith=prefix
-        ).order_by('-invoice_number').first()
-
-        if last_invoice:
-            try:
-                last_serial = int(last_invoice.invoice_number.split('-')[-1])
-                next_serial = last_serial + 1
-            except (ValueError, IndexError):
-                next_serial = 1
-        else:
-            next_serial = 1
-
-        return f"{prefix}-{next_serial:03d}"
 
     def __str__(self):
         return f"Invoice {self.invoice_number} - {self.student.username} - {self.get_status_display()}"
@@ -114,12 +74,42 @@ class Payment(models.Model):
     method = models.CharField(max_length=30, default='cash', help_text="e.g., cash, bank, online")
     reference = models.CharField(max_length=100, blank=True)
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # Update invoice paid amount
-        total_paid = self.invoice.payments.aggregate(total=models.Sum('amount'))['total'] or 0
-        self.invoice.amount_paid = total_paid
-        self.invoice.save()
+    # Note: Invoice recalculation is handled by the post_save signal below.
+    # Do NOT add a custom save() here — it would conflict with the signal.
 
     def __str__(self):
         return f"Payment Tk.{self.amount} for Invoice {self.invoice.invoice_number}"
+
+
+# ─── SIGNALS ──────────────────────────────────────────────────────────────────
+# Keep invoice totals and status in sync when line items or payments are
+# added/changed (e.g., via Django Admin or bulk operations).
+
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from finance.services import update_invoice_status_and_totals
+
+
+@receiver([post_save, post_delete], sender=InvoiceLineItem)
+def sync_invoice_on_lineitem_change(sender, instance, **kwargs):
+    """Recalculate invoice totals whenever a line item is added or removed."""
+    invoice = instance.invoice
+    if invoice.pk:
+        update_invoice_status_and_totals(invoice)
+        Invoice.objects.filter(pk=invoice.pk).update(
+            subtotal=invoice.subtotal,
+            amount_due=invoice.amount_due,
+            status=invoice.status,
+        )
+
+
+@receiver([post_save, post_delete], sender=Payment)
+def sync_invoice_on_payment_change(sender, instance, **kwargs):
+    """Recalculate invoice status whenever a payment is added or removed."""
+    invoice = instance.invoice
+    if invoice.pk:
+        update_invoice_status_and_totals(invoice)
+        Invoice.objects.filter(pk=invoice.pk).update(
+            amount_paid=invoice.amount_paid,
+            status=invoice.status,
+        )
