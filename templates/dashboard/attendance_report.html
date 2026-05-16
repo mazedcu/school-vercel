@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block page_title %}Month-Wise Attendance Report{% endblock %}
+{% block breadcrumb %}Teaching / Attendance Report{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-title">Select Section & Month</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin-bottom:0; min-width: 200px;">
+            <label>Section</label>
+            <select name="section" class="form-control" required>
+                <option value="">-- Select --</option>
+                {% for s in sections %}
+                <option value="{{ s.id }}" {% if selected_section and s.id == selected_section.id %}selected{% endif %}>
+                    {{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0; min-width: 200px;">
+            <label>Month</label>
+            <input type="month" name="month" class="form-control" value="{{ selected_month }}" required>
+        </div>
+        <div class="form-group" style="margin-bottom:0; min-width: 200px;">
+            <label>Student (Optional)</label>
+            <select name="student" id="student_select" class="form-control">
+                <option value="">-- All Students --</option>
+                {% for p in all_profiles %}
+                <option value="{{ p.user.id }}" data-section="{{ p.section_id }}" {% if selected_student_id == p.user.id|stringformat:"i" %}selected{% endif %}>
+                    {{ p.user.get_full_name|default:p.user.username }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-bottom: 2px;">Load Report</button>
+    </form>
+</div>
+
+<script>
+    document.querySelector('select[name="section"]').addEventListener('change', function() {
+        var sectionId = this.value;
+        var studentSelect = document.getElementById('student_select');
+        var options = studentSelect.querySelectorAll('option[data-section]');
+        options.forEach(function(opt) {
+            if (opt.getAttribute('data-section') === sectionId || sectionId === '') {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+        studentSelect.value = ''; // Reset student when section changes
+    });
+    
+    // Trigger on load to filter properly
+    document.addEventListener("DOMContentLoaded", function() {
+        var sectionSelect = document.querySelector('select[name="section"]');
+        if (sectionSelect.value) {
+            var sectionId = sectionSelect.value;
+            var studentSelect = document.getElementById('student_select');
+            var options = studentSelect.querySelectorAll('option[data-section]');
+            options.forEach(function(opt) {
+                if (opt.getAttribute('data-section') === sectionId) {
+                    opt.style.display = '';
+                } else {
+                    opt.style.display = 'none';
+                }
+            });
+            {% if selected_student_id %}
+            studentSelect.value = "{{ selected_student_id }}";
+            {% endif %}
+        } else {
+            document.querySelector('select[name="section"]').dispatchEvent(new Event('change'));
+        }
+    });
+</script>
+
+{% if selected_section %}
+<div class="card">
+    <div class="card-title">Attendance Report for {{ selected_section.class_group.name }} - {{ selected_section.name }} — {{ selected_month }}</div>
+    
+    {% if report_data %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll #</th>
+                    <th>Student Name</th>
+                    <th style="text-align: center;">Total Present</th>
+                    <th style="text-align: center;">Total Absent</th>
+                    <th style="text-align: center;">Total Late</th>
+                    <th style="text-align: center;">Total Days</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_data %}
+                <tr>
+                    <td>{{ row.roll|default:"-" }}</td>
+                    <td><a href="{% url 'student_attendance_report' row.user.id %}?month={{ selected_month }}" style="color:var(--primary); font-weight:600; text-decoration:none;">{{ row.user.get_full_name|default:row.user.username }}</a></td>
+                    <td style="text-align: center;"><span class="badge badge-green">{{ row.present }}</span></td>
+                    <td style="text-align: center;"><span class="badge badge-red">{{ row.absent }}</span></td>
+                    <td style="text-align: center;"><span class="badge badge-yellow">{{ row.late }}</span></td>
+                    <td style="text-align: center;"><strong>{{ row.total }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="margin-top: 1.5rem; text-align: right;">
+        <button onclick="window.print()" class="btn btn-primary"><span class="icon">🖨️</span> Print Report</button>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No attendance records found for this section in the selected month.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+@media print {
+    .sidebar, .topbar, form, button { display: none !important; }
+    .main-wrap { margin: 0 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+}
+</style>
+{% endblock %}

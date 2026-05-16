@@ -60,7 +60,15 @@
                     <td><span class="badge badge-blue">{{ a.assessment_type.name }}</span></td>
                     <td>{{ a.total_marks }}</td>
                     <td>{{ a.date_conducted }}</td>
-                    <td><a href="{% url 'enter_marks' a.id %}" class="btn btn-primary btn-sm">Enter Marks</a></td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <a href="{% url 'enter_marks' a.id %}" class="btn btn-primary btn-sm">Enter Marks</a>
+                            <form method="POST" action="{% url 'delete_assessment' a.id %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm" title="Delete Assessment" onclick="return confirmDelete(this);">🗑️</button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="7" class="empty-state">No assessments created yet.</td></tr>
@@ -69,4 +77,25 @@
         </table>
     </div>
 </div>
+
+<script>
+function confirmDelete(btn) {
+    if (btn.dataset.confirmed === 'true') {
+        return true;
+    } else {
+        btn.dataset.confirmed = 'true';
+        var originalContent = btn.innerHTML;
+        btn.innerHTML = 'Confirm?';
+        btn.style.backgroundColor = '#f59e0b'; // warning color
+        btn.style.borderColor = '#f59e0b';
+        setTimeout(function() {
+            btn.dataset.confirmed = 'false';
+            btn.innerHTML = originalContent;
+            btn.style.backgroundColor = '';
+            btn.style.borderColor = '';
+        }, 3000);
+        return false;
+    }
+}
+</script>
 {% endblock %}

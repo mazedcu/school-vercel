@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block page_title %}Student Attendance Report{% endblock %}
+{% block breadcrumb %}{{ student.get_full_name|default:student.username }} / Month-Wise{% endblock %}
+{% block content %}
+
+<div class="card" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem;">
+    <div>
+        <h2 style="font-size:1.25rem; font-weight:700; color:var(--text); margin-bottom:0.5rem;">
+            {{ student.get_full_name|default:student.username }}
+        </h2>
+        <p style="color:var(--text-muted); font-size:0.875rem;">
+            Role: {{ student.get_role_display }}<br>
+            Student ID: #{{ student.id }}
+        </p>
+    </div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Select Month</label>
+            <input type="month" name="month" class="form-control" value="{{ selected_month }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-bottom: 2px;">View</button>
+    </form>
+</div>
+
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--primary);">{{ days_data|length }}</div>
+        <div class="stat-label">Total Days</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ present_count }}</div>
+        <div class="stat-label">Days Present</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--danger);">{{ absent_count }}</div>
+        <div class="stat-label">Days Absent</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--warning);">{{ late_count }}</div>
+        <div class="stat-label">Days Late</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="empty-state" style="padding: 3rem 1rem;">
+        <h3 style="color:var(--text); margin-bottom: 0.5rem;">Summary Generated</h3>
+        <p>The detailed day-by-day view has been hidden as per preferences. Above are the total counts for the selected month.</p>
+        <div style="margin-top: 1.5rem;">
+            <button onclick="window.print()" class="btn btn-primary"><span class="icon">🖨️</span> Print Report</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sidebar, .topbar, form, button { display: none !important; }
+    .main-wrap { margin: 0 !important; }
+    .card { border: none !important; box-shadow: none !important; }
+}
+</style>
+{% endblock %}

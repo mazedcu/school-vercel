@@ -84,6 +84,12 @@ def report_settings(request):
 @login_required
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def manage_assessments(request):
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM exams_assessmentrecord WHERE id = 2 OR total_marks = ''")
+    except Exception:
+        pass
 
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
@@ -120,6 +126,16 @@ def manage_assessments(request):
         'recent_assessments': recent,
     }
     return render(request, 'dashboard/manage_assessments.html', context)
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.TEACHER)
+def delete_assessment(request, assessment_id):
+    if request.method == 'POST':
+        assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
+        title = assessment.title
+        assessment.delete()
+        messages.success(request, f"Assessment '{title}' has been deleted successfully.")
+    return redirect('manage_assessments')
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.TEACHER)

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from accounts.decorators import role_required
@@ -67,13 +67,123 @@ def mark_attendance(request):
     return render(request, 'dashboard/mark_attendance.html', context)
 
 @login_required
-@role_required(User.Role.STUDENT)
-def my_attendance(request):
+def student_attendance_report(request, student_id=None):
+    if student_id:
+        if request.user.role not in [User.Role.ADMIN, User.Role.TEACHER]:
+            messages.error(request, "Access denied.")
+            return redirect('dashboard_router')
+        student = get_object_or_404(User, id=student_id, role=User.Role.STUDENT)
+    else:
+        if request.user.role != User.Role.STUDENT:
+            return redirect('dashboard_router')
+        student = request.user
 
-    records = Attendance.objects.filter(student=request.user).order_by('-date')[:30]
-    total = Attendance.objects.filter(student=request.user).count()
-    present = Attendance.objects.filter(student=request.user, status=Attendance.Status.PRESENT).count()
-    att_pct = round((present / total * 100), 1) if total > 0 else 0
+    selected_month = request.GET.get('month', timezone.now().strftime('%Y-%m'))
+    days_data = []
+    present_count = 0
+    absent_count = 0
+    late_count = 0
 
-    context = {'records': records, 'att_pct': att_pct, 'total': total, 'present': present}
-    return render(request, 'dashboard/my_attendance.html', context)
+    try:
+        year_str, month_str = selected_month.split('-')
+        year, month = int(year_str), int(month_str)
+        import calendar
+        import datetime
+        num_days = calendar.monthrange(year, month)[1]
+
+        records = Attendance.objects.filter(student=student, date__year=year, date__month=month)
+        record_dict = {r.date.day: r for r in records}
+
+        for day in range(1, num_days + 1):
+            date_obj = datetime.date(year, month, day)
+            rec = record_dict.get(day)
+            
+            if rec:
+                if rec.status == Attendance.Status.PRESENT: present_count += 1
+                elif rec.status == Attendance.Status.ABSENT: absent_count += 1
+                elif rec.status == Attendance.Status.LATE: late_count += 1
+
+            days_data.append({
+                'day': day,
+                'date': date_obj,
+                'status': rec.status if rec else None,
+                'display': rec.get_status_display() if rec else 'Not Marked'
+            })
+    except ValueError:
+        messages.error(request, "Invalid month format.")
+
+    context = {
+        'student': student,
+        'selected_month': selected_month,
+        'days_data': days_data,
+        'present_count': present_count,
+        'absent_count': absent_count,
+        'late_count': late_count,
+    }
+    return render(request, 'dashboard/student_attendance_report.html', context)
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.TEACHER)
+def attendance_report(request):
+    sections = Section.objects.all()
+    selected_section = None
+    report_data = []
+    
+    # Default to current month (YYYY-MM)
+    selected_month = request.GET.get('month', timezone.now().strftime('%Y-%m'))
+    selected_student_id = request.GET.get('student', '')
+    all_profiles = StudentProfile.objects.select_related('user', 'section').all()
+    
+    if request.method == 'GET' and request.GET.get('section'):
+        section_id = request.GET.get('section')
+        selected_section = Section.objects.filter(id=section_id).first()
+        
+        if selected_section and selected_month:
+            try:
+                year_str, month_str = selected_month.split('-')
+                year, month = int(year_str), int(month_str)
+                
+                profiles = StudentProfile.objects.filter(section=selected_section).select_related('user')
+                
+                if selected_student_id:
+                    profiles = profiles.filter(user_id=selected_student_id)
+                
+                # Fetch all attendance for this section's students in the selected month
+                attendances = Attendance.objects.filter(
+                    student__in=[p.user for p in profiles],
+                    date__year=year,
+                    date__month=month
+                )
+                
+                # Group by student
+                att_dict = {}
+                for p in profiles:
+                    att_dict[p.user.id] = {'present': 0, 'absent': 0, 'late': 0, 'total': 0}
+                    
+                for att in attendances:
+                    if att.student_id in att_dict:
+                        att_dict[att.student_id][att.status] += 1
+                        att_dict[att.student_id]['total'] += 1
+                        
+                for p in profiles:
+                    stats = att_dict[p.user.id]
+                    report_data.append({
+                        'user': p.user,
+                        'roll': p.roll_number,
+                        'present': stats['present'],
+                        'absent': stats['absent'],
+                        'late': stats['late'],
+                        'total': stats['total'],
+                    })
+            except ValueError:
+                messages.error(request, "Invalid month format.")
+                
+    context = {
+        'sections': sections,
+        'selected_section': selected_section,
+        'selected_month': selected_month,
+        'report_data': report_data,
+        'all_profiles': all_profiles,
+        'selected_student_id': selected_student_id,
+    }
+    return render(request, 'dashboard/attendance_report.html', context)
