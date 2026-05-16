@@ -390,6 +390,7 @@
             <li><a href="{% url 'admin_leave_review' %}" class="{% if request.resolver_match.url_name == 'admin_leave_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
 
             <li class="nav-section">Academic</li>
+            <li><a href="{% url 'manage_academic_years' %}" class="{% if request.resolver_match.url_name == 'manage_academic_years' %}active{% endif %}"><span class="icon">📆</span> Academic Years</a></li>
             <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes & Subjects</a></li>
             <li><a href="{% url 'timetable_gen' %}" class="{% if request.resolver_match.url_name == 'timetable_gen' %}active{% endif %}"><span class="icon">📅</span> Timetable Setup</a></li>
             <li><a href="{% url 'view_timetable' %}" class="{% if request.resolver_match.url_name == 'view_timetable' %}active{% endif %}"><span class="icon">🗓️</span> View Timetable</a></li>

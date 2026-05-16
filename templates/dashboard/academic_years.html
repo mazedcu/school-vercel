@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block page_title %}Manage Academic Years{% endblock %}
+{% block breadcrumb %}Admin / Academic Years{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">Define Academic Years</div>
+    <form method="POST" style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1.5rem;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="ay_id" id="edit_ay_id" value="">
+        
+        <div class="form-group" style="margin-bottom:0; min-width:180px;">
+            <label>Name (e.g. 2026-2027) *</label>
+            <input type="text" name="name" id="edit_name" class="form-control" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom:0; min-width:150px;">
+            <label>Start Date *</label>
+            <input type="date" name="start_date" id="edit_start_date" class="form-control" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom:0; min-width:150px;">
+            <label>End Date *</label>
+            <input type="date" name="end_date" id="edit_end_date" class="form-control" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom:0; display:flex; align-items:center; gap:0.5rem; height:42px;">
+            <input type="checkbox" name="is_active" id="edit_is_active" style="width:18px;height:18px;">
+            <label for="edit_is_active" style="margin:0;cursor:pointer;">Set as Active Year</label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="margin-bottom:2px;" id="submit_btn">+ Add Year</button>
+        <button type="button" class="btn btn-secondary" style="margin-bottom:2px; display:none;" id="cancel_btn" onclick="resetForm()">Cancel</button>
+    </form>
+
+    {% if years %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Academic Year Name</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for year in years %}
+                <tr>
+                    <td style="font-weight:600;">{{ year.name }}</td>
+                    <td>{{ year.start_date|date:"M d, Y" }}</td>
+                    <td>{{ year.end_date|date:"M d, Y" }}</td>
+                    <td>
+                        {% if year.is_active %}
+                            <span class="badge badge-green">🟢 Active</span>
+                        {% else %}
+                            <span class="badge badge-gray">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-primary btn-sm" 
+                            onclick="editYear('{{ year.id }}', '{{ year.name|escapejs }}', '{{ year.start_date|date:"Y-m-d" }}', '{{ year.end_date|date:"Y-m-d" }}', '{{ year.is_active|yesno:"true,false" }}')">
+                            ✎ Edit
+                        </button>
+                        <form method="POST" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="ay_id" value="{{ year.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this academic year?');">🗑️ Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No academic years defined yet. Create your first academic year above.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function editYear(id, name, startDate, endDate, isActive) {
+    document.getElementById('edit_ay_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_start_date').value = startDate;
+    document.getElementById('edit_end_date').value = endDate;
+    document.getElementById('edit_is_active').checked = (isActive === 'true');
+    
+    document.getElementById('submit_btn').innerHTML = 'Save Changes';
+    document.getElementById('cancel_btn').style.display = 'inline-block';
+}
+
+function resetForm() {
+    document.getElementById('edit_ay_id').value = '';
+    document.getElementById('edit_name').value = '';
+    document.getElementById('edit_start_date').value = '';
+    document.getElementById('edit_end_date').value = '';
+    document.getElementById('edit_is_active').checked = false;
+    
+    document.getElementById('submit_btn').innerHTML = '+ Add Year';
+    document.getElementById('cancel_btn').style.display = 'none';
+}
+</script>
+{% endblock %}

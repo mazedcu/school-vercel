@@ -272,3 +272,64 @@ def delete_notice(request, notice_id):
     Notice.objects.filter(id=notice_id).delete()
     messages.success(request, "Notice deleted.")
     return redirect('manage_notices')
+
+
+# ─── ACADEMIC YEARS ────────────────────────────────────────────────────────────
+
+@login_required
+@role_required(User.Role.ADMIN)
+def manage_academic_years(request):
+    """Admin: Create and manage Academic Years."""
+    from academics.models import AcademicYear
+    from django.utils.dateparse import parse_date
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'save':
+            name = request.POST.get('name', '').strip()
+            start_date_str = request.POST.get('start_date')
+            end_date_str = request.POST.get('end_date')
+            is_active = request.POST.get('is_active') == 'on'
+
+            try:
+                start_date = parse_date(start_date_str)
+                end_date = parse_date(end_date_str)
+                
+                # Check for existing
+                ay_id = request.POST.get('ay_id')
+                if ay_id:
+                    ay = AcademicYear.objects.get(id=ay_id)
+                    ay.name = name
+                    ay.start_date = start_date
+                    ay.end_date = end_date
+                    if is_active:
+                        ay.is_active = True
+                    else:
+                        ay.is_active = False
+                    ay.save()
+                    messages.success(request, f"Academic Year '{name}' updated.")
+                else:
+                    AcademicYear.objects.create(
+                        name=name,
+                        start_date=start_date,
+                        end_date=end_date,
+                        is_active=is_active
+                    )
+                    messages.success(request, f"Academic Year '{name}' created.")
+            except Exception as e:
+                messages.error(request, f"Error saving Academic Year: {e}")
+
+        elif action == 'delete':
+            ay_id = request.POST.get('ay_id')
+            try:
+                AcademicYear.objects.get(id=ay_id).delete()
+                messages.success(request, "Academic Year deleted.")
+            except Exception as e:
+                messages.error(request, f"Cannot delete: {e}")
+
+        return redirect('manage_academic_years')
+
+    years = AcademicYear.objects.all()
+    context = {'years': years}
+    return render(request, 'dashboard/academic_years.html', context)

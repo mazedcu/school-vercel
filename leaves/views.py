@@ -6,26 +6,31 @@ from django.db.models import Sum, Q
 
 from accounts.models import User
 from accounts.decorators import role_required
+from academics.models import AcademicYear
 from .models import LeaveType, LeavePolicy, LeaveApplication
 
-
 def get_current_academic_year():
-    """Get the latest academic year from leave policies."""
-    latest = LeavePolicy.objects.order_by('-academic_year').values_list('academic_year', flat=True).first()
-    return latest or str(timezone.now().year)
+    """Get the active academic year."""
+    active_year = AcademicYear.objects.filter(is_active=True).first()
+    return active_year
 
 
 def get_leave_balance(user, leave_type, academic_year):
-    """Calculate remaining leave balance for a user."""
+    """Calculate remaining leave balance for a user for a specific AcademicYear."""
+    if not academic_year:
+        return 0, 0
+
     policy = LeavePolicy.objects.filter(leave_type=leave_type, academic_year=academic_year).first()
     if not policy:
         return 0, 0  # allocated, used
 
-    # Calculate used days from approved applications
+    # Calculate used days from approved applications within the academic year dates
     approved_apps = LeaveApplication.objects.filter(
         applicant=user,
         leave_type=leave_type,
         status=LeaveApplication.Status.ADMIN_APPROVED,
+        start_date__gte=academic_year.start_date,
+        start_date__lte=academic_year.end_date,
     )
 
     used_days = sum(app.total_days for app in approved_apps)
@@ -59,16 +64,17 @@ def leave_policy(request):
 
         elif action == 'save_policy':
             leave_type_id = request.POST.get('leave_type')
-            academic_year = request.POST.get('academic_year', '').strip()
+            academic_year_id = request.POST.get('academic_year')
             allocated_days = request.POST.get('allocated_days', '0')
             try:
                 lt = LeaveType.objects.get(id=leave_type_id)
+                ay = AcademicYear.objects.get(id=academic_year_id)
                 obj, created = LeavePolicy.objects.update_or_create(
-                    leave_type=lt, academic_year=academic_year,
+                    leave_type=lt, academic_year=ay,
                     defaults={'allocated_days': int(allocated_days)}
                 )
                 action_word = 'created' if created else 'updated'
-                messages.success(request, f"Policy for {lt.name} ({academic_year}) {action_word}: {allocated_days} days.")
+                messages.success(request, f"Policy for {lt.name} ({ay.name}) {action_word}: {allocated_days} days.")
             except Exception as e:
                 messages.error(request, str(e))
 
@@ -80,10 +86,12 @@ def leave_policy(request):
         return redirect('leave_policy')
 
     leave_types = LeaveType.objects.all()
-    policies = LeavePolicy.objects.select_related('leave_type').all()
+    policies = LeavePolicy.objects.select_related('leave_type', 'academic_year').all()
+    academic_years = AcademicYear.objects.all()
     context = {
         'leave_types': leave_types,
         'policies': policies,
+        'academic_years': academic_years,
     }
     return render(request, 'dashboard/leave_policy.html', context)
 
@@ -307,5 +315,6 @@ def admin_leave_review(request):
         'recent_decisions': recent_decisions,
         'staff_balances': staff_balances,
         'leave_types': leave_types,
+        'current_year': current_year,
     }
     return render(request, 'dashboard/admin_leave_review.html', context)

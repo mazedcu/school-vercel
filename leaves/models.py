@@ -19,18 +19,18 @@ class LeaveType(models.Model):
 class LeavePolicy(models.Model):
     """Defines how many days of each leave type are allocated per academic year."""
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE, related_name='policies')
-    academic_year = models.CharField(max_length=10, help_text="e.g. 2026")
-    allocated_days = models.PositiveIntegerField(help_text="Total days allocated for this leave type per year")
+    academic_year = models.ForeignKey('academics.AcademicYear', on_delete=models.CASCADE, related_name='leave_policies')
+    allocated_days = models.PositiveIntegerField(default=0, help_text="Number of days allocated per year")
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['leave_type', 'academic_year'], name='unique_leave_policy')
         ]
-        ordering = ['academic_year', 'leave_type__name']
+        ordering = ['-academic_year__start_date', 'leave_type__name']
         verbose_name_plural = "Leave Policies"
 
     def __str__(self):
-        return f"{self.leave_type.name} — {self.allocated_days} days ({self.academic_year})"
+        return f"{self.leave_type.name} — {self.allocated_days} days ({self.academic_year.name})"
 
 
 class LeaveApplication(models.Model):

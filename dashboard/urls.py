@@ -12,4 +12,5 @@ urlpatterns = [
     path('parent_dashboard/', views.parent_dashboard, name='parent_dashboard'),
     path('manage_notices/', views.manage_notices, name='manage_notices'),
     path('notice/<int:notice_id>/delete/', views.delete_notice, name='delete_notice'),
+    path('academic_years/', views.manage_academic_years, name='manage_academic_years'),
 ]

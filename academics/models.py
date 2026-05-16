@@ -1,5 +1,32 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
+class AcademicYear(models.Model):
+    """School-wide academic year with a specific time period."""
+    name = models.CharField(max_length=20, unique=True, help_text="e.g. 2026-2027")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_active = models.BooleanField(
+        default=False, 
+        help_text="Only one academic year can be active at a time."
+    )
+
+    class Meta:
+        ordering = ['-start_date']
+
+    def __str__(self):
+        return f"{self.name} ({self.start_date.strftime('%b %Y')} - {self.end_date.strftime('%b %Y')})"
+
+    def clean(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError("Start date cannot be after end date.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if self.is_active:
+            # Deactivate all other academic years
+            AcademicYear.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
 
 class ClassGroup(models.Model):
     """Represents a grade level (e.g., Grade 1, Grade 2)."""
