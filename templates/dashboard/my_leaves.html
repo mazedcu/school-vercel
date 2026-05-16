@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block page_title %}My Leaves{% endblock %}
+{% block breadcrumb %}HR / My Leaves{% endblock %}
+{% block content %}
+
+<!-- Balance Cards -->
+<div class="grid grid-{{ balances|length }}" style="margin-bottom:1.5rem;">
+    {% for b in balances %}
+    <div class="stat-card">
+        <div class="stat-label">{{ b.type.name }}</div>
+        <div class="stat-value" style="color: {% if b.remaining > 0 %}var(--success){% elif b.remaining == 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ b.remaining }}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
+            {{ b.used }} used / {{ b.allocated }} allocated
+        </div>
+    </div>
+    {% empty %}
+    <div class="stat-card">
+        <div class="stat-label">No Policies</div>
+        <div class="stat-value" style="color:var(--text-muted);">—</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">Contact admin to set up leave policies</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Application History -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div class="card-title" style="margin-bottom:0;">Leave Application History</div>
+        <a href="{% url 'apply_leave' %}" class="btn btn-primary btn-sm">+ Apply for Leave</a>
+    </div>
+
+    {% if applications %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date Applied</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Days</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in applications %}
+                <tr>
+                    <td>{{ app.applied_at|date:"M d, Y" }}</td>
+                    <td style="font-weight:500;">{{ app.leave_type.name }}</td>
+                    <td>
+                        {% if app.category == 'emergency' %}
+                            <span class="badge badge-red">Emergency</span>
+                        {% else %}
+                            <span class="badge badge-blue">Advance</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ app.start_date|date:"M d" }}</td>
+                    <td>{{ app.end_date|date:"M d" }}</td>
+                    <td><strong>{{ app.total_days }}</strong></td>
+                    <td>
+                        {% if app.status == 'pending' %}
+                            <span class="badge badge-yellow">Pending</span>
+                        {% elif app.status == 'coordinator_approved' %}
+                            <span class="badge badge-blue">Awaiting Admin</span>
+                        {% elif app.status == 'admin_approved' %}
+                            <span class="badge badge-green">Approved ✓</span>
+                        {% elif app.status == 'rejected' %}
+                            <span class="badge badge-red">Rejected ✗</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ app.reason }}">{{ app.reason|truncatewords:10 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>You haven't applied for any leaves yet.</p>
+        <a href="{% url 'apply_leave' %}" class="btn btn-primary" style="margin-top:1rem;">Apply for Leave</a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

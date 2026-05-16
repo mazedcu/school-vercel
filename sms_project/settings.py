@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'procurement',
     'idcards',
     'performance',
+    'leaves',
 ]
 
 MIDDLEWARE = [

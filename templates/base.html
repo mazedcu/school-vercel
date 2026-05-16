@@ -386,6 +386,8 @@
             <li class="nav-section">HR</li>
             <li><a href="{% url 'teacher_profiles' %}" class="{% if request.resolver_match.url_name == 'teacher_profiles' or request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👨‍🏫</span> Teacher Profiles</a></li>
             <li><a href="{% url 'performance_cycle_list' %}" class="{% if 'performance' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📊</span> Performance</a></li>
+            <li><a href="{% url 'leave_policy' %}" class="{% if request.resolver_match.url_name == 'leave_policy' %}active{% endif %}"><span class="icon">📋</span> Leave Policy</a></li>
+            <li><a href="{% url 'admin_leave_review' %}" class="{% if request.resolver_match.url_name == 'admin_leave_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
 
             <li class="nav-section">Academic</li>
             <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes & Subjects</a></li>
@@ -409,10 +411,31 @@
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
 
+            {% elif user.role == 'coordinator' %}
+            <li class="nav-section">HR</li>
+            <li><a href="{% url 'teacher_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
+            <li><a href="{% url 'performance_my_evaluations' %}" class="{% if request.resolver_match.url_name == 'performance_my_evaluations' %}active{% endif %}"><span class="icon">📊</span> My Performance</a></li>
+            <li><a href="{% url 'apply_leave' %}" class="{% if request.resolver_match.url_name == 'apply_leave' %}active{% endif %}"><span class="icon">📝</span> Apply Leave</a></li>
+            <li><a href="{% url 'my_leaves' %}" class="{% if request.resolver_match.url_name == 'my_leaves' %}active{% endif %}"><span class="icon">📋</span> My Leaves</a></li>
+            <li><a href="{% url 'coordinator_review' %}" class="{% if request.resolver_match.url_name == 'coordinator_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
+
+            <li class="nav-section">Academic</li>
+            <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
+            <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Mark Attendance</a></li>
+            <li><a href="{% url 'attendance_report' %}" class="{% if request.resolver_match.url_name == 'attendance_report' %}active{% endif %}"><span class="icon">📊</span> Attendance Report</a></li>
+            <li><a href="{% url 'report_settings' %}" class="{% if request.resolver_match.url_name == 'report_settings' %}active{% endif %}"><span class="icon">⚙️</span> Report Weights</a></li>
+            <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
+            <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
+            <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+            <li class="nav-section">Procurement</li>
+            <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
+
             {% elif user.role == 'teacher' %}
             <li class="nav-section">HR</li>
             <li><a href="{% url 'teacher_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
             <li><a href="{% url 'performance_my_evaluations' %}" class="{% if request.resolver_match.url_name == 'performance_my_evaluations' %}active{% endif %}"><span class="icon">📊</span> My Performance</a></li>
+            <li><a href="{% url 'apply_leave' %}" class="{% if request.resolver_match.url_name == 'apply_leave' %}active{% endif %}"><span class="icon">📝</span> Apply Leave</a></li>
+            <li><a href="{% url 'my_leaves' %}" class="{% if request.resolver_match.url_name == 'my_leaves' %}active{% endif %}"><span class="icon">📋</span> My Leaves</a></li>
 
             <li class="nav-section">Academic</li>
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>

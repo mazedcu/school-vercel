@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block page_title %}Apply for Leave{% endblock %}
+{% block breadcrumb %}HR / Apply Leave{% endblock %}
+{% block content %}
+
+<!-- Balance Overview -->
+<div class="grid grid-{{ balances|length }}" style="margin-bottom:1.5rem;">
+    {% for b in balances %}
+    <div class="stat-card">
+        <div class="stat-label">{{ b.type.name }}</div>
+        <div class="stat-value" style="color: {% if b.remaining > 0 %}var(--success){% else %}var(--danger){% endif %};">{{ b.remaining }}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
+            {{ b.used }} used / {{ b.allocated }} total
+        </div>
+    </div>
+    {% empty %}
+    <div class="stat-card">
+        <div class="stat-label">No Policies</div>
+        <div class="stat-value" style="color:var(--text-muted);">—</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Application Form -->
+<div class="card">
+    <div class="card-title">New Leave Application</div>
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Leave Category *</label>
+                <select name="category" id="category_select" class="form-control" required>
+                    <option value="">-- Select Category --</option>
+                    <option value="advance">Advance Leave (future date)</option>
+                    <option value="emergency">Emergency Leave (today only)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Leave Type *</label>
+                <select name="leave_type" class="form-control" required>
+                    <option value="">-- Select Type --</option>
+                    {% for lt in leave_types %}<option value="{{ lt.id }}">{{ lt.name }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Start Date *</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>End Date *</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" required>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Reason for Leave *</label>
+            <textarea name="reason" class="form-control" rows="4" placeholder="Please provide a detailed reason for your leave request..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit Application →</button>
+    </form>
+</div>
+
+<script>
+document.getElementById('category_select').addEventListener('change', function() {
+    var startInput = document.getElementById('start_date');
+    var endInput = document.getElementById('end_date');
+    var today = "{{ today }}";
+
+    if (this.value === 'emergency') {
+        startInput.value = today;
+        startInput.readOnly = true;
+        startInput.style.backgroundColor = '#f1f5f9';
+        endInput.min = today;
+    } else if (this.value === 'advance') {
+        startInput.value = '';
+        startInput.readOnly = false;
+        startInput.style.backgroundColor = '';
+        // Set min to tomorrow
+        var tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        var tStr = tomorrow.toISOString().split('T')[0];
+        startInput.min = tStr;
+        endInput.min = tStr;
+    } else {
+        startInput.value = '';
+        startInput.readOnly = false;
+        startInput.style.backgroundColor = '';
+    }
+});
+
+document.getElementById('start_date').addEventListener('change', function() {
+    document.getElementById('end_date').min = this.value;
+    if (!document.getElementById('end_date').value) {
+        document.getElementById('end_date').value = this.value;
+    }
+});
+</script>
+
+{% endblock %}

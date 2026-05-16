@@ -28,7 +28,7 @@ def home_view(request):
 def dashboard_router(request):
     if request.user.role == User.Role.ADMIN:
         return redirect('admin_dashboard')
-    elif request.user.role == User.Role.TEACHER:
+    elif request.user.role in (User.Role.TEACHER, User.Role.COORDINATOR):
         return redirect('teacher_dashboard')
     elif request.user.role == User.Role.STUDENT:
         return redirect('student_dashboard')
@@ -88,7 +88,7 @@ def admin_dashboard(request):
 # ─── TEACHER Dashboard ───────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.TEACHER)
+@role_required(User.Role.TEACHER, User.Role.COORDINATOR)
 def teacher_dashboard(request):
     my_entries = TimetableEntry.objects.filter(teacher=request.user).select_related('section', 'subject', 'time_slot')
     my_sections = Section.objects.filter(timetable_entries__teacher=request.user).distinct()

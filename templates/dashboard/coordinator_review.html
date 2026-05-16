@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_title %}Coordinator — Leave Review{% endblock %}
+{% block breadcrumb %}HR / Leave Review{% endblock %}
+{% block content %}
+
+<div class="card">
+    <div class="card-title">Pending Leave Applications</div>
+
+    {% if pending_applications %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Applicant</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Days</th>
+                    <th>Reason</th>
+                    <th>Applied On</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in pending_applications %}
+                <tr>
+                    <td style="font-weight:600;">{{ app.applicant.get_full_name|default:app.applicant.username }}</td>
+                    <td>{{ app.leave_type.name }}</td>
+                    <td>
+                        {% if app.category == 'emergency' %}
+                            <span class="badge badge-red">Emergency</span>
+                        {% else %}
+                            <span class="badge badge-blue">Advance</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ app.start_date|date:"M d, Y" }}</td>
+                    <td>{{ app.end_date|date:"M d, Y" }}</td>
+                    <td><strong>{{ app.total_days }}</strong></td>
+                    <td style="max-width:200px;" title="{{ app.reason }}">{{ app.reason|truncatewords:15 }}</td>
+                    <td>{{ app.applied_at|date:"M d" }}</td>
+                    <td>
+                        <div style="display:flex; gap:0.5rem; flex-direction:column;">
+                            <form method="POST" style="display:flex; gap:0.25rem; align-items:center;">
+                                {% csrf_token %}
+                                <input type="hidden" name="application_id" value="{{ app.id }}">
+                                <input type="text" name="remarks" class="form-control" placeholder="Remarks..." style="font-size:0.75rem; padding:0.25rem 0.5rem; width:120px;">
+                                <button type="submit" name="action" value="approve" class="btn btn-primary btn-sm" title="Approve">✓</button>
+                                <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm" title="Reject">✗</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>🎉 No pending leave applications to review.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

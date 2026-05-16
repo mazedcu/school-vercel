@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block page_title %}Admin — Leave Review{% endblock %}
+{% block breadcrumb %}HR / Admin Leave Review{% endblock %}
+{% block content %}
+
+<!-- Awaiting Admin Approval -->
+<div class="card">
+    <div class="card-title">Awaiting Your Approval</div>
+
+    {% if awaiting_applications %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Applicant</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Days</th>
+                    <th>Reason</th>
+                    <th>Coordinator</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in awaiting_applications %}
+                <tr>
+                    <td style="font-weight:600;">{{ app.applicant.get_full_name|default:app.applicant.username }}</td>
+                    <td>{{ app.leave_type.name }}</td>
+                    <td>
+                        {% if app.category == 'emergency' %}
+                            <span class="badge badge-red">Emergency</span>
+                        {% else %}
+                            <span class="badge badge-blue">Advance</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ app.start_date|date:"M d, Y" }}</td>
+                    <td>{{ app.end_date|date:"M d, Y" }}</td>
+                    <td><strong>{{ app.total_days }}</strong></td>
+                    <td style="max-width:180px;" title="{{ app.reason }}">{{ app.reason|truncatewords:10 }}</td>
+                    <td>
+                        <span style="font-size:0.8rem;">
+                            {{ app.coordinator_reviewed_by.get_full_name|default:"-" }}<br>
+                            {% if app.coordinator_remarks %}<em style="color:var(--text-muted);">"{{ app.coordinator_remarks|truncatewords:5 }}"</em>{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <form method="POST" style="display:flex; gap:0.25rem; align-items:center;">
+                            {% csrf_token %}
+                            <input type="hidden" name="application_id" value="{{ app.id }}">
+                            <input type="text" name="remarks" class="form-control" placeholder="Remarks..." style="font-size:0.75rem; padding:0.25rem 0.5rem; width:120px;">
+                            <button type="submit" name="action" value="approve" class="btn btn-primary btn-sm" title="Final Approve">✓</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm" title="Reject">✗</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>🎉 No applications awaiting your approval.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Staff Leave Balance Dashboard -->
+<div class="card">
+    <div class="card-title">Staff Leave Balances ({{ current_year|default:"Current Year" }})</div>
+
+    {% if staff_balances %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff Member</th>
+                    {% for lt in leave_types %}
+                    <th style="text-align:center;">{{ lt.name }}<br><small style="font-weight:400; color:var(--text-muted);">Used / Allocated</small></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for staff in staff_balances %}
+                <tr>
+                    <td style="font-weight:600;">{{ staff.user.get_full_name|default:staff.user.username }}</td>
+                    {% for b in staff.balances %}
+                    <td style="text-align:center;">
+                        <span class="badge {% if b.remaining > 0 %}badge-green{% elif b.remaining == 0 %}badge-yellow{% else %}badge-red{% endif %}">
+                            {{ b.used }} / {{ b.allocated }}
+                        </span>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">{{ b.remaining }} left</div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><p>No staff members found.</p></div>
+    {% endif %}
+</div>
+
+<!-- Recent Decisions -->
+{% if recent_decisions %}
+<div class="card">
+    <div class="card-title">Recent Decisions</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff</th>
+                    <th>Type</th>
+                    <th>Dates</th>
+                    <th>Days</th>
+                    <th>Status</th>
+                    <th>Decided On</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in recent_decisions %}
+                <tr>
+                    <td>{{ app.applicant.get_full_name|default:app.applicant.username }}</td>
+                    <td>{{ app.leave_type.name }}</td>
+                    <td>{{ app.start_date|date:"M d" }} — {{ app.end_date|date:"M d" }}</td>
+                    <td>{{ app.total_days }}</td>
+                    <td>
+                        {% if app.status == 'admin_approved' %}
+                            <span class="badge badge-green">Approved ✓</span>
+                        {% else %}
+                            <span class="badge badge-red">Rejected ✗</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ app.admin_reviewed_at|date:"M d, Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

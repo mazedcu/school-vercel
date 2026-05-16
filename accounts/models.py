@@ -5,6 +5,7 @@ from django.db import models
 class User(AbstractUser):
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin/Principal"
+        COORDINATOR = "coordinator", "Coordinator"
         TEACHER = "teacher", "Teacher"
         STUDENT = "student", "Student"
         PARENT = "parent", "Parent"

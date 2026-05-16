@@ -84,12 +84,6 @@ def report_settings(request):
 @login_required
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def manage_assessments(request):
-    try:
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM exams_assessmentrecord WHERE id = 2 OR total_marks = ''")
-    except Exception:
-        pass
 
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
