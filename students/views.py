@@ -137,7 +137,7 @@ def student_profile_detail(request, student_id):
 def teacher_profiles(request):
     """Admin: list all teachers with their profile info."""
     # Single annotated query instead of 3 queries per teacher in a loop
-    teachers = User.objects.filter(role=User.Role.TEACHER).annotate(
+    teachers = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR]).annotate(
         section_count=Count('timetableentry__section', distinct=True),
         entry_count=Count('timetableentry', distinct=True),
     ).order_by('first_name', 'last_name')
@@ -174,7 +174,7 @@ def teacher_profiles(request):
 @login_required
 def teacher_profile_detail(request, teacher_id):
     """View/Edit a teacher's profile. Admin can edit, teacher can view their own."""
-    teacher = get_object_or_404(User, pk=teacher_id, role=User.Role.TEACHER)
+    teacher = get_object_or_404(User, pk=teacher_id, role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
     is_admin = request.user.role == User.Role.ADMIN
     is_own = request.user == teacher
 
@@ -205,9 +205,14 @@ def teacher_profile_detail(request, teacher_id):
         if 'photo' in request.FILES:
             profile.photo = request.FILES['photo']
 
-        # Coordinator flag — admin only
+        # Coordinator flag — admin only: also sync the User.role
         if request.user.role == User.Role.ADMIN:
-            profile.is_coordinator = bool(request.POST.get('is_coordinator'))
+            is_coord = bool(request.POST.get('is_coordinator'))
+            profile.is_coordinator = is_coord
+            if is_coord and teacher.role == User.Role.TEACHER:
+                teacher.role = User.Role.COORDINATOR
+            elif not is_coord and teacher.role == User.Role.COORDINATOR:
+                teacher.role = User.Role.TEACHER
 
         # Update user fields
         teacher.first_name = request.POST.get('first_name', '').strip()

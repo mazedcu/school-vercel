@@ -65,21 +65,16 @@ def validate_cycle_weights(cycle):
 def get_staff_for_cycle(cycle):
     """
     Return queryset of User objects who should be evaluated in this cycle.
-    Teachers → role_type='teacher', Coordinators (is_coordinator=True) → 'coordinator'.
+    Teachers → role_type='teacher', Coordinators (role='coordinator') → 'coordinator'.
     """
     from accounts.models import User
-    from students.models import TeacherProfile
-
-    coordinator_ids = TeacherProfile.objects.filter(
-        is_coordinator=True
-    ).values_list('user_id', flat=True)
 
     teachers = User.objects.filter(
         role=User.Role.TEACHER
-    ).exclude(id__in=coordinator_ids).select_related()
+    ).select_related()
 
     coordinators = User.objects.filter(
-        id__in=coordinator_ids
+        role=User.Role.COORDINATOR
     ).select_related()
 
     return teachers, coordinators

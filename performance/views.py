@@ -277,18 +277,15 @@ def evaluate_staff(request, cycle_id, staff_id):
 
     # Access control: admin can evaluate anyone;
     # coordinators can only evaluate regular teachers (not other coordinators or admins).
-    viewer_is_coordinator = (
-        request.user.role == User.Role.TEACHER and
-        TeacherProfile.objects.filter(user=request.user, is_coordinator=True).exists()
-    )
+    viewer_is_coordinator = request.user.role == User.Role.COORDINATOR
     viewer_is_admin = request.user.role == User.Role.ADMIN
 
     if not viewer_is_admin and not viewer_is_coordinator:
         messages.error(request, "Access denied.")
         return redirect(reverse('dashboard_router'))
 
-    staff_is_coordinator = TeacherProfile.objects.filter(user=staff, is_coordinator=True).exists()
-    if viewer_is_coordinator and (staff.role != User.Role.TEACHER or staff_is_coordinator):
+    staff_is_coordinator = staff.role == User.Role.COORDINATOR
+    if viewer_is_coordinator and (staff.role not in (User.Role.TEACHER,) or staff_is_coordinator):
         messages.error(request, "Coordinators can only evaluate regular teachers.")
         return redirect(reverse('performance_cycle_detail', args=[cycle_id]))
 
@@ -296,8 +293,7 @@ def evaluate_staff(request, cycle_id, staff_id):
         return redirect(reverse('performance_cycle_detail', args=[cycle.id]))
 
     # Determine role_type for this staff member
-    is_coordinator = TeacherProfile.objects.filter(user=staff, is_coordinator=True).exists()
-    role_type = KPISection.RoleType.COORDINATOR if is_coordinator else KPISection.RoleType.TEACHER
+    role_type = KPISection.RoleType.COORDINATOR if staff.role == User.Role.COORDINATOR else KPISection.RoleType.TEACHER
 
     evaluation, _ = StaffEvaluation.objects.get_or_create(
         cycle=cycle,
@@ -454,7 +450,7 @@ def report_pdf(request, cycle_id, staff_id):
 # ─── Staff: Self-View ──────────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.TEACHER)
+@role_required(User.Role.TEACHER, User.Role.COORDINATOR)
 def my_evaluations(request):
     """Teacher/Coordinator views their own evaluation history."""
     evaluations = StaffEvaluation.objects.filter(
