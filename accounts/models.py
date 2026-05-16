@@ -11,7 +11,7 @@ class User(AbstractUser):
         PARENT = "parent", "Parent"
 
     role = models.CharField(
-        max_length=10,
+        max_length=15,
         choices=Role.choices,
         default=Role.STUDENT,
         verbose_name="Role",
