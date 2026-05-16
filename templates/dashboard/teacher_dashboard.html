@@ -18,6 +18,33 @@
     </div>
 </div>
 
+<div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div class="card-title" style="margin-bottom:0;">My Leave Balances ({{ current_academic_year.name|default:"No Active Year" }})</div>
+        <a href="{% url 'apply_leave' %}" class="btn btn-primary btn-sm">+ Apply Leave</a>
+    </div>
+    <div class="grid grid-{{ my_balances|length|default:'1'|add:'1' }}">
+        {% for b in my_balances %}
+        <div class="stat-card" style="background:#f8fafc; border:1px solid var(--border);">
+            <div class="stat-label">{{ b.type.name }}</div>
+            <div class="stat-value" style="font-size:1.5rem; color: {% if b.remaining > 0 %}var(--success){% elif b.remaining == 0 %}var(--warning){% else %}var(--danger){% endif %};">{{ b.remaining }}</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">
+                {{ b.used }} used / {{ b.allocated }} allocated
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state" style="padding:1rem;">No leave policies set.</div>
+        {% endfor %}
+        <div class="stat-card" style="background:#f8fafc; border:1px solid var(--border);">
+            <div class="stat-label">Early Leaves (Month)</div>
+            <div class="stat-value" style="font-size:1.5rem; color: {% if early_used >= early_limit %}var(--danger){% else %}var(--success){% endif %};">
+                {{ early_used }} / {{ early_limit }}
+            </div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">Used this month</div>
+        </div>
+    </div>
+</div>
+
 <div class="grid grid-2">
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">

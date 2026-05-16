@@ -27,17 +27,25 @@
                 {% for app in awaiting_applications %}
                 <tr>
                     <td style="font-weight:600;">{{ app.applicant.get_full_name|default:app.applicant.username }}</td>
-                    <td>{{ app.leave_type.name }}</td>
+                    <td>{{ app.leave_type.name|default:"—" }}</td>
                     <td>
                         {% if app.category == 'emergency' %}
                             <span class="badge badge-red">Emergency</span>
+                        {% elif app.category == 'early' %}
+                            <span class="badge badge-green">Early Leave</span>
                         {% else %}
                             <span class="badge badge-blue">Advance</span>
                         {% endif %}
                     </td>
                     <td>{{ app.start_date|date:"M d, Y" }}</td>
-                    <td>{{ app.end_date|date:"M d, Y" }}</td>
-                    <td><strong>{{ app.total_days }}</strong></td>
+                    <td>
+                        {% if app.category == 'early' %}
+                            <span style="color:var(--primary); font-weight:500;">at {{ app.departure_time|time:"H:i" }}</span>
+                        {% else %}
+                            {{ app.end_date|date:"M d, Y" }}
+                        {% endif %}
+                    </td>
+                    <td><strong>{% if app.category == 'early' %}-{% else %}{{ app.total_days }}{% endif %}</strong></td>
                     <td style="max-width:180px;" title="{{ app.reason }}">{{ app.reason|truncatewords:10 }}</td>
                     <td>
                         <span style="font-size:0.8rem;">

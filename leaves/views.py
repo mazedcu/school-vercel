@@ -37,6 +37,18 @@ def get_leave_balance(user, leave_type, academic_year):
     return policy.allocated_days, used_days
 
 
+def get_early_leave_balance(user, year, month):
+    """Calculate how many Early Leaves a user has taken in a specific month."""
+    approved_early = LeaveApplication.objects.filter(
+        applicant=user,
+        category=LeaveApplication.Category.EARLY,
+        status=LeaveApplication.Status.ADMIN_APPROVED,
+        start_date__year=year,
+        start_date__month=month
+    ).count()
+    return 3, approved_early  # 3 is the hardcoded monthly limit
+
+
 # ─── ADMIN: LEAVE POLICY MANAGEMENT ──────────────────────────────────────────
 
 @login_required
@@ -114,41 +126,68 @@ def apply_leave(request):
         reason = request.POST.get('reason', '').strip()
 
         try:
-            lt = LeaveType.objects.get(id=leave_type_id)
             from datetime import datetime
             s_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            e_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-            # Validation
-            if e_date < s_date:
-                raise ValueError("End date cannot be before start date.")
-            if category == 'emergency' and s_date != today:
-                raise ValueError("Emergency leave must start today.")
-            if category == 'advance' and s_date <= today:
-                raise ValueError("Advance leave must start on a future date.")
+            if category == 'early':
+                departure_time_str = request.POST.get('departure_time')
+                if not departure_time_str:
+                    raise ValueError("Departure time is required for Early Leave.")
+                d_time = datetime.strptime(departure_time_str, '%H:%M').time()
+                
+                if not reason:
+                    raise ValueError("Please provide a reason for early leave.")
 
-            # Check balance
-            allocated, used = get_leave_balance(request.user, lt, current_year)
-            requested_days = (e_date - s_date).days + 1
-            remaining = allocated - used
-            if remaining <= 0:
-                raise ValueError(f"No remaining {lt.name} balance. Allocated: {allocated}, Used: {used}.")
-            if requested_days > remaining:
-                raise ValueError(f"Requested {requested_days} days but only {remaining} days remaining.")
+                LeaveApplication.objects.create(
+                    applicant=request.user,
+                    category=category,
+                    start_date=s_date,
+                    departure_time=d_time,
+                    reason=reason,
+                )
+                messages.success(request, "Early Leave application submitted successfully!")
+                return redirect('my_leaves')
 
-            if not reason:
-                raise ValueError("Please provide a reason for leave.")
+            else:
+                # Standard leave logic
+                if not leave_type_id:
+                    raise ValueError("Leave type is required.")
+                if not end_date:
+                    raise ValueError("End date is required.")
 
-            LeaveApplication.objects.create(
-                applicant=request.user,
-                leave_type=lt,
-                category=category,
-                start_date=s_date,
-                end_date=e_date,
-                reason=reason,
-            )
-            messages.success(request, f"Leave application submitted successfully! ({requested_days} day(s))")
-            return redirect('my_leaves')
+                lt = LeaveType.objects.get(id=leave_type_id)
+                e_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+                # Validation
+                if e_date < s_date:
+                    raise ValueError("End date cannot be before start date.")
+                if category == 'emergency' and s_date != today:
+                    raise ValueError("Emergency leave must start today.")
+                if category == 'advance' and s_date <= today:
+                    raise ValueError("Advance leave must start on a future date.")
+
+                # Check balance
+                allocated, used = get_leave_balance(request.user, lt, current_year)
+                requested_days = (e_date - s_date).days + 1
+                remaining = allocated - used
+                if remaining <= 0:
+                    raise ValueError(f"No remaining {lt.name} balance. Allocated: {allocated}, Used: {used}.")
+                if requested_days > remaining:
+                    raise ValueError(f"Requested {requested_days} days but only {remaining} days remaining.")
+
+                if not reason:
+                    raise ValueError("Please provide a reason for leave.")
+
+                LeaveApplication.objects.create(
+                    applicant=request.user,
+                    leave_type=lt,
+                    category=category,
+                    start_date=s_date,
+                    end_date=e_date,
+                    reason=reason,
+                )
+                messages.success(request, f"Leave application submitted successfully! ({requested_days} day(s))")
+                return redirect('my_leaves')
 
         except LeaveType.DoesNotExist:
             messages.error(request, "Invalid leave type.")
@@ -170,9 +209,14 @@ def apply_leave(request):
             'remaining': allocated - used,
         })
 
+    # Early leave balance for current month
+    _, early_used = get_early_leave_balance(request.user, today.year, today.month)
+
     context = {
         'leave_types': leave_types,
         'balances': balances,
+        'early_used': early_used,
+        'early_limit': 3,
         'today': today.isoformat(),
     }
     return render(request, 'dashboard/apply_leave.html', context)
@@ -200,10 +244,14 @@ def my_leaves(request):
 
     applications = LeaveApplication.objects.filter(applicant=request.user).select_related('leave_type')
 
+    _, early_used = get_early_leave_balance(request.user, today.year, today.month)
+
     context = {
         'balances': balances,
         'applications': applications,
         'current_year': current_year,
+        'early_used': early_used,
+        'early_limit': 3,
     }
     return render(request, 'dashboard/my_leaves.html', context)
 

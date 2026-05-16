@@ -4,7 +4,7 @@
 {% block content %}
 
 <!-- Balance Cards -->
-<div class="grid grid-{{ balances|length }}" style="margin-bottom:1.5rem;">
+<div class="grid grid-{{ balances|length|add:'1' }}" style="margin-bottom:1.5rem;">
     {% for b in balances %}
     <div class="stat-card">
         <div class="stat-label">{{ b.type.name }}</div>
@@ -20,6 +20,13 @@
         <div style="font-size:0.75rem; color:var(--text-muted);">Contact admin to set up leave policies</div>
     </div>
     {% endfor %}
+    <div class="stat-card">
+        <div class="stat-label">Early Leaves (Month)</div>
+        <div class="stat-value" style="color: {% if early_used < early_limit %}var(--success){% else %}var(--danger){% endif %};">
+            {{ early_used }} / {{ early_limit }}
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Used this calendar month</div>
+    </div>
 </div>
 
 <!-- Application History -->

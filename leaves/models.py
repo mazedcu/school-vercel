@@ -39,6 +39,7 @@ class LeaveApplication(models.Model):
     class Category(models.TextChoices):
         ADVANCE = 'advance', 'Advance Leave'
         EMERGENCY = 'emergency', 'Emergency Leave'
+        EARLY = 'early', 'Early Leave'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -50,10 +51,11 @@ class LeaveApplication(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='leave_applications'
     )
-    leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE)
+    leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE, null=True, blank=True)
     category = models.CharField(max_length=10, choices=Category.choices)
     start_date = models.DateField()
-    end_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    departure_time = models.TimeField(null=True, blank=True, help_text="Required for Early Leave")
     reason = models.TextField(help_text="Reason for leave")
 
     status = models.CharField(max_length=25, choices=Status.choices, default=Status.PENDING)
@@ -80,8 +82,33 @@ class LeaveApplication(models.Model):
         ordering = ['-applied_at']
 
     def clean(self):
-        if self.end_date and self.start_date and self.end_date < self.start_date:
-            raise ValidationError("End date cannot be before start date.")
+        if self.category == self.Category.EARLY:
+            if not self.departure_time:
+                raise ValidationError("Departure time is required for Early Leave.")
+            
+            # Enforce 3 early leaves per month rule
+            if self.start_date:
+                # Count approved early leaves for this user in the same month
+                approved_early_leaves = LeaveApplication.objects.filter(
+                    applicant=self.applicant,
+                    category=self.Category.EARLY,
+                    status=self.Status.ADMIN_APPROVED,
+                    start_date__year=self.start_date.year,
+                    start_date__month=self.start_date.month
+                ).exclude(pk=self.pk).count()
+                
+                if approved_early_leaves >= 3:
+                    raise ValidationError("You have already used the maximum 3 Early Leaves allowed for this month.")
+
+        else:
+            # Standard leaves need end date and leave type
+            if not self.leave_type:
+                raise ValidationError("Leave Type is required for standard leaves.")
+            if not self.end_date:
+                raise ValidationError("End Date is required for standard leaves.")
+            if self.end_date and self.start_date and self.end_date < self.start_date:
+                raise ValidationError("End date cannot be before start date.")
+            
         today = timezone.now().date()
         if self.category == self.Category.EMERGENCY and self.start_date != today:
             raise ValidationError("Emergency leave must start today.")

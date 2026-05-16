@@ -125,11 +125,30 @@ def admin_dashboard(request):
 @login_required
 @role_required(User.Role.TEACHER, User.Role.COORDINATOR)
 def teacher_dashboard(request):
+    from leaves.views import get_current_academic_year, get_leave_balance
+    from leaves.models import LeaveType
+
     my_entries = TimetableEntry.objects.filter(teacher=request.user).select_related('section', 'subject', 'time_slot')
     my_sections = Section.objects.filter(timetable_entries__teacher=request.user).distinct()
     pending_assessments = AssessmentRecord.objects.filter(
         section__in=my_sections
     ).order_by('-date_conducted')[:5]
+
+    current_academic_year = get_current_academic_year()
+    leave_types = LeaveType.objects.all()
+    my_balances = []
+    for lt in leave_types:
+        allocated, used = get_leave_balance(request.user, lt, current_academic_year)
+        my_balances.append({
+            'type': lt,
+            'allocated': allocated,
+            'used': used,
+            'remaining': allocated - used,
+        })
+
+    from django.utils import timezone
+    today = timezone.now().date()
+    _, early_used = get_early_leave_balance(request.user, today.year, today.month)
 
     context = {
         'my_entries': my_entries,
@@ -137,6 +156,10 @@ def teacher_dashboard(request):
         'pending_assessments': pending_assessments,
         'section_count': my_sections.count(),
         'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'teacher']).order_by('-created_at')[:5],
+        'my_balances': my_balances,
+        'early_used': early_used,
+        'early_limit': 3,
+        'current_academic_year': current_academic_year,
     }
     return render(request, 'dashboard/teacher_dashboard.html', context)
 

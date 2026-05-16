@@ -21,6 +21,21 @@
     {% endfor %}
 </div>
 
+<!-- Early Leave Balance -->
+<div class="card" style="margin-bottom:1.5rem; background:#f8fafc;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <strong>Early Leaves (This Month):</strong> 
+            <span style="color: {% if early_used >= early_limit %}var(--danger){% else %}var(--success){% endif %}; font-weight:bold;">
+                {{ early_used }} / {{ early_limit }} used
+            </span>
+        </div>
+        {% if early_used >= early_limit %}
+        <span class="badge badge-red">Limit Reached</span>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Application Form -->
 <div class="card">
     <div class="card-title">New Leave Application</div>
@@ -34,11 +49,12 @@
                     <option value="">-- Select Category --</option>
                     <option value="advance">Advance Leave (future date)</option>
                     <option value="emergency">Emergency Leave (today only)</option>
+                    <option value="early" {% if early_used >= early_limit %}disabled{% endif %}>Early Leave (monthly limit)</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="leave_type_group">
                 <label>Leave Type *</label>
-                <select name="leave_type" class="form-control" required>
+                <select name="leave_type" id="leave_type_select" class="form-control" required>
                     <option value="">-- Select Type --</option>
                     {% for lt in leave_types %}<option value="{{ lt.id }}">{{ lt.name }}</option>{% endfor %}
                 </select>
@@ -47,21 +63,25 @@
 
         <div class="form-row">
             <div class="form-group">
-                <label>Start Date *</label>
+                <label>Start Date (or Early Leave Date) *</label>
                 <input type="date" name="start_date" id="start_date" class="form-control" required>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="end_date_group">
                 <label>End Date *</label>
                 <input type="date" name="end_date" id="end_date" class="form-control" required>
+            </div>
+            <div class="form-group" id="departure_time_group" style="display:none;">
+                <label>Departure Time *</label>
+                <input type="time" name="departure_time" id="departure_time" class="form-control">
             </div>
         </div>
 
         <div class="form-group">
-            <label>Reason for Leave *</label>
-            <textarea name="reason" class="form-control" rows="4" placeholder="Please provide a detailed reason for your leave request..." required></textarea>
+            <label>Reason *</label>
+            <textarea name="reason" class="form-control" rows="4" placeholder="Please provide a detailed reason..." required></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary">Submit Application →</button>
+        <button type="submit" class="btn btn-primary" id="submit_btn">Submit Application →</button>
     </form>
 </div>
 
@@ -71,11 +91,25 @@ document.getElementById('category_select').addEventListener('change', function()
     var endInput = document.getElementById('end_date');
     var today = "{{ today }}";
 
+    var typeGroup = document.getElementById('leave_type_group');
+    var typeSelect = document.getElementById('leave_type_select');
+    var endGroup = document.getElementById('end_date_group');
+    var timeGroup = document.getElementById('departure_time_group');
+    var timeInput = document.getElementById('departure_time');
+
     if (this.value === 'emergency') {
         startInput.value = today;
         startInput.readOnly = true;
         startInput.style.backgroundColor = '#f1f5f9';
         endInput.min = today;
+        
+        typeGroup.style.display = 'block';
+        typeSelect.required = true;
+        endGroup.style.display = 'block';
+        endInput.required = true;
+        timeGroup.style.display = 'none';
+        timeInput.required = false;
+
     } else if (this.value === 'advance') {
         startInput.value = '';
         startInput.readOnly = false;
@@ -86,10 +120,44 @@ document.getElementById('category_select').addEventListener('change', function()
         var tStr = tomorrow.toISOString().split('T')[0];
         startInput.min = tStr;
         endInput.min = tStr;
+        
+        typeGroup.style.display = 'block';
+        typeSelect.required = true;
+        endGroup.style.display = 'block';
+        endInput.required = true;
+        timeGroup.style.display = 'none';
+        timeInput.required = false;
+        
+    } else if (this.value === 'early') {
+        startInput.value = today; // Usually early leave is today, but we allow them to change it
+        startInput.readOnly = false;
+        startInput.style.backgroundColor = '';
+        startInput.min = today;
+        
+        // Hide Leave Type and End Date
+        typeGroup.style.display = 'none';
+        typeSelect.required = false;
+        typeSelect.value = '';
+        
+        endGroup.style.display = 'none';
+        endInput.required = false;
+        endInput.value = '';
+        
+        // Show Departure Time
+        timeGroup.style.display = 'block';
+        timeInput.required = true;
+
     } else {
         startInput.value = '';
         startInput.readOnly = false;
         startInput.style.backgroundColor = '';
+        
+        typeGroup.style.display = 'block';
+        typeSelect.required = true;
+        endGroup.style.display = 'block';
+        endInput.required = true;
+        timeGroup.style.display = 'none';
+        timeInput.required = false;
     }
 });
 
