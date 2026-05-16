@@ -59,7 +59,9 @@
                 <tr><td style="font-weight:500;">💚 Income (Payments)</td><td style="font-weight:700;color:var(--success);">Tk.{{ month_income }}</td></tr>
                 <tr><td style="font-weight:500;">❤️ Expenses</td><td style="font-weight:700;color:var(--danger);">Tk.{{ month_expenses }}</td></tr>
                 <tr style="border-top:2px solid var(--border);"><td style="font-weight:700;">📊 Net Balance</td><td style="font-weight:700;color:{% if month_net >= 0 %}var(--success){% else %}var(--danger){% endif %};">Tk.{{ month_net }}</td></tr>
-                <tr><td style="font-weight:500;">📦 Pending Purchase Requests</td><td><span class="badge badge-yellow">{{ pending_pr_count }}</span></td></tr>
+                <tr><td style="font-weight:500; padding-top:1rem;">📦 Pending Purchase Requests</td><td style="padding-top:1rem;"><span class="badge badge-yellow">{{ pending_pr_count }}</span></td></tr>
+                <tr><td style="font-weight:500;">✉️ Pending Leave Requests</td><td><span class="badge badge-yellow">{{ pending_leaves }}</span></td></tr>
+                <tr><td style="font-weight:500;">🏖️ Staff on Leave Today</td><td><span class="badge badge-blue">{{ staff_on_leave_today }}</span></td></tr>
             </tbody>
         </table>
     </div>
@@ -70,7 +72,7 @@
             <a href="{% url 'manage_classes' %}" class="btn btn-primary btn-block" style="background:#8b5cf6;">🏫 Manage Classes</a>
             <a href="{% url 'timetable_gen' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 Generate Timetable</a>
             <a href="{% url 'manage_finance' %}" class="btn btn-primary btn-block" style="background:#10b981;">💰 Finance</a>
-            <a href="{% url 'account_statement' %}" class="btn btn-primary btn-block" style="background:#f59e0b;">📋 Account Statement</a>
+            <a href="{% url 'admin_leave_review' %}" class="btn btn-primary btn-block" style="background:#f43f5e;">✉️ Leave Requests</a>
             <a href="{% url 'purchase_requests' %}" class="btn btn-primary btn-block" style="background:#ef4444;">🛒 Purchase Requests</a>
         </div>
     </div>
@@ -88,6 +90,46 @@
             <tr><td style="font-weight:500;">Capital Assets</td><td>{{ capex_count }}</td></tr>
         </tbody>
     </table>
+</div>
+
+<!-- Staff Leave Balance Dashboard -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <div class="card-title" style="margin-bottom:0;">Staff Leave Balances ({{ current_academic_year|default:"Current Year" }})</div>
+        <a href="{% url 'admin_leave_review' %}" class="btn btn-primary btn-sm">Review Leaves</a>
+    </div>
+
+    {% if staff_balances %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff Member</th>
+                    {% for lt in leave_types %}
+                    <th style="text-align:center;">{{ lt.name }}<br><small style="font-weight:400; color:var(--text-muted);">Used / Allocated</small></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for staff in staff_balances %}
+                <tr>
+                    <td style="font-weight:600;">{{ staff.user.get_full_name|default:staff.user.username }}</td>
+                    {% for b in staff.balances %}
+                    <td style="text-align:center;">
+                        <span class="badge {% if b.remaining > 0 %}badge-green{% elif b.remaining == 0 %}badge-yellow{% else %}badge-red{% endif %}">
+                            {{ b.used }} / {{ b.allocated }}
+                        </span>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">{{ b.remaining }} left</div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><p>No staff members found.</p></div>
+    {% endif %}
 </div>
 
 <script>

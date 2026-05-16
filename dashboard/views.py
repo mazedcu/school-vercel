@@ -68,6 +68,36 @@ def admin_dashboard(request):
     inventory_count = InventoryItem.objects.count()
     capex_count = CapexItem.objects.count()
 
+    # Leave Management stats
+    from leaves.models import LeaveApplication, LeaveType
+    from leaves.views import get_current_academic_year, get_leave_balance
+    
+    pending_leaves = LeaveApplication.objects.filter(status=LeaveApplication.Status.COORDINATOR_APPROVED).count()
+    staff_on_leave_today = LeaveApplication.objects.filter(
+        status=LeaveApplication.Status.ADMIN_APPROVED,
+        start_date__lte=today,
+        end_date__gte=today
+    ).count()
+
+    leave_types = LeaveType.objects.all()
+    current_academic_year = get_current_academic_year()
+    staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
+    staff_balances = []
+    for user in staff:
+        user_balances = []
+        for lt in leave_types:
+            allocated, used = get_leave_balance(user, lt, current_academic_year)
+            user_balances.append({
+                'type': lt,
+                'allocated': allocated,
+                'used': used,
+                'remaining': allocated - used,
+            })
+        staff_balances.append({
+            'user': user,
+            'balances': user_balances,
+        })
+
     context = {
         'total_students': total_students,
         'total_teachers': total_teachers,
@@ -75,12 +105,17 @@ def admin_dashboard(request):
         'attendance_pct': attendance_pct,
         'unpaid_invoices': unpaid_invoices,
         'current_year': now.year,
+        'current_academic_year': current_academic_year,
         'month_income': month_income,
         'month_expenses': month_expenses,
         'month_net': month_net,
         'pending_pr_count': pending_pr_count,
         'inventory_count': inventory_count,
         'capex_count': capex_count,
+        'pending_leaves': pending_leaves,
+        'staff_on_leave_today': staff_on_leave_today,
+        'staff_balances': staff_balances,
+        'leave_types': leave_types,
         'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/admin_dashboard.html', context)

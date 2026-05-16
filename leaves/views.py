@@ -9,33 +9,24 @@ from accounts.decorators import role_required
 from .models import LeaveType, LeavePolicy, LeaveApplication
 
 
+def get_current_academic_year():
+    """Get the latest academic year from leave policies."""
+    latest = LeavePolicy.objects.order_by('-academic_year').values_list('academic_year', flat=True).first()
+    return latest or str(timezone.now().year)
+
+
 def get_leave_balance(user, leave_type, academic_year):
     """Calculate remaining leave balance for a user."""
     policy = LeavePolicy.objects.filter(leave_type=leave_type, academic_year=academic_year).first()
     if not policy:
         return 0, 0  # allocated, used
 
-    used = LeaveApplication.objects.filter(
-        applicant=user,
-        leave_type=leave_type,
-        status=LeaveApplication.Status.ADMIN_APPROVED,
-        start_date__year=int(academic_year) if academic_year.isdigit() else timezone.now().year,
-    ).aggregate(
-        total=Sum('end_date') - Sum('start_date')
-    )
-
-    # Calculate used days properly
+    # Calculate used days from approved applications
     approved_apps = LeaveApplication.objects.filter(
         applicant=user,
         leave_type=leave_type,
         status=LeaveApplication.Status.ADMIN_APPROVED,
     )
-    # Filter by academic year based on start_date year
-    try:
-        year = int(academic_year)
-        approved_apps = approved_apps.filter(start_date__year=year)
-    except ValueError:
-        pass
 
     used_days = sum(app.total_days for app in approved_apps)
     return policy.allocated_days, used_days
@@ -105,7 +96,7 @@ def apply_leave(request):
     """Teacher/Coordinator: Submit a new leave application."""
     leave_types = LeaveType.objects.all()
     today = timezone.now().date()
-    current_year = str(today.year)
+    current_year = get_current_academic_year()
 
     if request.method == 'POST':
         leave_type_id = request.POST.get('leave_type')
@@ -186,7 +177,7 @@ def apply_leave(request):
 def my_leaves(request):
     """Teacher/Coordinator: View own leave balance and application history."""
     today = timezone.now().date()
-    current_year = str(today.year)
+    current_year = get_current_academic_year()
     leave_types = LeaveType.objects.all()
 
     balances = []
@@ -292,7 +283,7 @@ def admin_leave_review(request):
     ).select_related('applicant', 'leave_type').order_by('-admin_reviewed_at')[:20]
 
     # Build staff leave balance summary
-    current_year = str(timezone.now().year)
+    current_year = get_current_academic_year()
     leave_types = LeaveType.objects.all()
     staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
     staff_balances = []
