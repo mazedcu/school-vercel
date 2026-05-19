@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block page_title %}{% if editing %}Edit Book{% else %}Add New Book{% endif %}{% endblock %}
+{% block breadcrumb %}Library / {% if editing %}Edit{% else %}Add{% endif %} Book{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:750px;">
+    <div class="card-title">{% if editing %}✏️ Edit "{{ book.title }}"{% else %}➕ Add New Book{% endif %}</div>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" name="title" class="form-control" value="{{ book.title|default:'' }}" required placeholder="e.g. To Kill a Mockingbird">
+            </div>
+            <div class="form-group">
+                <label>Author *</label>
+                <input type="text" name="author" class="form-control" value="{{ book.author|default:'' }}" required placeholder="e.g. Harper Lee">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>ISBN</label>
+                <input type="text" name="isbn" class="form-control" value="{{ book.isbn|default:'' }}" placeholder="e.g. 978-0-06-112008-4">
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category" class="form-control">
+                    <option value="">-- None --</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if book.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Publisher</label>
+                <input type="text" name="publisher" class="form-control" value="{{ book.publisher|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label>Edition</label>
+                <input type="text" name="edition" class="form-control" value="{{ book.edition|default:'' }}" placeholder="e.g. 3rd Edition">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Language</label>
+                <input type="text" name="language" class="form-control" value="{{ book.language|default:'English' }}">
+            </div>
+            <div class="form-group">
+                <label>Shelf Location</label>
+                <input type="text" name="shelf_location" class="form-control" value="{{ book.shelf_location|default:'' }}" placeholder="e.g. Shelf A-3">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Total Copies</label>
+                <input type="number" name="total_copies" class="form-control" value="{{ book.total_copies|default:'1' }}" min="1">
+            </div>
+            <div class="form-group">
+                <label>Accession Prefix</label>
+                <input type="text" name="accession_prefix" class="form-control" value="LIB" placeholder="e.g. LIB">
+                <small style="color:var(--text-muted);font-size:0.75rem;">Accession numbers: PREFIX-BOOKID-COPY#</small>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Brief summary of the book…">{{ book.description|default:'' }}</textarea>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+            <button type="submit" class="btn btn-primary">{% if editing %}💾 Save Changes{% else %}➕ Add Book{% endif %}</button>
+            <a href="{% url 'library_catalog' %}" class="btn" style="background:var(--border); color:var(--text);">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block page_title %}My Books{% endblock %}
+{% block breadcrumb %}Library / My Books{% endblock %}
+{% block content %}
+
+<!-- Currently Borrowed -->
+<div class="card">
+    <div class="card-title">📖 Currently Borrowed</div>
+    {% if current %}
+    <table>
+        <thead>
+            <tr><th>Book</th><th>Accession #</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for l in current %}
+            <tr>
+                <td style="font-weight:600;">{{ l.book_copy.book.title }}</td>
+                <td><span class="badge badge-blue">{{ l.book_copy.accession_number }}</span></td>
+                <td>{{ l.issue_date|date:"d M Y" }}</td>
+                <td>{{ l.due_date|date:"d M Y" }}</td>
+                <td>
+                    {% if l.status == 'overdue' %}
+                    <span class="badge badge-red">Overdue ({{ l.overdue_days }} days)</span>
+                    {% else %}
+                    <span class="badge badge-blue">Issued</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">You don't have any books checked out right now. 📚</p>
+    {% endif %}
+</div>
+
+<!-- Past Borrowings -->
+<div class="card">
+    <div class="card-title">📜 Borrowing History</div>
+    {% if past %}
+    <table>
+        <thead>
+            <tr><th>Book</th><th>Issue Date</th><th>Return Date</th><th>Fine</th></tr>
+        </thead>
+        <tbody>
+            {% for l in past %}
+            <tr>
+                <td>{{ l.book_copy.book.title }}</td>
+                <td>{{ l.issue_date|date:"d M Y" }}</td>
+                <td>{{ l.return_date|date:"d M Y" }}</td>
+                <td>{% if l.fine_amount > 0 %}<span class="badge badge-red">Tk.{{ l.fine_amount }}</span>{% else %}<span class="badge badge-green">None</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No borrowing history yet.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

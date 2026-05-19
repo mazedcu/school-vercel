@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block page_title %}Lending History{% endblock %}
+{% block breadcrumb %}Library / Lending History{% endblock %}
+{% block content %}
+
+<!-- Filters -->
+<div class="card">
+    <form method="GET" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:end;">
+        <div class="form-group" style="flex:1; min-width:200px; margin-bottom:0;">
+            <label>Search</label>
+            <input type="text" name="q" class="form-control" placeholder="Book title or borrower…" value="{{ query }}">
+        </div>
+        <div class="form-group" style="min-width:150px; margin-bottom:0;">
+            <label>Status</label>
+            <select name="status" class="form-control">
+                <option value="">All</option>
+                <option value="issued" {% if status_filter == 'issued' %}selected{% endif %}>Issued</option>
+                <option value="returned" {% if status_filter == 'returned' %}selected{% endif %}>Returned</option>
+                <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Overdue</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:38px;">🔍 Filter</button>
+        {% if query or status_filter %}
+        <a href="{% url 'library_history' %}" class="btn" style="height:38px; background:var(--border); color:var(--text);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Lending Table -->
+<div class="card">
+    <div class="card-title">📋 Lending Records</div>
+    {% if lendings %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Book</th>
+                <th>Accession #</th>
+                <th>Borrower</th>
+                <th>Issued By</th>
+                <th>Issue Date</th>
+                <th>Due Date</th>
+                <th>Return Date</th>
+                <th>Fine</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in lendings %}
+            <tr>
+                <td style="font-weight:600;">{{ l.book_copy.book.title }}</td>
+                <td><span class="badge badge-blue">{{ l.book_copy.accession_number }}</span></td>
+                <td>{{ l.borrower.username }}</td>
+                <td>{{ l.issued_by.username|default:"-" }}</td>
+                <td>{{ l.issue_date|date:"d M Y" }}</td>
+                <td>{{ l.due_date|date:"d M Y" }}</td>
+                <td>{{ l.return_date|date:"d M Y"|default:"-" }}</td>
+                <td>{% if l.fine_amount > 0 %}<span class="badge badge-red">Tk.{{ l.fine_amount }}</span>{% else %}-{% endif %}</td>
+                <td>
+                    {% if l.status == 'issued' %}
+                    <span class="badge badge-blue">Issued</span>
+                    {% elif l.status == 'returned' %}
+                    <span class="badge badge-green">Returned</span>
+                    {% elif l.status == 'overdue' %}
+                    <span class="badge badge-red">Overdue</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if l.status != 'returned' %}
+                    <form method="POST" action="{% url 'library_return' l.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">Return</button>
+                    </form>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No lending records found.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -34,4 +34,5 @@ urlpatterns = [
     path('', include('idcards.urls')),
     path('', include('performance.urls')),
     path('', include('leaves.urls')),
+    path('library/', include('library.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

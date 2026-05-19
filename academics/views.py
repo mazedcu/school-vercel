@@ -58,6 +58,37 @@ def manage_classes(request):
                 TimeSlot.objects.get_or_create(day=day, start_time=start, end_time=end)
                 messages.success(request, f"Time slot {day} {start}-{end} created.")
 
+        elif action == 'delete_class':
+            class_id = request.POST.get('class_id')
+            if class_id:
+                cg = get_object_or_404(ClassGroup, id=class_id)
+                name = cg.name
+                cg.delete()
+                messages.success(request, f"Class '{name}' and all its sections have been deleted.")
+
+        elif action == 'delete_section':
+            section_id = request.POST.get('section_id')
+            if section_id:
+                sec = get_object_or_404(Section, id=section_id)
+                label = str(sec)
+                sec.delete()
+                messages.success(request, f"Section '{label}' has been deleted.")
+
+        elif action == 'delete_subject':
+            subject_id = request.POST.get('subject_id')
+            if subject_id:
+                subj = get_object_or_404(Subject, id=subject_id)
+                name = subj.name
+                subj.delete()
+                messages.success(request, f"Subject '{name}' has been deleted.")
+
+        elif action == 'delete_timeslot':
+            timeslot_id = request.POST.get('timeslot_id')
+            if timeslot_id:
+                ts = get_object_or_404(TimeSlot, id=timeslot_id)
+                ts.delete()
+                messages.success(request, "Time slot has been deleted.")
+
         return redirect('manage_classes')
 
     class_groups = ClassGroup.objects.prefetch_related('sections').all()

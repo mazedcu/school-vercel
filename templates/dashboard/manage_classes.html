@@ -104,15 +104,36 @@
 <div class="card">
     <div class="card-title">Existing Classes & Sections</div>
     <table>
-        <thead><tr><th>Class</th><th>Sections</th></tr></thead>
+        <thead><tr><th>Class</th><th>Sections</th><th style="width:80px;">Actions</th></tr></thead>
         <tbody>
             {% for cg in class_groups %}
             <tr>
                 <td style="font-weight:600;">{{ cg.name }}</td>
-                <td>{% for sec in cg.sections.all %}{{ sec.name }} ({{ sec.academic_year }}){% if not forloop.last %}, {% endif %}{% empty %}<span style="color:var(--text-muted);">No sections</span>{% endfor %}</td>
+                <td>
+                    {% for sec in cg.sections.all %}
+                    <span style="display:inline-flex; align-items:center; gap:4px; margin-right:8px;">
+                        {{ sec.name }} ({{ sec.academic_year }})
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete section {{ sec.name }}?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_section">
+                            <input type="hidden" name="section_id" value="{{ sec.id }}">
+                            <button type="submit" class="btn-icon-delete" title="Delete section">&times;</button>
+                        </form>
+                    </span>
+                    {% empty %}<span style="color:var(--text-muted);">No sections</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    <form method="POST" style="display:inline;" onsubmit="return confirm('Delete class \'{{ cg.name }}\' and ALL its sections? This cannot be undone.');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_class">
+                        <input type="hidden" name="class_id" value="{{ cg.id }}">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="2" class="empty-state">No classes created yet.</td></tr>
+            <tr><td colspan="3" class="empty-state">No classes created yet.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -122,12 +143,23 @@
     <div class="card">
         <div class="card-title">Subjects</div>
         <table>
-            <thead><tr><th>Name</th><th>Code</th></tr></thead>
+            <thead><tr><th>Name</th><th>Code</th><th style="width:80px;">Actions</th></tr></thead>
             <tbody>
                 {% for s in subjects %}
-                <tr><td>{{ s.name }}</td><td><span class="badge badge-blue">{{ s.code }}</span></td></tr>
+                <tr>
+                    <td>{{ s.name }}</td>
+                    <td><span class="badge badge-blue">{{ s.code }}</span></td>
+                    <td>
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete subject \'{{ s.name }}\'?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_subject">
+                            <input type="hidden" name="subject_id" value="{{ s.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
                 {% empty %}
-                <tr><td colspan="2" class="empty-state">No subjects.</td></tr>
+                <tr><td colspan="3" class="empty-state">No subjects.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -135,15 +167,56 @@
     <div class="card">
         <div class="card-title">Time Slots</div>
         <table>
-            <thead><tr><th>Day</th><th>Time</th></tr></thead>
+            <thead><tr><th>Day</th><th>Time</th><th style="width:80px;">Actions</th></tr></thead>
             <tbody>
                 {% for ts in time_slots %}
-                <tr><td>{{ ts.get_day_display }}</td><td>{{ ts.start_time|time:"H:i" }} - {{ ts.end_time|time:"H:i" }}</td></tr>
+                <tr>
+                    <td>{{ ts.get_day_display }}</td>
+                    <td>{{ ts.start_time|time:"H:i" }} - {{ ts.end_time|time:"H:i" }}</td>
+                    <td>
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this time slot?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_timeslot">
+                            <input type="hidden" name="timeslot_id" value="{{ ts.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
                 {% empty %}
-                <tr><td colspan="2" class="empty-state">No slots.</td></tr>
+                <tr><td colspan="3" class="empty-state">No slots.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<style>
+.btn-danger {
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+.btn-danger:hover {
+    background: #c0392b;
+}
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+}
+.btn-icon-delete {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    font-weight: bold;
+}
+.btn-icon-delete:hover {
+    color: #c0392b;
+}
+</style>
 {% endblock %}

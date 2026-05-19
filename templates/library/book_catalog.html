@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block page_title %}Book Catalog{% endblock %}
+{% block breadcrumb %}Library / Catalog{% endblock %}
+{% block content %}
+
+<!-- Search & Filter Bar -->
+<div class="card">
+    <form method="GET" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:end;">
+        <div class="form-group" style="flex:1; min-width:200px; margin-bottom:0;">
+            <label>Search</label>
+            <input type="text" name="q" class="form-control" placeholder="Search title, author, or ISBN…" value="{{ query }}">
+        </div>
+        <div class="form-group" style="min-width:180px; margin-bottom:0;">
+            <label>Category</label>
+            <select name="category" class="form-control">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"d" %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:38px;">🔍 Search</button>
+        {% if query or selected_category %}
+        <a href="{% url 'library_catalog' %}" class="btn" style="height:38px; background:var(--border); color:var(--text);">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if user.role == 'admin' %}
+<div style="margin-bottom:1rem;">
+    <a href="{% url 'library_add_book' %}" class="btn btn-primary">➕ Add New Book</a>
+</div>
+{% endif %}
+
+<!-- Book List -->
+<div class="card">
+    <div class="card-title">📖 Books ({{ books|length }})</div>
+    {% if books %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>ISBN</th>
+                <th>Category</th>
+                <th>Shelf</th>
+                <th>Copies</th>
+                <th>Available</th>
+                {% if user.role == 'admin' %}<th>Actions</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for book in books %}
+            <tr>
+                <td style="font-weight:600;">{{ book.title }}</td>
+                <td>{{ book.author }}</td>
+                <td><span class="badge badge-blue">{{ book.isbn|default:"-" }}</span></td>
+                <td>{{ book.category.name|default:"-" }}</td>
+                <td>{{ book.shelf_location|default:"-" }}</td>
+                <td>{{ book.total_copies }}</td>
+                <td>
+                    {% if book.available_copies > 0 %}
+                    <span class="badge badge-green">{{ book.available_copies }}</span>
+                    {% else %}
+                    <span class="badge badge-red">0</span>
+                    {% endif %}
+                </td>
+                {% if user.role == 'admin' %}
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'library_edit_book' book.id %}" class="btn btn-primary btn-sm">Edit</a>
+                    <form method="POST" action="{% url 'library_delete_book' book.id %}" style="display:inline;" onsubmit="return confirm('Delete \'{{ book.title }}\' and all its copies?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No books found. {% if user.role == 'admin' %}<a href="{% url 'library_add_book' %}">Add your first book →</a>{% endif %}</p>
+    {% endif %}
+</div>
+
+{% endblock %}

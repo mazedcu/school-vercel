@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block page_title %}Issue Book{% endblock %}
+{% block breadcrumb %}Library / Issue Book{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:650px;">
+    <div class="card-title">📤 Issue a Book</div>
+
+    {% if available_copies %}
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Select Book Copy *</label>
+            <select name="book_copy" class="form-control" required>
+                <option value="">-- Select an available copy --</option>
+                {% for copy in available_copies %}
+                <option value="{{ copy.id }}">{{ copy.book.title }} — Copy #{{ copy.copy_number }} ({{ copy.accession_number }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Borrower *</label>
+            <select name="borrower" class="form-control" required>
+                <option value="">-- Select borrower --</option>
+                {% for u in borrowers %}
+                <option value="{{ u.id }}">{{ u.username }} ({{ u.get_role_display }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Lending Duration (days)</label>
+                <input type="number" name="due_days" class="form-control" value="14" min="1" max="90">
+            </div>
+            <div class="form-group">
+                <label>Fine per Overdue Day (Tk.)</label>
+                <input type="number" name="fine_per_day" class="form-control" value="5.00" step="0.50" min="0">
+            </div>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+            <button type="submit" class="btn btn-primary">📤 Issue Book</button>
+            <a href="{% url 'library_dashboard' %}" class="btn" style="background:var(--border); color:var(--text);">Cancel</a>
+        </div>
+    </form>
+    {% else %}
+    <p class="empty-state">No available book copies to issue. <a href="{% url 'library_add_book' %}">Add books first →</a></p>
+    {% endif %}
+</div>
+
+{% endblock %}

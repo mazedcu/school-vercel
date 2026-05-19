@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_title %}Confirm Book Return{% endblock %}
+{% block breadcrumb %}Library / Confirm Return{% endblock %}
+{% block content %}
+
+<div class="card" style="max-width:550px;">
+    <div class="card-title">🔄 Confirm Book Return</div>
+    <div style="margin-bottom:1.5rem; line-height:1.6;">
+        <p>You are marking the following book copy as returned:</p>
+        <div style="background:var(--bg); border:1px solid var(--border); padding:1rem; border-radius:0.5rem; margin:1rem 0;">
+            <strong>Book Title:</strong> {{ lending.book_copy.book.title }}<br>
+            <strong>Accession #:</strong> <span class="badge badge-blue">{{ lending.book_copy.accession_number }}</span> (Copy #{{ lending.book_copy.copy_number }})<br>
+            <strong>Borrower:</strong> {{ lending.borrower.username }} ({{ lending.borrower.get_role_display }})<br>
+            <strong>Issue Date:</strong> {{ lending.issue_date|date:"d M Y" }}<br>
+            <strong>Due Date:</strong> {{ lending.due_date|date:"d M Y" }}<br>
+            <strong>Overdue Days:</strong> 
+            {% if lending.overdue_days > 0 %}
+                <span class="badge badge-red">{{ lending.overdue_days }} days</span>
+            {% else %}
+                <span class="badge badge-green">0 days</span>
+            {% endif %}
+            <br>
+            <strong>Estimated Fine:</strong> 
+            {% if lending.calculate_fine > 0 %}
+                <span class="badge badge-red">Tk.{{ lending.calculate_fine }}</span> (at Tk.{{ lending.fine_per_day }}/day)
+            {% else %}
+                <span class="badge badge-green">Tk.0.00</span>
+            {% endif %}
+        </div>
+        <p>Marking this as returned will immediately release the copy back to the active catalog inventory so other students or teachers can borrow it.</p>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div style="display:flex; gap:0.75rem;">
+            <button type="submit" class="btn btn-success">✅ Confirm Return</button>
+            <a href="{% url 'library_history' %}" class="btn" style="background:var(--border); color:var(--text);">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

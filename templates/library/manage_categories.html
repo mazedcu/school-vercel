@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block page_title %}Book Categories{% endblock %}
+{% block breadcrumb %}Library / Categories{% endblock %}
+{% block content %}
+
+<div class="grid grid-2">
+    <!-- Add Category -->
+    <div class="card">
+        <div class="card-title">🏷️ Add Category</div>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add">
+            <div class="form-group">
+                <label>Category Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Science Fiction" required>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Optional description…"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Category</button>
+        </form>
+    </div>
+
+    <!-- Existing Categories -->
+    <div class="card">
+        <div class="card-title">Existing Categories</div>
+        {% if categories %}
+        <table>
+            <thead><tr><th>Name</th><th>Books</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for cat in categories %}
+                <tr>
+                    <td style="font-weight:600;">{{ cat.name }}</td>
+                    <td><span class="badge badge-blue">{{ cat.book_count }}</span></td>
+                    <td>
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Delete category \'{{ cat.name }}\'? Books will be uncategorized.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="category_id" value="{{ cat.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No categories yet. Add one to organize your books.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

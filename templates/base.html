@@ -407,6 +407,13 @@
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
             <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
 
+            <li class="nav-section">Library</li>
+            <li><a href="{% url 'library_dashboard' %}" class="{% if 'library' in request.resolver_match.url_name and request.resolver_match.url_name != 'library_my_books' %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
+            <li><a href="{% url 'library_catalog' %}" class="{% if request.resolver_match.url_name == 'library_catalog' %}active{% endif %}"><span class="icon">📖</span> Book Catalog</a></li>
+            <li><a href="{% url 'library_issue' %}" class="{% if request.resolver_match.url_name == 'library_issue' %}active{% endif %}"><span class="icon">📤</span> Issue Book</a></li>
+            <li><a href="{% url 'library_history' %}" class="{% if request.resolver_match.url_name == 'library_history' %}active{% endif %}"><span class="icon">📋</span> Lending History</a></li>
+            <li><a href="{% url 'library_categories' %}" class="{% if request.resolver_match.url_name == 'library_categories' %}active{% endif %}"><span class="icon">🏷️</span> Categories</a></li>
+
             <li class="nav-section">Reports</li>
             <li><a href="{% url 'period_setup' %}" class="{% if request.resolver_match.url_name == 'period_setup' %}active{% endif %}"><span class="icon">📅</span> Period Setup</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
@@ -428,6 +435,10 @@
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+            <li class="nav-section">Library</li>
+            <li><a href="{% url 'library_dashboard' %}" class="{% if 'library_dashboard' == request.resolver_match.url_name %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
+            <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📖</span> My Books</a></li>
+
             <li class="nav-section">Procurement</li>
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
 
@@ -446,6 +457,10 @@
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+            <li class="nav-section">Library</li>
+            <li><a href="{% url 'library_dashboard' %}" class="{% if 'library_dashboard' == request.resolver_match.url_name %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
+            <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📖</span> My Books</a></li>
+
             <li class="nav-section">Procurement</li>
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
 
@@ -455,6 +470,7 @@
             <li><a href="{% url 'student_report' %}" class="{% if request.resolver_match.url_name == 'student_report' %}active{% endif %}"><span class="icon">📄</span> My Report Card</a></li>
             <li><a href="{% url 'my_timetable' %}" class="{% if request.resolver_match.url_name == 'my_timetable' %}active{% endif %}"><span class="icon">📅</span> My Timetable</a></li>
             <li><a href="{% url 'my_attendance' %}" class="{% if request.resolver_match.url_name == 'my_attendance' %}active{% endif %}"><span class="icon">✅</span> My Attendance</a></li>
+            <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📚</span> My Books</a></li>
 
             {% elif user.role == 'parent' %}
             <li class="nav-section">My Children</li>

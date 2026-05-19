@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block page_title %}📚 Library Dashboard{% endblock %}
+{% block breadcrumb %}Library / Overview{% endblock %}
+{% block content %}
+
+<!-- Stats Row -->
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_books }}</div>
+        <div class="stat-label">Book Titles</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_copies }}</div>
+        <div class="stat-label">Total Copies</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ available }}</div>
+        <div class="stat-label">Available</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--warning);">{{ issued }}</div>
+        <div class="stat-label">Issued</div>
+    </div>
+</div>
+
+{% if overdue_count > 0 %}
+<div class="msg msg-warning" style="margin-bottom:1rem;">
+    ⚠️ <strong>{{ overdue_count }} overdue book{{ overdue_count|pluralize }}</strong> need attention!
+</div>
+{% endif %}
+
+<div class="grid grid-2">
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-title">Quick Actions</div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem;">
+            <a href="{% url 'library_issue' %}" class="btn btn-primary">📤 Issue Book</a>
+            <a href="{% url 'library_catalog' %}" class="btn btn-primary" style="background:var(--success);">📖 Book Catalog</a>
+            {% if user.role == 'admin' %}
+            <a href="{% url 'library_add_book' %}" class="btn btn-primary" style="background:#8b5cf6;">➕ Add Book</a>
+            <a href="{% url 'library_categories' %}" class="btn btn-primary" style="background:#ec4899;">🏷️ Categories</a>
+            {% endif %}
+            <a href="{% url 'library_history' %}" class="btn btn-primary" style="background:#f59e0b;">📋 Lending History</a>
+        </div>
+    </div>
+
+    <!-- Popular Books -->
+    <div class="card">
+        <div class="card-title">Most Borrowed Books</div>
+        {% if popular_books %}
+        <table>
+            <thead><tr><th>Book</th><th>Author</th><th>Times Issued</th></tr></thead>
+            <tbody>
+                {% for b in popular_books %}
+                <tr>
+                    <td style="font-weight:600;">{{ b.title }}</td>
+                    <td>{{ b.author }}</td>
+                    <td><span class="badge badge-blue">{{ b.times_issued }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty-state">No lending data yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Overdue Books -->
+{% if overdue_lendings %}
+<div class="card" style="border-color:var(--danger);">
+    <div class="card-title" style="color:var(--danger);">⏰ Overdue Books</div>
+    <table>
+        <thead><tr><th>Book</th><th>Borrower</th><th>Due Date</th><th>Days Overdue</th><th>Actions</th></tr></thead>
+        <tbody>
+            {% for l in overdue_lendings %}
+            <tr>
+                <td style="font-weight:600;">{{ l.book_copy.book.title }}</td>
+                <td>{{ l.borrower.username }}</td>
+                <td>{{ l.due_date|date:"d M Y" }}</td>
+                <td><span class="badge badge-red">{{ l.overdue_days }} days</span></td>
+                <td>
+                    <form method="POST" action="{% url 'library_return' l.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">Return</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Recent Activity -->
+<div class="card">
+    <div class="card-title">Recent Activity</div>
+    {% if recent_lendings %}
+    <table>
+        <thead><tr><th>Book</th><th>Borrower</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr></thead>
+        <tbody>
+            {% for l in recent_lendings %}
+            <tr>
+                <td>{{ l.book_copy.book.title }}</td>
+                <td>{{ l.borrower.username }}</td>
+                <td>{{ l.issue_date|date:"d M Y" }}</td>
+                <td>{{ l.due_date|date:"d M Y" }}</td>
+                <td>
+                    {% if l.status == 'issued' %}
+                    <span class="badge badge-blue">Issued</span>
+                    {% elif l.status == 'returned' %}
+                    <span class="badge badge-green">Returned</span>
+                    {% elif l.status == 'overdue' %}
+                    <span class="badge badge-red">Overdue</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No lending activity yet.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
