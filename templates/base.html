@@ -376,6 +376,11 @@
             <li><a href="{% url 'dashboard_router' %}" class="{% if request.resolver_match.url_name in 'admin_dashboard teacher_dashboard student_dashboard accounts_dashboard' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a></li>
 
             {% if user.role == 'admin' %}
+            <li class="nav-section">Dashboard Previews</li>
+            <li><a href="{% url 'student_dashboard' %}"><span class="icon">👀</span> Student View</a></li>
+            <li><a href="{% url 'teacher_dashboard' %}"><span class="icon">👀</span> Teacher/Coordinator View</a></li>
+            <li><a href="{% url 'parent_dashboard' %}"><span class="icon">👀</span> Parent View</a></li>
+
             <li class="nav-section">Administration</li>
             <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
             <li><a href="{% url 'manage_notices' %}" class="{% if request.resolver_match.url_name == 'manage_notices' %}active{% endif %}"><span class="icon">📢</span> Announcements</a></li>
