@@ -4,6 +4,9 @@ Generates class-wise and teacher-wise timetable PDFs using ReportLab.
 """
 import io
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.units import mm, cm
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 )

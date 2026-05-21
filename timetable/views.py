@@ -196,24 +196,36 @@ def download_timetable_pdf(request, section_id):
     elif user.role not in [User.Role.ADMIN, User.Role.TEACHER]:
         return redirect('dashboard_router')
 
-    pdf_buffer = generate_section_timetable_pdf(section)
-    filename = f"timetable_{section.class_group.name}_{section.name}.pdf".replace(' ', '_')
+    try:
+        pdf_buffer = generate_section_timetable_pdf(section)
+        filename = f"timetable_{section.class_group.name}_{section.name}.pdf".replace(' ', '_')
 
-    response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+        response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Failed to generate section timetable PDF: %s", e, exc_info=True)
+        messages.error(request, "Failed to generate the timetable PDF. Please try again or contact the administrator.")
+        return redirect('view_timetable')
 
 @login_required
 @role_required(User.Role.TEACHER)
 def download_teacher_timetable_pdf(request):
 
-    pdf_buffer = generate_teacher_timetable_pdf(request.user)
-    teacher_name = (request.user.get_full_name() or request.user.username).replace(' ', '_')
-    filename = f"timetable_{teacher_name}.pdf"
+    try:
+        pdf_buffer = generate_teacher_timetable_pdf(request.user)
+        teacher_name = (request.user.get_full_name() or request.user.username).replace(' ', '_')
+        filename = f"timetable_{teacher_name}.pdf"
 
-    response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+        response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Failed to generate teacher timetable PDF: %s", e, exc_info=True)
+        messages.error(request, "Failed to generate the timetable PDF. Please try again or contact the administrator.")
+        return redirect('dashboard_router')
 
 @login_required
 @role_required(User.Role.STUDENT)

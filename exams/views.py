@@ -126,7 +126,16 @@ def manage_assessments(request):
     sections = Section.objects.all()
     subjects = Subject.objects.all()
     assessment_types = AssessmentType.objects.all()
-    recent = AssessmentRecord.objects.all().select_related('section__class_group', 'subject', 'assessment_type').order_by('-date_conducted')[:20]
+    try:
+        recent = list(
+            AssessmentRecord.objects.all()
+            .select_related('section__class_group', 'subject', 'assessment_type')
+            .order_by('-date_conducted')[:20]
+        )
+    except Exception as e:
+        logger.error("Failed to load recent assessments (possible corrupt decimal data): %s", e, exc_info=True)
+        recent = []
+        messages.warning(request, "Some assessment records could not be loaded due to data issues. Please check and fix any assessments with invalid marks.")
 
     context = {
         'sections': sections,
@@ -140,17 +149,31 @@ def manage_assessments(request):
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def delete_assessment(request, assessment_id):
     if request.method == 'POST':
-        assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
-        title = assessment.title
-        assessment.delete()
-        messages.success(request, f"Assessment '{title}' has been deleted successfully.")
+        try:
+            assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
+            title = assessment.title
+            assessment.delete()
+            messages.success(request, f"Assessment '{title}' has been deleted successfully.")
+        except Exception as e:
+            # Fallback: if fetching fails due to corrupt decimal data, delete by pk directly
+            deleted, _ = AssessmentRecord.objects.filter(pk=assessment_id).delete()
+            if deleted:
+                messages.success(request, "Assessment deleted successfully.")
+            else:
+                logger.error("Failed to delete assessment %s: %s", assessment_id, e, exc_info=True)
+                messages.error(request, "Could not delete the assessment.")
     return redirect('manage_assessments')
 
 @login_required
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def enter_marks(request, assessment_id):
 
-    assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
+    try:
+        assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
+    except Exception as e:
+        logger.error("Failed to load assessment %s (possible corrupt data): %s", assessment_id, e, exc_info=True)
+        messages.error(request, "This assessment record could not be loaded due to data issues.")
+        return redirect('manage_assessments')
     profiles = StudentProfile.objects.filter(section=assessment.section).select_related('user')
 
     if request.method == 'POST':
