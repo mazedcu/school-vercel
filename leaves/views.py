@@ -366,3 +366,43 @@ def admin_leave_review(request):
         'current_year': current_year,
     }
     return render(request, 'dashboard/admin_leave_review.html', context)
+
+
+# ─── ADMIN: STAFF LEAVE BALANCE REPORT ───────────────────────────────────────
+
+@login_required
+@role_required(User.Role.ADMIN)
+def staff_leave_balance_report(request):
+    """Admin: View leave balances for specific staff members."""
+    current_year = get_current_academic_year()
+    leave_types = LeaveType.objects.all()
+    all_staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR]).order_by('first_name', 'last_name', 'username')
+    
+    selected_staff_id = request.GET.get('staff_id')
+    staff_balances = []
+    
+    if selected_staff_id:
+        selected_user = all_staff.filter(id=selected_staff_id).first()
+        if selected_user:
+            user_balances = []
+            for lt in leave_types:
+                allocated, used = get_leave_balance(selected_user, lt, current_year)
+                user_balances.append({
+                    'type': lt,
+                    'allocated': allocated,
+                    'used': used,
+                    'remaining': allocated - used,
+                })
+            staff_balances.append({
+                'user': selected_user,
+                'balances': user_balances,
+            })
+            
+    context = {
+        'all_staff': all_staff,
+        'selected_staff_id': selected_staff_id,
+        'staff_balances': staff_balances,
+        'leave_types': leave_types,
+        'current_year': current_year,
+    }
+    return render(request, 'dashboard/staff_leave_balance_report.html', context)

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block page_title %}Staff Leave Balance Report{% endblock %}
+{% block breadcrumb %}HR / Staff Leave Balance Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title" style="margin-bottom:0;">Staff Leave Balance Report ({{ current_academic_year|default:"Current Year" }})</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;margin-top:1rem;">
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Employee</label>
+            <select name="staff_id" class="form-control" required>
+                <option value="">-- Select Employee --</option>
+                {% for t in all_staff %}
+                <option value="{{ t.id }}" {% if selected_staff_id == t.id|stringformat:"i" %}selected{% endif %}>{{ t.get_full_name|default:t.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">View Balance</button>
+    </form>
+</div>
+
+{% if staff_balances %}
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff Member</th>
+                    {% for lt in leave_types %}
+                    <th style="text-align:center;">{{ lt.name }}<br><small style="font-weight:400; color:var(--text-muted);">Used / Allocated</small></th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for staff in staff_balances %}
+                <tr>
+                    <td style="font-weight:600;">{{ staff.user.get_full_name|default:staff.user.username }}</td>
+                    {% for b in staff.balances %}
+                    <td style="text-align:center;">
+                        <span class="badge {% if b.remaining > 0 %}badge-green{% elif b.remaining == 0 %}badge-yellow{% else %}badge-red{% endif %}">
+                            {{ b.used }} / {{ b.allocated }}
+                        </span>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">{{ b.remaining }} left</div>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% elif selected_staff_id %}
+<div class="empty-state">
+    <p>No leave balances found for the selected employee.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -148,21 +148,7 @@ def admin_dashboard(request):
     leave_types = LeaveType.objects.all()
     current_academic_year = get_current_academic_year()
     staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
-    staff_balances = []
-    for user in staff:
-        user_balances = []
-        for lt in leave_types:
-            allocated, used = get_leave_balance(user, lt, current_academic_year)
-            user_balances.append({
-                'type': lt,
-                'allocated': allocated,
-                'used': used,
-                'remaining': allocated - used,
-            })
-        staff_balances.append({
-            'user': user,
-            'balances': user_balances,
-        })
+
 
     context = {
         'total_students': total_students,
@@ -181,8 +167,7 @@ def admin_dashboard(request):
         'capex_count': capex_count,
         'pending_leaves': pending_leaves,
         'staff_on_leave_today': staff_on_leave_today,
-        'staff_balances': staff_balances,
-        'leave_types': leave_types,
+
         'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/admin_dashboard.html', context)

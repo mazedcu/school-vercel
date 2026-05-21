@@ -390,6 +390,7 @@
             <li><a href="{% url 'performance_cycle_list' %}" class="{% if 'performance' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📊</span> Performance</a></li>
             <li><a href="{% url 'leave_policy' %}" class="{% if request.resolver_match.url_name == 'leave_policy' %}active{% endif %}"><span class="icon">📋</span> Leave Policy</a></li>
             <li><a href="{% url 'admin_leave_review' %}" class="{% if request.resolver_match.url_name == 'admin_leave_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
+            <li><a href="{% url 'staff_leave_balance_report' %}" class="{% if request.resolver_match.url_name == 'staff_leave_balance_report' %}active{% endif %}"><span class="icon">📈</span> Staff Leave Balances</a></li>
 
             <li class="nav-section">Academic</li>
             <li><a href="{% url 'manage_academic_years' %}" class="{% if request.resolver_match.url_name == 'manage_academic_years' %}active{% endif %}"><span class="icon">📆</span> Academic Years</a></li>

@@ -7,4 +7,5 @@ urlpatterns = [
     path('my-leaves/', views.my_leaves, name='my_leaves'),
     path('coordinator-review/', views.coordinator_review, name='coordinator_review'),
     path('admin-leave-review/', views.admin_leave_review, name='admin_leave_review'),
+    path('staff-leave-balance-report/', views.staff_leave_balance_report, name='staff_leave_balance_report'),
 ]
