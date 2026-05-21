@@ -3,7 +3,7 @@
 {% block breadcrumb %}Teacher / Dashboard{% endblock %}
 {% block content %}
 {% include "dashboard/notices_snippet.html" %}
-<div class="grid grid-3" style="margin-bottom:1.5rem;">
+<div class="grid grid-4" style="margin-bottom:1.5rem;">
     <div class="stat-card">
         <div class="stat-value">{{ section_count }}</div>
         <div class="stat-label">My Sections</div>
@@ -15,6 +15,10 @@
     <div class="stat-card">
         <div class="stat-value" style="color:var(--warning);">{{ pending_assessments|length }}</div>
         <div class="stat-label">Recent Assessments</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:var(--success);">{{ att_pct }}%</div>
+        <div class="stat-label">My Attendance</div>
     </div>
 </div>
 

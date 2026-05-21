@@ -90,8 +90,8 @@ def student_profile_detail(request, student_id):
     section = profile.section
 
     # Performance data
-    total_att = Attendance.objects.filter(student=student).count()
-    present_att = Attendance.objects.filter(student=student, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+    total_att = Attendance.objects.filter(user=student).count()
+    present_att = Attendance.objects.filter(user=student, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
     grades = []

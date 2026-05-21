@@ -1,0 +1,96 @@
+{% extends 'dashboard/base.html' %}
+{% block page_title %}Teacher Attendance Report{% endblock %}
+{% block breadcrumb %}Staff / Attendance Report{% endblock %}
+{% block content %}
+<div class="glass-panel p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Monthly Attendance Report</h2>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="mb-6 flex gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teacher</label>
+            <select name="teacher" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+                <option value="">All Teachers</option>
+                {% for t in all_teachers %}
+                <option value="{{ t.id }}" {% if selected_teacher_id == t.id|stringformat:"i" %}selected{% endif %}>{{ t.get_full_name|default:t.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month</label>
+            <input type="month" name="month" value="{{ selected_month }}" required
+                   class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors">
+                Generate Report
+            </button>
+        </div>
+    </form>
+
+    {% if report_data %}
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Teacher</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Total Days</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Present</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Late</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Absent</th>
+                    <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300 text-center">Attendance %</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for row in report_data %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-gray-900 dark:text-white">{{ row.user.get_full_name|default:row.user.username }}</div>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
+                        {{ row.total }}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            {{ row.present }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            {{ row.late }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                            {{ row.absent }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if row.total > 0 %}
+                            <!-- Late counts as present for percentage -->
+                            {% widthratio row.present|add:row.late row.total 100 as pct %}
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="font-medium text-gray-900 dark:text-white">{{ pct }}%</span>
+                                <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700">
+                                    <div class="h-full {% if pct|add:"0" >= 75 %}bg-green-500{% elif pct|add:"0" >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
+                                         style="width: {{ pct }}%"></div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif selected_month %}
+    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+        No attendance records found for the selected period.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

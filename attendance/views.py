@@ -29,9 +29,9 @@ def mark_attendance(request):
             profiles = StudentProfile.objects.filter(section=selected_section).select_related('user')
             # Pre-fetch all attendance for the date in one query (avoids N+1)
             existing_attendance = {
-                a.student_id: a.status
+                a.user_id: a.status
                 for a in Attendance.objects.filter(
-                    student__in=[p.user for p in profiles],
+                    user__in=[p.user for p in profiles],
                     date=selected_date
                 )
             }
@@ -51,7 +51,7 @@ def mark_attendance(request):
             for p in profiles:
                 status = request.POST.get(f'status_{p.user.id}', 'present')
                 Attendance.objects.update_or_create(
-                    student=p.user, date=date_str,
+                    user=p.user, date=date_str,
                     defaults={'section': selected_section, 'status': status, 'marked_by': request.user}
                 )
             messages.success(request, f"Attendance saved for {selected_section} on {date_str}.")
@@ -74,7 +74,7 @@ def student_attendance_report(request, student_id=None):
             return redirect('dashboard_router')
         student = get_object_or_404(User, id=student_id, role=User.Role.STUDENT)
     else:
-        if request.user.role != User.Role.STUDENT:
+        if request.user.role not in [User.Role.STUDENT, User.Role.TEACHER, User.Role.COORDINATOR]:
             return redirect('dashboard_router')
         student = request.user
 
@@ -92,7 +92,7 @@ def student_attendance_report(request, student_id=None):
         import datetime
         num_days = calendar.monthrange(year, month)[1]
 
-        records = Attendance.objects.filter(student=student, date__year=year, date__month=month)
+        records = Attendance.objects.filter(user=student, date__year=year, date__month=month)
         record_dict = {r.date.day: r for r in records}
 
         na_count = 0
@@ -155,7 +155,7 @@ def attendance_report(request):
                 
                 # Fetch all attendance for this section's students in the selected month
                 attendances = Attendance.objects.filter(
-                    student__in=[p.user for p in profiles],
+                    user__in=[p.user for p in profiles],
                     date__year=year,
                     date__month=month
                 )
@@ -166,11 +166,11 @@ def attendance_report(request):
                     att_dict[p.user.id] = {'present': 0, 'absent': 0, 'late': 0, 'na': 0, 'total': 0}
                     
                 for att in attendances:
-                    if att.student_id in att_dict:
-                        if att.status in att_dict[att.student_id]:
-                            att_dict[att.student_id][att.status] += 1
+                    if att.user_id in att_dict:
+                        if att.status in att_dict[att.user_id]:
+                            att_dict[att.user_id][att.status] += 1
                         if att.status != Attendance.Status.NOT_APPLICABLE:
-                            att_dict[att.student_id]['total'] += 1
+                            att_dict[att.user_id]['total'] += 1
                         
                 for p in profiles:
                     stats = att_dict[p.user.id]
@@ -195,3 +195,97 @@ def attendance_report(request):
         'selected_student_id': selected_student_id,
     }
     return render(request, 'dashboard/attendance_report.html', context)
+
+@login_required
+@role_required(User.Role.ADMIN)
+def mark_teacher_attendance(request):
+    teachers = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR]).order_by('first_name', 'last_name')
+    selected_date = timezone.now().date().isoformat()
+    teachers_list = []
+
+    if request.method == 'GET':
+        selected_date = request.GET.get('date', selected_date)
+        existing_attendance = {
+            a.user_id: a.status
+            for a in Attendance.objects.filter(
+                user__in=teachers,
+                date=selected_date
+            )
+        }
+        for t in teachers:
+            teachers_list.append({
+                'user': t,
+                'existing_status': existing_attendance.get(t.id, ''),
+            })
+
+    if request.method == 'POST':
+        date_str = request.POST.get('date')
+        for t in teachers:
+            status = request.POST.get(f'status_{t.id}', 'present')
+            Attendance.objects.update_or_create(
+                user=t, date=date_str,
+                defaults={'status': status, 'marked_by': request.user, 'section': None}
+            )
+        messages.success(request, f"Teacher attendance saved for {date_str}.")
+        url = reverse('mark_teacher_attendance') + f'?date={date_str}'
+        return redirect(url)
+
+    context = {
+        'teachers_list': teachers_list,
+        'selected_date': selected_date,
+    }
+    return render(request, 'dashboard/mark_teacher_attendance.html', context)
+
+@login_required
+@role_required(User.Role.ADMIN)
+def teacher_attendance_report(request):
+    report_data = []
+    selected_month = request.GET.get('month', timezone.now().strftime('%Y-%m'))
+    teachers = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR]).order_by('first_name')
+    selected_teacher_id = request.GET.get('teacher', '')
+    
+    if selected_month:
+        try:
+            year_str, month_str = selected_month.split('-')
+            year, month = int(year_str), int(month_str)
+            
+            if selected_teacher_id:
+                teachers = teachers.filter(id=selected_teacher_id)
+            
+            attendances = Attendance.objects.filter(
+                user__in=teachers,
+                date__year=year,
+                date__month=month
+            )
+            
+            att_dict = {}
+            for t in teachers:
+                att_dict[t.id] = {'present': 0, 'absent': 0, 'late': 0, 'na': 0, 'total': 0}
+                
+            for att in attendances:
+                if att.user_id in att_dict:
+                    if att.status in att_dict[att.user_id]:
+                        att_dict[att.user_id][att.status] += 1
+                    if att.status != Attendance.Status.NOT_APPLICABLE:
+                        att_dict[att.user_id]['total'] += 1
+                    
+            for t in teachers:
+                stats = att_dict[t.id]
+                report_data.append({
+                    'user': t,
+                    'present': stats['present'],
+                    'absent': stats['absent'],
+                    'late': stats['late'],
+                    'na': stats['na'],
+                    'total': stats['total'],
+                })
+        except ValueError:
+            messages.error(request, "Invalid month format.")
+            
+    context = {
+        'selected_month': selected_month,
+        'report_data': report_data,
+        'all_teachers': User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR]),
+        'selected_teacher_id': selected_teacher_id,
+    }
+    return render(request, 'dashboard/teacher_attendance_report.html', context)

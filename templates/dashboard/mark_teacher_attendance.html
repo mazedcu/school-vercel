@@ -1,0 +1,73 @@
+{% extends 'dashboard/base.html' %}
+{% block page_title %}Mark Teacher Attendance{% endblock %}
+{% block breadcrumb %}Staff / Attendance{% endblock %}
+{% block content %}
+<div class="glass-panel p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Mark Teacher Attendance</h2>
+    </div>
+
+    <!-- Date Filter -->
+    <form method="get" class="mb-6 flex gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+            <input type="date" name="date" value="{{ selected_date }}" required
+                   class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors">
+                Load Teachers
+            </button>
+        </div>
+    </form>
+
+    {% if teachers_list %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ selected_date }}">
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                        <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Teacher</th>
+                        <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Role</th>
+                        <th class="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in teachers_list %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-gray-900 dark:text-white">{{ item.user.get_full_name|default:item.user.username }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-400">
+                            {{ item.user.get_role_display }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <select name="status_{{ item.user.id }}" 
+                                    class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+                                <option value="present" {% if item.existing_status == 'present' %}selected{% endif %}>Present</option>
+                                <option value="late" {% if item.existing_status == 'late' %}selected{% endif %}>Late</option>
+                                <option value="absent" {% if item.existing_status == 'absent' %}selected{% endif %}>Absent</option>
+                                <option value="na" {% if item.existing_status == 'na' %}selected{% endif %}>Not Applicable</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-6">
+            <button type="submit" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                Save Attendance
+            </button>
+        </div>
+    </form>
+    {% else %}
+        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+            Select a date to mark teacher attendance.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

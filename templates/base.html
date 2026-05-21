@@ -385,6 +385,8 @@
             
             <li class="nav-section">HR</li>
             <li><a href="{% url 'teacher_profiles' %}" class="{% if request.resolver_match.url_name == 'teacher_profiles' or request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👨‍🏫</span> Teacher Profiles</a></li>
+            <li><a href="{% url 'mark_teacher_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_teacher_attendance' %}active{% endif %}"><span class="icon">✅</span> Teacher Attendance</a></li>
+            <li><a href="{% url 'teacher_attendance_report' %}" class="{% if request.resolver_match.url_name == 'teacher_attendance_report' %}active{% endif %}"><span class="icon">📊</span> Staff Attendance Report</a></li>
             <li><a href="{% url 'performance_cycle_list' %}" class="{% if 'performance' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📊</span> Performance</a></li>
             <li><a href="{% url 'leave_policy' %}" class="{% if request.resolver_match.url_name == 'leave_policy' %}active{% endif %}"><span class="icon">📋</span> Leave Policy</a></li>
             <li><a href="{% url 'admin_leave_review' %}" class="{% if request.resolver_match.url_name == 'admin_leave_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>

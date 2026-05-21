@@ -107,9 +107,16 @@ def admin_dashboard(request):
     total_sections = Section.objects.count()
 
     today_attendance = Attendance.objects.filter(date=today)
-    present_today = today_attendance.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
-    total_today = today_attendance.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    attendance_pct = round((present_today / total_today * 100), 1) if total_today > 0 else 0
+    
+    student_today_att = today_attendance.filter(user__role=User.Role.STUDENT)
+    student_present = student_today_att.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+    student_total = student_today_att.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
+    attendance_pct = round((student_present / student_total * 100), 1) if student_total > 0 else 0
+
+    teacher_today_att = today_attendance.filter(user__role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
+    teacher_present = teacher_today_att.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+    teacher_total = teacher_today_att.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
+    teacher_attendance_pct = round((teacher_present / teacher_total * 100), 1) if teacher_total > 0 else 0
 
     unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.UNPAID).count()
 
@@ -162,6 +169,7 @@ def admin_dashboard(request):
         'total_teachers': total_teachers,
         'total_sections': total_sections,
         'attendance_pct': attendance_pct,
+        'teacher_attendance_pct': teacher_attendance_pct,
         'unpaid_invoices': unpaid_invoices,
         'current_year': now.year,
         'current_academic_year': current_academic_year,
@@ -208,8 +216,13 @@ def teacher_dashboard(request):
     from django.utils import timezone
     today = timezone.now().date()
     _, early_used = get_early_leave_balance(request.user, today.year, today.month)
+    
+    total_att = Attendance.objects.filter(user=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
+    present_att = Attendance.objects.filter(user=request.user, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+    att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
     context = {
+        'att_pct': att_pct,
         'my_entries': my_entries,
         'my_sections': my_sections,
         'pending_assessments': pending_assessments,
@@ -231,8 +244,8 @@ def student_dashboard(request):
     section = profile.section if profile else None
 
     # Calculate attendance
-    total_att = Attendance.objects.filter(student=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    present_att = Attendance.objects.filter(student=request.user, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+    total_att = Attendance.objects.filter(user=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
+    present_att = Attendance.objects.filter(user=request.user, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
     # Calculate grades per subject
@@ -284,8 +297,8 @@ def parent_dashboard(request):
             section = profile.section if profile else None
 
             # Attendance
-            total_att = Attendance.objects.filter(student=child).count()
-            present_att = Attendance.objects.filter(student=child, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
+            total_att = Attendance.objects.filter(user=child).count()
+            present_att = Attendance.objects.filter(user=child, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
             att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
             # Grades

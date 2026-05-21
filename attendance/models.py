@@ -10,7 +10,7 @@ class Attendance(models.Model):
         LATE = 'late', 'Late'
         NOT_APPLICABLE = 'na', 'Not Applicable'
 
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='attendances')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='attendances')
     section = models.ForeignKey('academics.Section', on_delete=models.SET_NULL, null=True, blank=True)
     date = models.DateField()
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PRESENT)
@@ -18,9 +18,9 @@ class Attendance(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['student', 'date'], name='unique_student_attendance')
+            models.UniqueConstraint(fields=['user', 'date'], name='unique_user_attendance')
         ]
         ordering = ['-date']
 
     def __str__(self):
-        return f"{self.student.username} - {self.date} - {self.get_status_display()}"
+        return f"{self.user.username} - {self.date} - {self.get_status_display()}"

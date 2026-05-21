@@ -7,4 +7,8 @@ urlpatterns = [
     path('student-report/<int:student_id>/', views.student_attendance_report, name='student_attendance_report'),
     path('report/', views.attendance_report, name='attendance_report'),
     path('api/sync/', api_views.sync_attendance, name='api_sync_attendance'),
+    
+    # Teacher Attendance
+    path('mark_teacher_attendance/', views.mark_teacher_attendance, name='mark_teacher_attendance'),
+    path('teacher_report/', views.teacher_attendance_report, name='teacher_attendance_report'),
 ]

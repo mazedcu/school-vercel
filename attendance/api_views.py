@@ -68,10 +68,10 @@ def sync_attendance(request):
             status = Attendance.Status.PRESENT
             
             # Check if attendance already marked for today
-            existing = Attendance.objects.filter(student=user, date=log_date).exists()
+            existing = Attendance.objects.filter(user=user, date=log_date).exists()
             if not existing:
                 Attendance.objects.create(
-                    student=user,
+                    user=user,
                     section=section,
                     date=log_date,
                     status=status,

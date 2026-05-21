@@ -57,8 +57,8 @@ class AttendanceAPITestCase(TestCase):
         self.assertEqual(data['processed'], 2)
         
         # Verify DB records
-        self.assertTrue(Attendance.objects.filter(student=self.student_user, date=today).exists())
-        self.assertTrue(Attendance.objects.filter(student=self.teacher_user, date=today).exists())
+        self.assertTrue(Attendance.objects.filter(user=self.student_user, date=today).exists())
+        self.assertTrue(Attendance.objects.filter(user=self.teacher_user, date=today).exists())
 
     def test_sync_attendance_unauthorized(self):
         """Test that invalid token returns 401."""
@@ -90,7 +90,7 @@ class AttendanceAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data['processed'], 1) # Only the first one creates a record
-        self.assertEqual(Attendance.objects.filter(student=self.student_user, date=today).count(), 1)
+        self.assertEqual(Attendance.objects.filter(user=self.student_user, date=today).count(), 1)
 
     def test_sync_attendance_invalid_id(self):
         """Test that logs with unknown biometric IDs are reported as errors but don't crash."""
@@ -136,12 +136,12 @@ class AttendanceNotApplicableTestCase(TestCase):
         today = timezone.now().date()
         # Mark 1 day present, 1 day 'na'
         Attendance.objects.create(
-            student=self.student_user, section=self.section, date=today, status=Attendance.Status.PRESENT
+            user=self.student_user, section=self.section, date=today, status=Attendance.Status.PRESENT
         )
         import datetime
         another_day = today - datetime.timedelta(days=1)
         Attendance.objects.create(
-            student=self.student_user, section=self.section, date=another_day, status=Attendance.Status.NOT_APPLICABLE
+            user=self.student_user, section=self.section, date=another_day, status=Attendance.Status.NOT_APPLICABLE
         )
         
         self.client.login(username="admin", password="password")
@@ -160,7 +160,7 @@ class AttendanceNotApplicableTestCase(TestCase):
         """Test that monthly attendance summary report does not increment total days for 'na'."""
         today = timezone.now().date()
         Attendance.objects.create(
-            student=self.student_user, section=self.section, date=today, status=Attendance.Status.NOT_APPLICABLE
+            user=self.student_user, section=self.section, date=today, status=Attendance.Status.NOT_APPLICABLE
         )
         
         self.client.login(username="admin", password="password")
