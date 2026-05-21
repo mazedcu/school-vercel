@@ -8,6 +8,7 @@ class Attendance(models.Model):
         PRESENT = 'present', 'Present'
         ABSENT = 'absent', 'Absent'
         LATE = 'late', 'Late'
+        NOT_APPLICABLE = 'na', 'Not Applicable'
 
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='attendances')
     section = models.ForeignKey('academics.Section', on_delete=models.SET_NULL, null=True, blank=True)

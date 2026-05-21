@@ -9,6 +9,7 @@ class User(AbstractUser):
         TEACHER = "teacher", "Teacher"
         STUDENT = "student", "Student"
         PARENT = "parent", "Parent"
+        ACCOUNTS = "accounts", "Accounts"
 
     role = models.CharField(
         max_length=15,
@@ -29,6 +30,10 @@ class User(AbstractUser):
     @property
     def is_student(self):
         return self.role == self.Role.STUDENT
+
+    @property
+    def is_accounts(self):
+        return self.role == self.Role.ACCOUNTS
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ─── EXPENSE MANAGEMENT ──────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def manage_expenses(request):
     """Record and list expenses."""
     if request.method == 'POST':
@@ -59,7 +59,7 @@ def manage_expenses(request):
 # ─── ACCOUNT STATEMENT ───────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def account_statement(request):
     """Show income (payments) and expenses with time filters."""
     date_from = request.GET.get('from', '')
@@ -113,7 +113,7 @@ def account_statement(request):
 # ─── PURCHASE REQUEST ────────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.ADMIN, User.Role.TEACHER)
+@role_required(User.Role.ADMIN, User.Role.TEACHER, User.Role.ACCOUNTS)
 def purchase_requests(request):
     """Teachers and admins can create purchase requests. Admins see all."""
     if request.method == 'POST':
@@ -133,7 +133,7 @@ def purchase_requests(request):
             except Exception as e:
                 messages.error(request, str(e))
 
-        elif action == 'approve' and request.user.role == User.Role.ADMIN:
+        elif action == 'approve' and request.user.role in (User.Role.ADMIN, User.Role.ACCOUNTS):
             pr_id = request.POST.get('pr_id')
             remarks = request.POST.get('admin_remarks', '').strip()
             pr = get_object_or_404(PurchaseRequest, id=pr_id)
@@ -142,7 +142,7 @@ def purchase_requests(request):
             pr.save()
             messages.success(request, f"Purchase request PR-{pr.pk:04d} approved.")
 
-        elif action == 'reject' and request.user.role == User.Role.ADMIN:
+        elif action == 'reject' and request.user.role in (User.Role.ADMIN, User.Role.ACCOUNTS):
             pr_id = request.POST.get('pr_id')
             remarks = request.POST.get('admin_remarks', '').strip()
             pr = get_object_or_404(PurchaseRequest, id=pr_id)
@@ -151,7 +151,7 @@ def purchase_requests(request):
             pr.save()
             messages.success(request, f"Purchase request PR-{pr.pk:04d} rejected.")
 
-        elif action == 'create_po' and request.user.role == User.Role.ADMIN:
+        elif action == 'create_po' and request.user.role in (User.Role.ADMIN, User.Role.ACCOUNTS):
             pr_id = request.POST.get('pr_id')
             pr = get_object_or_404(PurchaseRequest, id=pr_id, status=PurchaseRequest.Status.APPROVED)
             po = PurchaseOrder.objects.create(
@@ -168,7 +168,7 @@ def purchase_requests(request):
             pr.save()
             messages.success(request, f"Purchase Order {po.po_number} created for PR-{pr.pk:04d}.")
 
-        elif action == 'receive_po' and request.user.role == User.Role.ADMIN:
+        elif action == 'receive_po' and request.user.role in (User.Role.ADMIN, User.Role.ACCOUNTS):
             po_id = request.POST.get('po_id')
             po = get_object_or_404(PurchaseOrder, id=po_id)
             po.is_received = True
@@ -213,7 +213,7 @@ def purchase_requests(request):
         return redirect('purchase_requests')
 
     # Show requests based on role
-    if request.user.role == User.Role.ADMIN:
+    if request.user.role in (User.Role.ADMIN, User.Role.ACCOUNTS):
         requests_list = PurchaseRequest.objects.all().select_related('requested_by')
     else:
         requests_list = PurchaseRequest.objects.filter(requested_by=request.user).select_related('requested_by')
@@ -231,7 +231,7 @@ def purchase_requests(request):
 # ─── INVENTORY & CAPEX ───────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def inventory_capex(request):
     """View and manage inventory and CAPEX items."""
     if request.method == 'POST':
@@ -301,7 +301,7 @@ def inventory_capex(request):
 # ─── DASHBOARD API ───────────────────────────────────────────────────────────
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def api_monthly_finance(request):
     """Return monthly income and expense data for charts."""
     now = timezone.now()

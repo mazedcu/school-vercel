@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block page_title %}Purchase Requests{% endblock %}
-{% block breadcrumb %}{% if request.user.role == 'admin' %}Admin{% else %}{{ request.user.get_role_display }}{% endif %} / Purchase Requests{% endblock %}
+{% block breadcrumb %}{% if request.user.role == 'admin' or request.user.role == 'accounts' %}Finance{% else %}{{ request.user.get_role_display }}{% endif %} / Purchase Requests{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -71,7 +71,7 @@
     <div class="card-title">📋 Purchase Requests</div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>PR #</th><th>Title</th><th>Type</th><th>Requested By</th><th>Est. Cost</th><th>Status</th><th>Date</th>{% if request.user.role == 'admin' %}<th>Actions</th>{% endif %}</tr></thead>
+            <thead><tr><th>PR #</th><th>Title</th><th>Type</th><th>Requested By</th><th>Est. Cost</th><th>Status</th><th>Date</th>{% if request.user.role == 'admin' or request.user.role == 'accounts' %}<th>Actions</th>{% endif %}</tr></thead>
             <tbody>
                 {% for pr in requests %}
                 <tr>
@@ -82,7 +82,7 @@
                     <td>Tk.{{ pr.estimated_cost }}</td>
                     <td><span class="badge pr-status-{{ pr.status }}">{{ pr.get_status_display }}</span></td>
                     <td style="font-size:0.75rem;">{{ pr.created_at|date:"d M Y" }}</td>
-                    {% if request.user.role == 'admin' %}
+                    {% if request.user.role == 'admin' or request.user.role == 'accounts' %}
                     <td>
                         {% if pr.status == 'pending' %}
                         <!-- Approve/Reject -->
@@ -137,7 +137,8 @@
     </div>
 </div>
 
-{% if request.user.role == 'admin' and purchase_orders %}
+{% if request.user.role == 'admin' or request.user.role == 'accounts' %}
+{% if purchase_orders %}
 <!-- Purchase Orders -->
 <div class="card">
     <div class="card-title">📦 Purchase Orders</div>
@@ -177,5 +178,6 @@
         </table>
     </div>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

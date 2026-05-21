@@ -19,7 +19,7 @@ from finance.models import FeeStructure, Invoice, InvoiceLineItem, Payment
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def manage_finance(request):
 
     if request.method == 'POST':
@@ -169,7 +169,7 @@ def manage_finance(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def print_invoice(request, invoice_id):
     """Render a print-ready invoice page."""
     invoice = get_object_or_404(Invoice.objects.select_related('student', 'class_group').prefetch_related('line_items', 'payments'), id=invoice_id)
@@ -185,7 +185,7 @@ def print_invoice(request, invoice_id):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 @require_POST
 def delete_invoice(request, invoice_id):
     """Delete an invoice (POST only)."""
@@ -200,7 +200,7 @@ def delete_invoice(request, invoice_id):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def api_students_by_class(request):
     """Return students filtered by class group (JSON)."""
     class_group_id = request.GET.get('class_group_id')
@@ -219,7 +219,7 @@ def api_students_by_class(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def api_invoices_by_class(request):
     """Return unpaid/partial invoices filtered by class group (JSON)."""
     class_group_id = request.GET.get('class_group_id')
@@ -242,7 +242,7 @@ def api_invoices_by_class(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def api_fees_by_class(request):
     """Return fee structures filtered by class group (JSON)."""
     class_group_id = request.GET.get('class_group_id')
@@ -259,7 +259,7 @@ def api_fees_by_class(request):
 
 
 @login_required
-@role_required(User.Role.ADMIN)
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
 def api_students_by_section(request):
     """Return students filtered by section (JSON)."""
     section_id = request.GET.get('section_id')

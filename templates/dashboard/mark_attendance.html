@@ -39,6 +39,7 @@
                             <option value="present" {% if s.existing_status == 'present' %}selected{% endif %}>Present</option>
                             <option value="absent" {% if s.existing_status == 'absent' %}selected{% endif %}>Absent</option>
                             <option value="late" {% if s.existing_status == 'late' %}selected{% endif %}>Late</option>
+                            <option value="na" {% if s.existing_status == 'na' %}selected{% endif %}>Not Applicable</option>
                         </select>
                     </td>
                 </tr>

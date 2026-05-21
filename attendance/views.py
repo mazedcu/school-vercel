@@ -83,6 +83,7 @@ def student_attendance_report(request, student_id=None):
     present_count = 0
     absent_count = 0
     late_count = 0
+    total_days = 0
 
     try:
         year_str, month_str = selected_month.split('-')
@@ -94,6 +95,7 @@ def student_attendance_report(request, student_id=None):
         records = Attendance.objects.filter(student=student, date__year=year, date__month=month)
         record_dict = {r.date.day: r for r in records}
 
+        na_count = 0
         for day in range(1, num_days + 1):
             date_obj = datetime.date(year, month, day)
             rec = record_dict.get(day)
@@ -102,6 +104,7 @@ def student_attendance_report(request, student_id=None):
                 if rec.status == Attendance.Status.PRESENT: present_count += 1
                 elif rec.status == Attendance.Status.ABSENT: absent_count += 1
                 elif rec.status == Attendance.Status.LATE: late_count += 1
+                elif rec.status == Attendance.Status.NOT_APPLICABLE: na_count += 1
 
             days_data.append({
                 'day': day,
@@ -109,6 +112,7 @@ def student_attendance_report(request, student_id=None):
                 'status': rec.status if rec else None,
                 'display': rec.get_status_display() if rec else 'Not Marked'
             })
+        total_days = num_days - na_count
     except ValueError:
         messages.error(request, "Invalid month format.")
 
@@ -119,6 +123,7 @@ def student_attendance_report(request, student_id=None):
         'present_count': present_count,
         'absent_count': absent_count,
         'late_count': late_count,
+        'total_days': total_days,
     }
     return render(request, 'dashboard/student_attendance_report.html', context)
 
@@ -158,12 +163,14 @@ def attendance_report(request):
                 # Group by student
                 att_dict = {}
                 for p in profiles:
-                    att_dict[p.user.id] = {'present': 0, 'absent': 0, 'late': 0, 'total': 0}
+                    att_dict[p.user.id] = {'present': 0, 'absent': 0, 'late': 0, 'na': 0, 'total': 0}
                     
                 for att in attendances:
                     if att.student_id in att_dict:
-                        att_dict[att.student_id][att.status] += 1
-                        att_dict[att.student_id]['total'] += 1
+                        if att.status in att_dict[att.student_id]:
+                            att_dict[att.student_id][att.status] += 1
+                        if att.status != Attendance.Status.NOT_APPLICABLE:
+                            att_dict[att.student_id]['total'] += 1
                         
                 for p in profiles:
                     stats = att_dict[p.user.id]
@@ -173,6 +180,7 @@ def attendance_report(request):
                         'present': stats['present'],
                         'absent': stats['absent'],
                         'late': stats['late'],
+                        'na': stats['na'],
                         'total': stats['total'],
                     })
             except ValueError:

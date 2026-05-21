@@ -7,6 +7,7 @@ urlpatterns = [
 
     # Dashboards
     path('admin_dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('accounts_dashboard/', views.accounts_dashboard, name='accounts_dashboard'),
     path('teacher_dashboard/', views.teacher_dashboard, name='teacher_dashboard'),
     path('student_dashboard/', views.student_dashboard, name='student_dashboard'),
     path('parent_dashboard/', views.parent_dashboard, name='parent_dashboard'),

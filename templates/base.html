@@ -373,7 +373,7 @@
 
         <ul class="nav-links">
             <li class="nav-section">Main</li>
-            <li><a href="{% url 'dashboard_router' %}" class="{% if request.resolver_match.url_name in 'admin_dashboard teacher_dashboard student_dashboard' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a></li>
+            <li><a href="{% url 'dashboard_router' %}" class="{% if request.resolver_match.url_name in 'admin_dashboard teacher_dashboard student_dashboard accounts_dashboard' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a></li>
 
             {% if user.role == 'admin' %}
             <li class="nav-section">Administration</li>
@@ -418,6 +418,14 @@
             <li><a href="{% url 'period_setup' %}" class="{% if request.resolver_match.url_name == 'period_setup' %}active{% endif %}"><span class="icon">📅</span> Period Setup</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+
+            {% elif user.role == 'accounts' %}
+            <li class="nav-section">Accounts & Procurement</li>
+            <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
+            <li><a href="{% url 'manage_expenses' %}" class="{% if request.resolver_match.url_name == 'manage_expenses' %}active{% endif %}"><span class="icon">💸</span> Expenses</a></li>
+            <li><a href="{% url 'account_statement' %}" class="{% if request.resolver_match.url_name == 'account_statement' %}active{% endif %}"><span class="icon">📋</span> Account Statement</a></li>
+            <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
+            <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
 
             {% elif user.role == 'coordinator' %}
             <li class="nav-section">HR</li>

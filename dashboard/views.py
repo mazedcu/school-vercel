@@ -28,6 +28,8 @@ def home_view(request):
 def dashboard_router(request):
     if request.user.role == User.Role.ADMIN:
         return redirect('admin_dashboard')
+    elif request.user.role == User.Role.ACCOUNTS:
+        return redirect('accounts_dashboard')
     elif request.user.role in (User.Role.TEACHER, User.Role.COORDINATOR):
         return redirect('teacher_dashboard')
     elif request.user.role == User.Role.STUDENT:
@@ -35,6 +37,63 @@ def dashboard_router(request):
     elif request.user.role == User.Role.PARENT:
         return redirect('parent_dashboard')
     return redirect('home')
+
+
+@login_required
+@role_required(User.Role.ACCOUNTS)
+def accounts_dashboard(request):
+    today = timezone.now().date()
+    now = timezone.now()
+    
+    # Financial Stats
+    unpaid_invoices = Invoice.objects.filter(status__in=[Invoice.Status.UNPAID, Invoice.Status.PARTIAL]).count()
+    
+    # Monthly finance data
+    month_income = Payment.objects.filter(
+        payment_date__year=now.year, payment_date__month=now.month
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    month_expenses = Expense.objects.filter(
+        date__year=now.year, date__month=now.month
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    
+    month_net = month_income - month_expenses
+
+    # Procurement and Assets stats
+    pending_pr_count = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
+    inventory_count = InventoryItem.objects.count()
+    capex_count = CapexItem.objects.count()
+    
+    from django.db.models import ExpressionWrapper, F, DecimalField
+    total_inventory_value = InventoryItem.objects.aggregate(
+        total=Sum(
+            ExpressionWrapper(F('quantity') * F('unit_cost'), output_field=DecimalField())
+        )
+    )['total'] or Decimal('0')
+    total_capex_value = CapexItem.objects.aggregate(total=Sum('purchase_cost'))['total'] or Decimal('0')
+    total_assets_value = total_inventory_value + total_capex_value
+
+    # Lists for Tables
+    recent_payments = Payment.objects.select_related('invoice', 'invoice__student').order_by('-payment_date')[:8]
+    recent_expenses = Expense.objects.all().order_by('-date')[:8]
+    recent_requests = PurchaseRequest.objects.select_related('requested_by').order_by('-pk')[:8]
+    
+    context = {
+        'unpaid_invoices': unpaid_invoices,
+        'current_year': now.year,
+        'month_income': month_income,
+        'month_expenses': month_expenses,
+        'month_net': month_net,
+        'pending_pr_count': pending_pr_count,
+        'inventory_count': inventory_count,
+        'capex_count': capex_count,
+        'total_assets_value': total_assets_value,
+        'recent_payments': recent_payments,
+        'recent_expenses': recent_expenses,
+        'recent_requests': recent_requests,
+        'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
+    }
+    return render(request, 'dashboard/accounts_dashboard.html', context)
 
 # ─── ADMIN Dashboard ─────────────────────────────────────────────────────────
 
@@ -49,7 +108,7 @@ def admin_dashboard(request):
 
     today_attendance = Attendance.objects.filter(date=today)
     present_today = today_attendance.filter(status=Attendance.Status.PRESENT).count()
-    total_today = today_attendance.count()
+    total_today = today_attendance.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
     attendance_pct = round((present_today / total_today * 100), 1) if total_today > 0 else 0
 
     unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.UNPAID).count()
@@ -172,7 +231,7 @@ def student_dashboard(request):
     section = profile.section if profile else None
 
     # Calculate attendance
-    total_att = Attendance.objects.filter(student=request.user).count()
+    total_att = Attendance.objects.filter(student=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
     present_att = Attendance.objects.filter(student=request.user, status=Attendance.Status.PRESENT).count()
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 

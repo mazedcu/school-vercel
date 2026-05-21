@@ -123,4 +123,5 @@ class LeaveApplication(models.Model):
         return 0
 
     def __str__(self):
-        return f"{self.applicant.get_full_name()} — {self.leave_type.name} ({self.get_status_display()})"
+        leave_name = self.leave_type.name if self.leave_type else self.get_category_display()
+        return f"{self.applicant.get_full_name() or self.applicant.username} — {leave_name} ({self.get_status_display()})"

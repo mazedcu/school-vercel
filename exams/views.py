@@ -90,8 +90,21 @@ def manage_assessments(request):
         section_id = request.POST.get('section')
         subject_id = request.POST.get('subject')
         assessment_type_id = request.POST.get('assessment_type')
-        total_marks = request.POST.get('total_marks', '100')
+        total_marks_str = request.POST.get('total_marks', '100').strip()
         date_conducted = request.POST.get('date_conducted', timezone.now().date().isoformat())
+
+        # ── Validate total_marks before touching the DB ────────────────────
+        try:
+            total_marks = Decimal(total_marks_str)
+            if total_marks <= 0:
+                raise ValueError("Total marks must be greater than zero.")
+        except Exception:
+            messages.error(request, f"Invalid total marks value: '{total_marks_str}'. Must be a positive number.")
+            return redirect('manage_assessments')
+
+        if not title:
+            messages.error(request, "Assessment title is required.")
+            return redirect('manage_assessments')
 
         try:
             section = Section.objects.get(id=section_id)
@@ -99,13 +112,15 @@ def manage_assessments(request):
             assessment_type = AssessmentType.objects.get(id=assessment_type_id)
             record = AssessmentRecord.objects.create(
                 section=section, subject=subject, assessment_type=assessment_type,
-                title=title, total_marks=Decimal(total_marks), date_conducted=date_conducted
+                title=title, total_marks=total_marks, date_conducted=date_conducted
             )
             messages.success(request, f"Assessment '{title}' created. Now enter marks.")
             return redirect(reverse('enter_marks', args=[record.id]))
+        except (Section.DoesNotExist, Subject.DoesNotExist, AssessmentType.DoesNotExist):
+            messages.error(request, "Invalid section, subject, or assessment type selected.")
         except Exception as e:
             logger.error("Failed to create assessment: %s", e, exc_info=True)
-            messages.error(request, str(e))
+            messages.error(request, "An unexpected error occurred. Please try again.")
         return redirect('manage_assessments')
 
     sections = Section.objects.all()
@@ -139,27 +154,53 @@ def enter_marks(request, assessment_id):
     profiles = StudentProfile.objects.filter(section=assessment.section).select_related('user')
 
     if request.method == 'POST':
+        saved = 0
+        errors = []
         for p in profiles:
-            marks = request.POST.get(f'marks_{p.user.id}', '')
-            if marks:
-                try:
-                    m = Decimal(marks)
-                    StudentScore.objects.update_or_create(
-                        assessment=assessment, student=p.user,
-                        defaults={'marks_obtained': m}
-                    )
-                except Exception as e:
-                    logger.warning("Could not save mark for student %s: %s", p.user_id, e)
-        messages.success(request, f"Marks saved for '{assessment.title}'.")
+            marks = request.POST.get(f'marks_{p.user.id}', '').strip()
+            if not marks:
+                continue
+            try:
+                m = Decimal(marks)
+                if m < 0:
+                    raise ValueError("Marks cannot be negative.")
+                if m > assessment.total_marks:
+                    raise ValueError(f"Marks ({m}) exceed total ({assessment.total_marks}).")
+                StudentScore.objects.update_or_create(
+                    assessment=assessment, student=p.user,
+                    defaults={'marks_obtained': m}
+                )
+                saved += 1
+            except ValueError as e:
+                errors.append(f"{p.user.get_full_name() or p.user.username}: {e}")
+            except Exception as e:
+                logger.warning("Could not save mark for student %s: %s", p.user_id, e)
+                errors.append(f"{p.user.get_full_name() or p.user.username}: Could not save.")
+        if errors:
+            for err in errors:
+                messages.warning(request, err)
+        if saved:
+            messages.success(request, f"Marks saved for '{assessment.title}' ({saved} student(s)).")
         return redirect(reverse('enter_marks', args=[assessment_id]))
 
     students_marks = []
     for p in profiles:
         existing = StudentScore.objects.filter(assessment=assessment, student=p.user).first()
+        try:
+            # Guard against any corrupt stored decimal values
+            marks_val = existing.marks_obtained if existing else ''
+            if marks_val != '':
+                marks_val = Decimal(str(marks_val))  # validate — raises if corrupt
+        except Exception:
+            logger.error(
+                "Corrupt marks_obtained for student %s in assessment %s — resetting display.",
+                p.user_id, assessment_id
+            )
+            marks_val = ''
         students_marks.append({
             'user': p.user,
             'roll': p.roll_number,
-            'marks': existing.marks_obtained if existing else '',
+            'marks': marks_val,
         })
 
     context = {
