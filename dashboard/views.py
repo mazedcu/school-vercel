@@ -107,7 +107,7 @@ def admin_dashboard(request):
     total_sections = Section.objects.count()
 
     today_attendance = Attendance.objects.filter(date=today)
-    present_today = today_attendance.filter(status=Attendance.Status.PRESENT).count()
+    present_today = today_attendance.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
     total_today = today_attendance.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
     attendance_pct = round((present_today / total_today * 100), 1) if total_today > 0 else 0
 
@@ -232,7 +232,7 @@ def student_dashboard(request):
 
     # Calculate attendance
     total_att = Attendance.objects.filter(student=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    present_att = Attendance.objects.filter(student=request.user, status=Attendance.Status.PRESENT).count()
+    present_att = Attendance.objects.filter(student=request.user, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
     # Calculate grades per subject
@@ -285,7 +285,7 @@ def parent_dashboard(request):
 
             # Attendance
             total_att = Attendance.objects.filter(student=child).count()
-            present_att = Attendance.objects.filter(student=child, status=Attendance.Status.PRESENT).count()
+            present_att = Attendance.objects.filter(student=child, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
             att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
             # Grades
