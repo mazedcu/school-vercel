@@ -239,7 +239,7 @@
                     <td>
                         <div style="display:flex;gap:0.4rem;">
                             <a href="{% url 'print_invoice' inv.id %}" class="print-btn" target="_blank">🖨️ Print</a>
-                            <a href="{% url 'delete_invoice' inv.id %}" class="delete-link" onclick="return confirm('Are you sure?')">🗑️ Delete</a>
+                            <form method="POST" action="{% url 'delete_invoice' inv.id %}" style="display:inline;" onsubmit="return confirm('Are you sure?')">{% csrf_token %}<button type="submit" class="delete-link" style="cursor:pointer;border:1px solid #fee2e2;">🗑️ Delete</button></form>
                         </div>
                     </td>
                 </tr>
