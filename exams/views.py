@@ -375,7 +375,10 @@ def subject_comments_view(request):
     if section_id_param:
         sec = Section.objects.filter(id=section_id_param).first()
         if sec:
+            # Try exact match first, then fuzzy match (e.g. "2026" contained in "2025-2026")
             config = AcademicPeriodConfig.objects.filter(academic_year=sec.academic_year).first()
+            if not config:
+                config = AcademicPeriodConfig.objects.filter(academic_year__contains=sec.academic_year).first()
             if config:
                 available_periods = list(config.periods.order_by('sequence'))
 
@@ -419,15 +422,20 @@ def subject_comments_view(request):
                     'comment': existing.comment if existing else '',
                 })
 
-    # Build JSON of all periods grouped by academic year for client-side JS
+    # Build JSON of all periods grouped by section ID for client-side JS
+    # Handles mismatch: section.academic_year may be "2026" while config is "2025-2026"
     import json
     all_configs = AcademicPeriodConfig.objects.prefetch_related('periods').all()
-    periods_by_year = {}
-    for cfg in all_configs:
-        periods_by_year[cfg.academic_year] = [
-            {'id': p.id, 'label': p.label}
-            for p in cfg.periods.order_by('sequence')
-        ]
+    periods_by_section = {}
+    for sec in sections:
+        for cfg in all_configs:
+            # Match if exact or if section year is contained in config year (e.g. "2026" in "2025-2026")
+            if sec.academic_year == cfg.academic_year or sec.academic_year in cfg.academic_year:
+                periods_by_section[str(sec.id)] = [
+                    {'id': p.id, 'label': p.label}
+                    for p in cfg.periods.order_by('sequence')
+                ]
+                break
 
     context = {
         'sections': sections,
@@ -437,7 +445,7 @@ def subject_comments_view(request):
         'selected_period': selected_period,
         'available_periods': available_periods,
         'students_comments': students_comments,
-        'periods_json': json.dumps(periods_by_year),
+        'periods_json': json.dumps(periods_by_section),
     }
     return render(request, 'dashboard/subject_comments.html', context)
 

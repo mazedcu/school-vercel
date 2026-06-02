@@ -57,15 +57,14 @@
 
 <script>
 // Period data grouped by academic year
-const periodsByYear = {{ periods_json|safe }};
+const periodsBySection = {{ periods_json|safe }};
 
 document.getElementById('sectionSelect').addEventListener('change', function() {
-    const selected = this.options[this.selectedIndex];
-    const ay = selected ? selected.dataset.ay : '';
+    const sectionId = this.value;
     const periodSelect = document.getElementById('periodSelect');
     periodSelect.innerHTML = '<option value="">-- Select Period --</option>';
-    if (ay && periodsByYear[ay]) {
-        periodsByYear[ay].forEach(function(p) {
+    if (sectionId && periodsBySection[sectionId]) {
+        periodsBySection[sectionId].forEach(function(p) {
             periodSelect.innerHTML += '<option value="' + p.id + '">' + p.label + '</option>';
         });
     }
