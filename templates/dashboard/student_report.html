@@ -63,8 +63,14 @@
                     <span style="color:var(--text-muted);">-</span>
                     {% endif %}
                 </td>
-                <td style="max-width:200px;font-size:0.8rem;color:var(--text-muted);font-style:italic;">
-                    {{ g.comment|default:"—" }}
+                <td style="max-width:250px;font-size:0.8rem;color:var(--text-muted);font-style:italic;">
+                    {% if g.comments %}
+                        {% for c in g.comments %}
+                        <div style="margin-bottom:0.3rem;"><strong style="color:var(--text);font-style:normal;">{{ c.label }}:</strong> {{ c.comment }}</div>
+                        {% endfor %}
+                    {% else %}
+                        —
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

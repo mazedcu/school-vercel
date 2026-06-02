@@ -92,16 +92,18 @@ class SubjectComment(models.Model):
     subject = models.ForeignKey('academics.Subject', on_delete=models.CASCADE)
     section = models.ForeignKey('academics.Section', on_delete=models.CASCADE)
     academic_year = models.CharField(max_length=10)
+    period = models.ForeignKey('ReportPeriod', on_delete=models.CASCADE, null=True, blank=True, related_name='comments')
     comment = models.TextField(help_text="Teacher's remark for this student in this subject")
     commented_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='comments_given')
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['student', 'subject', 'section', 'academic_year'], name='unique_subject_comment')
+            models.UniqueConstraint(fields=['student', 'subject', 'section', 'academic_year', 'period'], name='unique_subject_comment_period')
         ]
 
     def __str__(self):
-        return f"Comment for {self.student.username} in {self.subject.name}"
+        period_label = self.period.label if self.period else 'Year'
+        return f"Comment for {self.student.username} in {self.subject.name} ({period_label})"
 
 
 # ─── PERIOD-BASED REPORTING ──────────────────────────────────────────────────

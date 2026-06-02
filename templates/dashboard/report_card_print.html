@@ -185,7 +185,13 @@
                 <td style="font-size:0.7rem;">
                     {% for d in g.details %}{{ d.type }}: {{ d.weighted_score }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
                 </td>
-                <td style="font-size:0.75rem;font-style:italic;color:#475569;">{{ g.comment|default:"—" }}</td>
+                <td style="font-size:0.75rem;font-style:italic;color:#475569;">
+                    {% if g.comments %}
+                        {% for c in g.comments %}
+                        <div style="margin-bottom:0.2rem;"><strong style="font-style:normal;">{{ c.label }}:</strong> {{ c.comment }}</div>
+                        {% endfor %}
+                    {% else %}—{% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

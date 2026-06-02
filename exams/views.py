@@ -287,9 +287,12 @@ def student_report(request, student_id=None):
         for subj in subjects:
             score = calculate_student_grade(student, subj, section)
             letter = get_letter_grade(score, grade_settings)
-            comment_obj = SubjectComment.objects.filter(
-                student=student, subject=subj, section=section, academic_year=section.academic_year
-            ).first()
+            # Fetch ALL period comments for this subject
+            period_comments = SubjectComment.objects.filter(
+                student=student, subject=subj, section=section, academic_year=section.academic_year,
+                period__isnull=False
+            ).select_related('period').order_by('period__sequence')
+            comments_list = [{'label': pc.period.label, 'comment': pc.comment} for pc in period_comments]
             grades.append({
                 'subject': subj,
                 'score': score,
@@ -297,7 +300,7 @@ def student_report(request, student_id=None):
                 'remark': letter['remark'],
                 'grade_point': letter['grade_point'],
                 'details': get_grade_details(student, subj, section),
-                'comment': comment_obj.comment if comment_obj else '',
+                'comments': comments_list,
             })
             overall_total += score
             subject_count += 1
@@ -357,41 +360,58 @@ def grade_settings_view(request):
 @login_required
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def subject_comments_view(request):
-    """Teacher: add comments for students per subject."""
+    """Teacher: add comments for students per subject per period."""
 
     sections = Section.objects.all()
     subjects = Subject.objects.all()
     selected_section = None
     selected_subject = None
+    selected_period = None
+    available_periods = []
     students_comments = []
+
+    # Build period list when section is selected
+    section_id_param = request.GET.get('section') or request.POST.get('section_id')
+    if section_id_param:
+        sec = Section.objects.filter(id=section_id_param).first()
+        if sec:
+            config = AcademicPeriodConfig.objects.filter(academic_year=sec.academic_year).first()
+            if config:
+                available_periods = list(config.periods.order_by('sequence'))
 
     if request.method == 'POST':
         section_id = request.POST.get('section_id')
         subject_id = request.POST.get('subject_id')
+        period_id = request.POST.get('period_id')
         section = Section.objects.filter(id=section_id).first()
         subject = Subject.objects.filter(id=subject_id).first()
-        if section and subject:
+        period = ReportPeriod.objects.filter(id=period_id).first() if period_id else None
+        if section and subject and period:
             profiles = StudentProfile.objects.filter(section=section).select_related('user')
             for p in profiles:
                 comment_text = request.POST.get(f'comment_{p.user.id}', '').strip()
                 if comment_text:
                     SubjectComment.objects.update_or_create(
-                        student=p.user, subject=subject, section=section, academic_year=section.academic_year,
+                        student=p.user, subject=subject, section=section,
+                        academic_year=section.academic_year, period=period,
                         defaults={'comment': comment_text, 'commented_by': request.user}
                     )
-            messages.success(request, f"Comments saved for {subject.name} in {section}.")
-        url = reverse('subject_comments') + f'?section={section_id}&subject={subject_id}'
+            messages.success(request, f"Comments saved for {subject.name} — {period.label} in {section}.")
+        elif not period:
+            messages.error(request, "Please select a reporting period.")
+        url = reverse('subject_comments') + f'?section={section_id}&subject={subject_id}&period={period_id or ""}'
         return redirect(url)
 
-    if request.GET.get('section') and request.GET.get('subject'):
+    if request.GET.get('section') and request.GET.get('subject') and request.GET.get('period'):
         selected_section = Section.objects.filter(id=request.GET['section']).first()
         selected_subject = Subject.objects.filter(id=request.GET['subject']).first()
-        if selected_section and selected_subject:
+        selected_period = ReportPeriod.objects.filter(id=request.GET['period']).first()
+        if selected_section and selected_subject and selected_period:
             profiles = StudentProfile.objects.filter(section=selected_section).select_related('user')
             for p in profiles:
                 existing = SubjectComment.objects.filter(
                     student=p.user, subject=selected_subject, section=selected_section,
-                    academic_year=selected_section.academic_year
+                    academic_year=selected_section.academic_year, period=selected_period
                 ).first()
                 students_comments.append({
                     'user': p.user,
@@ -404,6 +424,8 @@ def subject_comments_view(request):
         'subjects': subjects,
         'selected_section': selected_section,
         'selected_subject': selected_subject,
+        'selected_period': selected_period,
+        'available_periods': available_periods,
         'students_comments': students_comments,
     }
     return render(request, 'dashboard/subject_comments.html', context)
@@ -865,7 +887,7 @@ def period_report(request, period_id, student_id):
             )
             letter = get_letter_grade(score, grade_settings)
             comment_obj = SubjectComment.objects.filter(
-                student=student, subject=subj, section=section, academic_year=section.academic_year
+                student=student, subject=subj, section=section, academic_year=section.academic_year, period=period
             ).first()
             grades.append({
                 'subject': subj,

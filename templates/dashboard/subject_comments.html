@@ -3,11 +3,11 @@
 {% block breadcrumb %}Teaching / Comments{% endblock %}
 {% block content %}
 <div class="card">
-    <div class="card-title">Select Section & Subject</div>
-    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+    <div class="card-title">Select Section, Subject & Period</div>
+    <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;" id="commentFilterForm">
         <div class="form-group" style="margin-bottom:0;">
             <label>Section</label>
-            <select name="section" class="form-control" required>
+            <select name="section" class="form-control" required id="sectionSelect" onchange="this.form.submit()">
                 <option value="">-- Select --</option>
                 {% for s in sections %}<option value="{{ s.id }}" {% if selected_section and s.id == selected_section.id %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
             </select>
@@ -19,17 +19,28 @@
                 {% for s in subjects %}<option value="{{ s.id }}" {% if selected_subject and s.id == selected_subject.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
             </select>
         </div>
+        <div class="form-group" style="margin-bottom:0;">
+            <label>Reporting Period</label>
+            <select name="period" class="form-control" required>
+                <option value="">-- Select Period --</option>
+                {% for p in available_periods %}<option value="{{ p.id }}" {% if selected_period and p.id == selected_period.id %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
+            </select>
+            {% if not available_periods and selected_section %}
+            <div style="font-size:0.7rem;color:var(--danger);margin-top:0.25rem;">No period config found for this section's academic year.</div>
+            {% endif %}
+        </div>
         <button type="submit" class="btn btn-primary">Load Students</button>
     </form>
 </div>
 
 {% if students_comments %}
 <div class="card">
-    <div class="card-title">Write Comments — {{ selected_subject.name }} ({{ selected_section }})</div>
+    <div class="card-title">Write Comments — {{ selected_subject.name }} · {{ selected_period.label }} ({{ selected_section }})</div>
     <form method="POST">
         {% csrf_token %}
         <input type="hidden" name="section_id" value="{{ selected_section.id }}">
         <input type="hidden" name="subject_id" value="{{ selected_subject.id }}">
+        <input type="hidden" name="period_id" value="{{ selected_period.id }}">
         <table>
             <thead><tr><th style="width:60px;">Roll</th><th style="width:150px;">Student</th><th>Comment</th></tr></thead>
             <tbody>
