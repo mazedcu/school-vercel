@@ -419,6 +419,16 @@ def subject_comments_view(request):
                     'comment': existing.comment if existing else '',
                 })
 
+    # Build JSON of all periods grouped by academic year for client-side JS
+    import json
+    all_configs = AcademicPeriodConfig.objects.prefetch_related('periods').all()
+    periods_by_year = {}
+    for cfg in all_configs:
+        periods_by_year[cfg.academic_year] = [
+            {'id': p.id, 'label': p.label}
+            for p in cfg.periods.order_by('sequence')
+        ]
+
     context = {
         'sections': sections,
         'subjects': subjects,
@@ -427,6 +437,7 @@ def subject_comments_view(request):
         'selected_period': selected_period,
         'available_periods': available_periods,
         'students_comments': students_comments,
+        'periods_json': json.dumps(periods_by_year),
     }
     return render(request, 'dashboard/subject_comments.html', context)
 

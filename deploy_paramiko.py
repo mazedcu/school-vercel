@@ -18,6 +18,7 @@ def deploy():
         commands = [
             "cd /root/school-vercel && git pull origin main",
             "cd /root/school-vercel && source venv/bin/activate && pip install -r requirements.txt",
+            "cd /root/school-vercel && source venv/bin/activate && python manage.py migrate --noinput",
             "cd /root/school-vercel && source venv/bin/activate && python manage.py collectstatic --noinput",
             "systemctl restart gunicorn"
         ]

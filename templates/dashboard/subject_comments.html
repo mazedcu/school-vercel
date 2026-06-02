@@ -7,9 +7,9 @@
     <form method="GET" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;" id="commentFilterForm">
         <div class="form-group" style="margin-bottom:0;">
             <label>Section</label>
-            <select name="section" class="form-control" required id="sectionSelect" onchange="this.form.submit()">
+            <select name="section" class="form-control" required id="sectionSelect">
                 <option value="">-- Select --</option>
-                {% for s in sections %}<option value="{{ s.id }}" {% if selected_section and s.id == selected_section.id %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
+                {% for s in sections %}<option value="{{ s.id }}" data-ay="{{ s.academic_year }}" {% if selected_section and s.id == selected_section.id %}selected{% endif %}>{{ s.class_group.name }} - {{ s.name }}</option>{% endfor %}
             </select>
         </div>
         <div class="form-group" style="margin-bottom:0;">
@@ -21,13 +21,10 @@
         </div>
         <div class="form-group" style="margin-bottom:0;">
             <label>Reporting Period</label>
-            <select name="period" class="form-control" required>
+            <select name="period" class="form-control" required id="periodSelect">
                 <option value="">-- Select Period --</option>
                 {% for p in available_periods %}<option value="{{ p.id }}" {% if selected_period and p.id == selected_period.id %}selected{% endif %}>{{ p.label }}</option>{% endfor %}
             </select>
-            {% if not available_periods and selected_section %}
-            <div style="font-size:0.7rem;color:var(--danger);margin-top:0.25rem;">No period config found for this section's academic year.</div>
-            {% endif %}
         </div>
         <button type="submit" class="btn btn-primary">Load Students</button>
     </form>
@@ -57,4 +54,21 @@
     </form>
 </div>
 {% endif %}
+
+<script>
+// Period data grouped by academic year
+const periodsByYear = {{ periods_json|safe }};
+
+document.getElementById('sectionSelect').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const ay = selected ? selected.dataset.ay : '';
+    const periodSelect = document.getElementById('periodSelect');
+    periodSelect.innerHTML = '<option value="">-- Select Period --</option>';
+    if (ay && periodsByYear[ay]) {
+        periodsByYear[ay].forEach(function(p) {
+            periodSelect.innerHTML += '<option value="' + p.id + '">' + p.label + '</option>';
+        });
+    }
+});
+</script>
 {% endblock %}
