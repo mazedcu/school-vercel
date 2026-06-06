@@ -209,8 +209,16 @@ def parent_profile_detail(request, parent_id):
         parent.email = request.POST.get('email', '').strip()
         parent.phone = request.POST.get('phone', '').strip()
         parent.save()
+
+        # Handle password change (admin only)
+        new_password = request.POST.get('new_password', '').strip()
+        if new_password:
+            parent.set_password(new_password)
+            parent.save()
+            messages.info(request, f"Password for parent '{parent.username}' has been changed.")
+
         messages.success(request, f"Profile for parent '{parent.username}' updated.")
-        return redirect('parent_profiles')
+        return redirect('parent_profile_detail', parent_id=parent.id)
         
     context = {
         'parent': parent,

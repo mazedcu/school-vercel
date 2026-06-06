@@ -84,6 +84,14 @@ def student_profile_detail(request, student_id):
         student.phone = request.POST.get('phone', '').strip()
         student.save()
         profile.save()
+
+        # Handle password change (admin only)
+        new_password = request.POST.get('new_password', '').strip()
+        if new_password:
+            student.set_password(new_password)
+            student.save()
+            messages.info(request, f"Password for {student.get_full_name() or student.username} has been changed.")
+
         messages.success(request, f"Profile for {student.get_full_name() or student.username} updated.")
         return redirect('student_profile_detail', student_id=student.id)
 
@@ -221,6 +229,15 @@ def teacher_profile_detail(request, teacher_id):
         teacher.phone = request.POST.get('phone', '').strip()
         teacher.save()
         profile.save()
+
+        # Handle password change (admin only)
+        if is_admin:
+            new_password = request.POST.get('new_password', '').strip()
+            if new_password:
+                teacher.set_password(new_password)
+                teacher.save()
+                messages.info(request, f"Password for {teacher.get_full_name() or teacher.username} has been changed.")
+
         messages.success(request, f"Profile for {teacher.get_full_name() or teacher.username} updated.")
         return redirect('teacher_profile_detail', teacher_id=teacher.id)
 
