@@ -204,6 +204,13 @@ def parent_profile_detail(request, parent_id):
     profile, _ = ParentProfile.objects.get_or_create(user=parent)
     
     if request.method == 'POST':
+        new_username = request.POST.get('username', '').strip()
+        if new_username and new_username != parent.username:
+            if User.objects.filter(username=new_username).exists():
+                messages.error(request, f"Username '{new_username}' is already taken.")
+            else:
+                parent.username = new_username
+
         parent.first_name = request.POST.get('first_name', '').strip()
         parent.last_name = request.POST.get('last_name', '').strip()
         parent.email = request.POST.get('email', '').strip()

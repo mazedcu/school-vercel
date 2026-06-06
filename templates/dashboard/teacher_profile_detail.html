@@ -60,6 +60,10 @@
             {% csrf_token %}
             <div class="form-row">
                 <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" class="form-control" value="{{ teacher.username }}" required {% if not is_admin %}disabled{% endif %}>
+                </div>
+                <div class="form-group">
                     <label>First Name</label>
                     <input type="text" name="first_name" class="form-control" value="{{ teacher.first_name }}" {% if not can_edit %}disabled{% endif %}>
                 </div>

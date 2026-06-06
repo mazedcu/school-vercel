@@ -8,6 +8,10 @@
         {% csrf_token %}
         <div class="form-row">
             <div class="form-group">
+                <label>Username *</label>
+                <input type="text" name="username" class="form-control" value="{{ parent.username }}" required>
+            </div>
+            <div class="form-group">
                 <label>First Name *</label>
                 <input type="text" name="first_name" class="form-control" value="{{ parent.first_name }}" required>
             </div>

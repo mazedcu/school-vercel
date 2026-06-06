@@ -78,6 +78,13 @@ def student_profile_detail(request, student_id):
             profile.photo = request.FILES['photo']
 
         # Update user fields
+        new_username = request.POST.get('username', '').strip()
+        if new_username and new_username != student.username:
+            if User.objects.filter(username=new_username).exists():
+                messages.error(request, f"Username '{new_username}' is already taken.")
+            else:
+                student.username = new_username
+
         student.first_name = request.POST.get('first_name', '').strip()
         student.last_name = request.POST.get('last_name', '').strip()
         student.email = request.POST.get('email', '').strip()
@@ -223,6 +230,14 @@ def teacher_profile_detail(request, teacher_id):
                 teacher.role = User.Role.TEACHER
 
         # Update user fields
+        if is_admin:
+            new_username = request.POST.get('username', '').strip()
+            if new_username and new_username != teacher.username:
+                if User.objects.filter(username=new_username).exists():
+                    messages.error(request, f"Username '{new_username}' is already taken.")
+                else:
+                    teacher.username = new_username
+
         teacher.first_name = request.POST.get('first_name', '').strip()
         teacher.last_name = request.POST.get('last_name', '').strip()
         teacher.email = request.POST.get('email', '').strip()
