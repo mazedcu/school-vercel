@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block page_title %}{{ form_title }}{% endblock %}
+{% block breadcrumb %}<a href="{% url 'lesson_plan_list' %}" style="color:var(--primary);text-decoration:none;">Lesson Plans</a> / {{ form_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .section-header {
+        background: linear-gradient(90deg, var(--primary), #7c3aed);
+        color: #fff;
+        border-radius: 0.5rem 0.5rem 0 0;
+        padding: 0.6rem 1rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .section-body {
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 0.5rem 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+        background: var(--surface);
+    }
+    .section-body .form-group:last-child { margin-bottom: 0; }
+    .char-count {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-align: right;
+        margin-top: 0.2rem;
+    }
+    textarea.form-control { min-height: 90px; resize: vertical; }
+    .form-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <div>
+        <h2 style="font-size:1.3rem;font-weight:700;">{{ form_title }}</h2>
+        <p style="font-size:0.82rem;color:var(--text-muted);">Fill in all sections, then save as draft or submit for review</p>
+    </div>
+</div>
+
+<form method="POST">
+{% csrf_token %}
+
+<!-- ── Section 1: Basic Info ── -->
+<div class="section-header">📌 Basic Information</div>
+<div class="section-body">
+    <div class="form-row">
+        <div class="form-group">
+            <label>Subject *</label>
+            <select name="subject" class="form-control" required>
+                <option value="">-- Select Subject --</option>
+                {% for s in subjects %}
+                <option value="{{ s.id }}" {% if plan and plan.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Class / Section *</label>
+            <select name="section" class="form-control" required>
+                <option value="">-- Select Section --</option>
+                {% for s in sections %}
+                <option value="{{ s.id }}" {% if plan and plan.section_id == s.id %}selected{% endif %}>{{ s.class_group.name }} – {{ s.name }} ({{ s.academic_year }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Lesson Date *</label>
+            <input type="date" name="date" class="form-control" value="{{ plan.date|date:'Y-m-d'|default:'' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Duration</label>
+            <input type="text" name="duration" class="form-control" value="{{ plan.duration|default:'' }}" placeholder="e.g. 45 minutes">
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Main Topic *</label>
+            <input type="text" name="main_topic" class="form-control" value="{{ plan.main_topic|default:'' }}" placeholder="e.g. Forces and Motion" required>
+        </div>
+        <div class="form-group">
+            <label>Lesson Title *</label>
+            <input type="text" name="lesson_title" class="form-control" value="{{ plan.lesson_title|default:'' }}" placeholder="e.g. Introduction to Newton's 1st Law" required>
+        </div>
+    </div>
+</div>
+
+<!-- ── Section 2: Objectives & Background ── -->
+<div class="section-header">🎯 Objectives & Background</div>
+<div class="section-body">
+    <div class="form-group">
+        <label>Learning Objectives *</label>
+        <textarea name="learning_objectives" class="form-control" required placeholder="By the end of this lesson, students will be able to...">{{ plan.learning_objectives|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Prior Knowledge</label>
+        <textarea name="prior_knowledge" class="form-control" placeholder="What do students already know that this lesson builds upon?">{{ plan.prior_knowledge|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>Resources & Materials</label>
+        <textarea name="resources" class="form-control" placeholder="Textbooks, worksheets, videos, online tools, lab equipment...">{{ plan.resources|default:'' }}</textarea>
+    </div>
+</div>
+
+<!-- ── Section 3: Lesson Flow ── -->
+<div class="section-header">🕐 Lesson Flow</div>
+<div class="section-body">
+    <div class="form-group">
+        <label>🚀 Starter Activity</label>
+        <textarea name="starter" class="form-control" placeholder="Warm-up or hook activity to engage students (5–10 min)...">{{ plan.starter|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>📖 Main Lesson</label>
+        <textarea name="main_lesson" class="form-control" style="min-height:130px;" placeholder="Core content, teacher explanations, demonstrations...">{{ plan.main_lesson|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>✏️ Activities</label>
+        <textarea name="activities" class="form-control" placeholder="Student tasks, group work, exercises, practical work...">{{ plan.activities|default:'' }}</textarea>
+    </div>
+</div>
+
+<!-- ── Section 4: Differentiation & Wrap-up ── -->
+<div class="section-header">🌟 Differentiation & Plenary</div>
+<div class="section-body">
+    <div class="form-group">
+        <label>🎯 Differentiation</label>
+        <textarea name="differentiation" class="form-control" placeholder="Support strategies for SEN/EAL, extension tasks for higher ability...">{{ plan.differentiation|default:'' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>🏁 Plenary</label>
+        <textarea name="plenary" class="form-control" placeholder="Wrap-up activity, recap, assessment of learning, exit ticket...">{{ plan.plenary|default:'' }}</textarea>
+    </div>
+</div>
+
+<!-- ── Actions ── -->
+<div class="form-actions" style="margin-top:1rem;">
+    <button type="submit" name="action" value="draft" class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--text);">
+        💾 Save as Draft
+    </button>
+    <button type="submit" name="action" value="submit" class="btn btn-primary"
+        onclick="return confirm('Submit this lesson plan for coordinator review?')">
+        📤 Submit for Review
+    </button>
+    <a href="{% url 'lesson_plan_list' %}" class="btn" style="background:transparent;border:none;color:var(--text-muted);">Cancel</a>
+</div>
+</form>
+</div>
+{% endblock %}

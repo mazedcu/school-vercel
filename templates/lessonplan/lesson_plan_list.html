@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block page_title %}Lesson Plans{% endblock %}
+{% block breadcrumb %}Lesson Plans{% endblock %}
+
+{% block extra_head %}
+<style>
+    .plan-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .plan-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+        transform: translateY(-1px);
+    }
+    .plan-status-bar {
+        width: 4px;
+        min-height: 60px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+    .plan-body { flex: 1; min-width: 0; }
+    .plan-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .plan-meta {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.5rem;
+    }
+    .plan-actions { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+    .filter-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .filter-tab {
+        padding: 0.4rem 1rem;
+        border-radius: 2rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        background: var(--surface);
+        transition: all 0.15s;
+    }
+    .filter-tab.active, .filter-tab:hover {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <div>
+        <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:0.2rem;">📋 Lesson Plans</h2>
+        <p style="font-size:0.82rem;color:var(--text-muted);">Create, manage and review lesson plans</p>
+    </div>
+    {% if user.role != 'parent' and user.role != 'student' and user.role != 'accounts' %}
+    <a href="{% url 'lesson_plan_create' %}" class="btn btn-primary">+ New Lesson Plan</a>
+    {% endif %}
+</div>
+
+{% if pending_count > 0 %}
+<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:0.75rem;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.75rem;">
+    <span style="font-size:1.25rem;">⏳</span>
+    <span style="font-size:0.85rem;font-weight:600;color:#92400e;">
+        {{ pending_count }} lesson plan{{ pending_count|pluralize }} awaiting your review
+    </span>
+    <a href="?status=submitted" style="margin-left:auto;font-size:0.8rem;color:#b45309;font-weight:600;">Review now →</a>
+</div>
+{% endif %}
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+    <a href="?" class="filter-tab {% if not status_filter %}active{% endif %}">All</a>
+    {% for val, label in status_choices %}
+    <a href="?status={{ val }}" class="filter-tab {% if status_filter == val %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+{% if plans %}
+{% for plan in plans %}
+<div class="plan-card">
+    <div class="plan-status-bar" style="background:
+        {% if plan.status == 'approved' %}var(--success)
+        {% elif plan.status == 'rejected' %}var(--danger)
+        {% elif plan.status == 'submitted' %}var(--warning)
+        {% else %}var(--border){% endif %};"></div>
+    <div class="plan-body">
+        <div class="plan-title">{{ plan.lesson_title }}</div>
+        <div class="plan-meta">
+            <span>📚 {{ plan.subject.name }}</span>
+            <span>🏫 {{ plan.section }}</span>
+            <span>📅 {{ plan.date|date:"d M Y" }}</span>
+            <span>⏱ {{ plan.duration }}</span>
+            {% if user.role == 'admin' or user.role == 'coordinator' %}
+            <span>👤 {{ plan.teacher.get_full_name|default:plan.teacher.username }}</span>
+            {% endif %}
+        </div>
+        <span class="badge {% if plan.status == 'approved' %}badge-green{% elif plan.status == 'rejected' %}badge-red{% elif plan.status == 'submitted' %}badge-yellow{% else %}badge-blue{% endif %}">
+            {{ plan.get_status_display }}
+        </span>
+    </div>
+    <div class="plan-actions">
+        <a href="{% url 'lesson_plan_detail' plan.pk %}" class="btn btn-sm btn-primary">View</a>
+        {% if plan.status == 'approved' %}
+        <a href="{% url 'lesson_plan_pdf' plan.pk %}" class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;">⬇ PDF</a>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state card">
+    <div class="icon">📝</div>
+    <div style="font-weight:600;font-size:1rem;margin-bottom:0.5rem;">No lesson plans yet</div>
+    <div style="font-size:0.85rem;color:var(--text-muted);">
+        {% if user.role == 'teacher' or user.role == 'coordinator' %}
+        Click "New Lesson Plan" to create your first one.
+        {% else %}
+        No plans have been submitted yet.
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

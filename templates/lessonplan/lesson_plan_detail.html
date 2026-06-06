@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block page_title %}{{ plan.lesson_title }}{% endblock %}
+{% block breadcrumb %}<a href="{% url 'lesson_plan_list' %}" style="color:var(--primary);text-decoration:none;">Lesson Plans</a> / {{ plan.lesson_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .lp-hero {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 0.875rem;
+        padding: 1.75rem 2rem;
+        color: #fff;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .lp-hero::after {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .lp-hero h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 0.4rem; }
+    .lp-meta { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .lp-meta span { font-size: 0.82rem; opacity: 0.9; }
+    .lp-status { position: absolute; top: 1.5rem; right: 2rem; }
+
+    .info-section { margin-bottom: 1rem; }
+    .info-section-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
+        padding: 0.5rem 0.75rem;
+        background: var(--bg);
+        border-radius: 0.4rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .info-section-content {
+        font-size: 0.88rem;
+        line-height: 1.7;
+        color: var(--text);
+        white-space: pre-wrap;
+        padding: 0 0.25rem;
+    }
+
+    .review-panel {
+        background: #fffbeb;
+        border: 2px solid #fcd34d;
+        border-radius: 0.75rem;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .reject-panel {
+        background: #fef2f2;
+        border: 2px solid #fca5a5;
+        border-radius: 0.75rem;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .approve-stamp {
+        background: #d1fae5;
+        border: 1.5px solid #6ee7b7;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 1.25rem 0;
+    }
+    @media print {
+        .no-print { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="lp-hero">
+    <div class="lp-status no-print">
+        <span class="badge {% if plan.status == 'approved' %}badge-green{% elif plan.status == 'rejected' %}badge-red{% elif plan.status == 'submitted' %}badge-yellow{% else %}badge-blue{% endif %}"
+              style="font-size:0.8rem;padding:0.35rem 0.8rem;">
+            {{ plan.get_status_display }}
+        </span>
+    </div>
+    <h2>{{ plan.lesson_title }}</h2>
+    <div style="font-size:0.95rem;opacity:0.85;">{{ plan.main_topic }}</div>
+    <div class="lp-meta">
+        <span>📚 {{ plan.subject.name }}</span>
+        <span>🏫 {{ plan.section }}</span>
+        <span>📅 {{ plan.date|date:"l, d F Y" }}</span>
+        <span>⏱ {{ plan.duration }}</span>
+        <span>👤 {{ plan.teacher.get_full_name|default:plan.teacher.username }}</span>
+    </div>
+</div>
+
+<!-- Approval stamp -->
+{% if plan.status == 'approved' %}
+<div class="approve-stamp">
+    <span style="font-size:1.5rem;">✅</span>
+    <div>
+        <div style="font-weight:700;color:#065f46;font-size:0.9rem;">Approved</div>
+        {% if plan.reviewed_by %}
+        <div style="font-size:0.78rem;color:#047857;">
+            By {{ plan.reviewed_by.get_full_name|default:plan.reviewed_by.username }}
+            on {{ plan.reviewed_at|date:"d M Y, H:i" }}
+        </div>
+        {% endif %}
+        {% if plan.reviewer_notes %}
+        <div style="font-size:0.82rem;color:#065f46;margin-top:0.25rem;">📝 {{ plan.reviewer_notes }}</div>
+        {% endif %}
+    </div>
+    <a href="{% url 'lesson_plan_pdf' plan.pk %}" class="btn btn-sm no-print" style="margin-left:auto;background:#059669;color:#fff;border:none;">
+        ⬇ Download PDF
+    </a>
+</div>
+{% endif %}
+
+{% if plan.status == 'rejected' %}
+<div class="reject-panel">
+    <div style="font-weight:700;color:#991b1b;margin-bottom:0.4rem;">❌ Plan Rejected</div>
+    {% if plan.reviewed_by %}
+    <div style="font-size:0.8rem;color:#7f1d1d;margin-bottom:0.5rem;">
+        By {{ plan.reviewed_by.get_full_name|default:plan.reviewed_by.username }}
+        on {{ plan.reviewed_at|date:"d M Y, H:i" }}
+    </div>
+    {% endif %}
+    {% if plan.reviewer_notes %}
+    <div style="font-size:0.88rem;color:#b91c1c;"><strong>Reason:</strong> {{ plan.reviewer_notes }}</div>
+    {% endif %}
+    {% if can_edit %}
+    <a href="{% url 'lesson_plan_edit' plan.pk %}" class="btn btn-sm no-print" style="margin-top:0.75rem;background:#991b1b;color:#fff;border:none;">
+        ✏️ Edit & Resubmit
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Review Panel (for coordinator/admin) -->
+{% if can_review %}
+<div class="review-panel no-print">
+    <div style="font-weight:700;color:#92400e;margin-bottom:1rem;">⏳ This plan is awaiting your review</div>
+    <form method="POST" action="{% url 'lesson_plan_review' plan.pk %}">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom:0.75rem;">
+            <label style="font-size:0.8rem;">Notes / Feedback <span style="font-weight:400;color:var(--text-muted);">(required if rejecting)</span></label>
+            <textarea name="reviewer_notes" class="form-control" rows="2" placeholder="Optional approval note or rejection reason..."></textarea>
+        </div>
+        <div style="display:flex;gap:0.75rem;">
+            <button type="submit" name="decision" value="approve" class="btn btn-success">✅ Approve</button>
+            <button type="submit" name="decision" value="reject" class="btn btn-danger"
+                onclick="return confirm('Reject this lesson plan? A reason is required.')">❌ Reject</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<!-- Action buttons -->
+<div class="no-print" style="display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    {% if can_edit %}
+    <a href="{% url 'lesson_plan_edit' plan.pk %}" class="btn btn-primary">✏️ Edit Plan</a>
+    {% endif %}
+    {% if plan.status == 'approved' %}
+    <a href="{% url 'lesson_plan_pdf' plan.pk %}" class="btn" style="background:#059669;color:#fff;border:none;">⬇ Download PDF</a>
+    {% endif %}
+    <a href="{% url 'lesson_plan_list' %}" class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--text);">← Back to List</a>
+</div>
+
+<!-- Content -->
+<div class="card">
+    <div class="grid grid-2" style="gap:1rem;">
+        <!-- Column 1 -->
+        <div>
+            <div class="info-section">
+                <div class="info-section-title">🎯 Learning Objectives</div>
+                <div class="info-section-content">{{ plan.learning_objectives|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">🧠 Prior Knowledge</div>
+                <div class="info-section-content">{{ plan.prior_knowledge|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">📦 Resources & Materials</div>
+                <div class="info-section-content">{{ plan.resources|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">🚀 Starter Activity</div>
+                <div class="info-section-content">{{ plan.starter|default:"—" }}</div>
+            </div>
+        </div>
+        <!-- Column 2 -->
+        <div>
+            <div class="info-section">
+                <div class="info-section-title">📖 Main Lesson</div>
+                <div class="info-section-content">{{ plan.main_lesson|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">✏️ Activities</div>
+                <div class="info-section-content">{{ plan.activities|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">🎯 Differentiation</div>
+                <div class="info-section-content">{{ plan.differentiation|default:"—" }}</div>
+            </div>
+            <hr class="divider">
+            <div class="info-section">
+                <div class="info-section-title">🏁 Plenary</div>
+                <div class="info-section-content">{{ plan.plenary|default:"—" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.75rem;text-align:right;">
+    Created {{ plan.created_at|date:"d M Y, H:i" }}
+    {% if plan.updated_at != plan.created_at %}· Updated {{ plan.updated_at|date:"d M Y, H:i" }}{% endif %}
+</div>
+{% endblock %}

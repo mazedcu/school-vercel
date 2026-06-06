@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'performance',
     'leaves',
     'library',
+    'lessonplan',
 ]
 
 MIDDLEWARE = [
