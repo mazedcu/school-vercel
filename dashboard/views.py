@@ -149,6 +149,14 @@ def admin_dashboard(request):
     current_academic_year = get_current_academic_year()
     staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
 
+    # Greeting based on time of day
+    hour = now.hour
+    if hour < 12:
+        greeting = 'Morning'
+    elif hour < 17:
+        greeting = 'Afternoon'
+    else:
+        greeting = 'Evening'
 
     context = {
         'total_students': total_students,
@@ -167,7 +175,10 @@ def admin_dashboard(request):
         'capex_count': capex_count,
         'pending_leaves': pending_leaves,
         'staff_on_leave_today': staff_on_leave_today,
-
+        'greeting': greeting,
+        'today_formatted': today.strftime('%A, %B %d, %Y'),
+        'today_day': today.strftime('%d'),
+        'today_month_year': today.strftime('%b %Y'),
         'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
     }
     return render(request, 'dashboard/admin_dashboard.html', context)

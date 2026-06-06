@@ -5,102 +5,467 @@
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
+    /* ── Welcome Banner ── */
+    .welcome-banner {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
+        border-radius: 1rem;
+        padding: 2rem 2.5rem;
+        color: #fff;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .welcome-banner::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -5%;
+        width: 250px;
+        height: 250px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+    }
+    .welcome-banner::after {
+        content: '';
+        position: absolute;
+        bottom: -40%;
+        right: 10%;
+        width: 180px;
+        height: 180px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 50%;
+    }
+    .welcome-banner h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.3px;
+    }
+    .welcome-banner p {
+        opacity: 0.85;
+        font-size: 0.85rem;
+        font-weight: 400;
+    }
+    .welcome-date {
+        position: absolute;
+        top: 2rem;
+        right: 2.5rem;
+        text-align: right;
+        font-size: 0.8rem;
+        opacity: 0.9;
+    }
+    .welcome-date .day {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    /* ── Stat Cards ── */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.875rem;
+        padding: 1.25rem 1.25rem 1rem;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.25s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .kpi-card .kpi-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 0.625rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 0.75rem;
+    }
+    .kpi-card .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.5px;
+    }
+    .kpi-card .kpi-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-top: 0.3rem;
+    }
+    .kpi-card .kpi-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+
+    /* ── Chart ── */
     .chart-container {
         position: relative;
-        height: 280px;
+        height: 300px;
         background: var(--surface);
         border-radius: 0.75rem;
         padding: 1rem;
+    }
+    .chart-legend {
+        display: flex;
+        gap: 1.25rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+    .chart-legend span {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        display: inline-block;
+    }
+
+    /* ── Finance Summary Cards ── */
+    .finance-metric {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.875rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .finance-metric:last-child { border-bottom: none; }
+    .finance-metric .fm-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .finance-metric .fm-info { flex: 1; }
+    .finance-metric .fm-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .finance-metric .fm-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+    }
+
+    /* ── Action Cards ── */
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+    .action-card {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        border-radius: 0.625rem;
+        border: 1px solid var(--border);
+        text-decoration: none;
+        color: var(--text);
+        transition: all 0.2s ease;
+        background: var(--surface);
+    }
+    .action-card:hover {
+        border-color: var(--primary);
+        background: var(--primary-light);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(99,102,241,0.1);
+    }
+    .action-card .ac-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .action-card .ac-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .action-card .ac-desc {
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        margin-top: 0.1rem;
+    }
+
+    /* ── Status Items ── */
+    .status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .status-row:last-child { border-bottom: none; }
+    .status-row .sr-left {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .status-row .sr-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 0.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+    }
+    .status-row .sr-label {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .status-row .sr-value {
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 1200px) {
+        .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+        .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        .action-grid { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-{% include "dashboard/notices_snippet.html" %}
-<div class="grid grid-4" style="margin-bottom:1.5rem;">
-    <div class="stat-card">
-        <div class="stat-value">{{ total_students }}</div>
-        <div class="stat-label">Total Students</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value">{{ total_teachers }}</div>
-        <div class="stat-label">Total Teachers</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color:var(--success);">{{ attendance_pct }}%</div>
-        <div class="stat-label">Student Attendance</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color:var(--success);">{{ teacher_attendance_pct }}%</div>
-        <div class="stat-label">Teacher Attendance</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color:var(--warning);">{{ unpaid_invoices }}</div>
-        <div class="stat-label">Unpaid Invoices</div>
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <h2>Good {{ greeting }}, Principal 👋</h2>
+    <p>Here's your school overview for today. {{ today_formatted }}</p>
+    <div class="welcome-date">
+        <div class="day">{{ today_day }}</div>
+        <div>{{ today_month_year }}</div>
     </div>
 </div>
 
-<!-- Monthly Finance Chart -->
-<div class="card">
-    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>📊 Monthly Income vs Expenses ({{ current_year }})</span>
-        <div style="display:flex;gap:1rem;font-size:0.8rem;">
-            <span style="display:flex;align-items:center;gap:0.25rem;"><span style="width:12px;height:12px;background:#10b981;border-radius:2px;display:inline-block;"></span> Income</span>
-            <span style="display:flex;align-items:center;gap:0.25rem;"><span style="width:12px;height:12px;background:#ef4444;border-radius:2px;display:inline-block;"></span> Expenses</span>
+<!-- Notices -->
+{% include "dashboard/notices_snippet.html" %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-bar" style="background:linear-gradient(90deg,#6366f1,#818cf8);"></div>
+        <div class="kpi-icon" style="background:#eef2ff;color:#6366f1;">🎓</div>
+        <div class="kpi-value" style="color:#6366f1;">{{ total_students }}</div>
+        <div class="kpi-label">Total Students</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-bar" style="background:linear-gradient(90deg,#8b5cf6,#a78bfa);"></div>
+        <div class="kpi-icon" style="background:#f5f3ff;color:#8b5cf6;">👨‍🏫</div>
+        <div class="kpi-value" style="color:#8b5cf6;">{{ total_teachers }}</div>
+        <div class="kpi-label">Total Teachers</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-bar" style="background:linear-gradient(90deg,#10b981,#34d399);"></div>
+        <div class="kpi-icon" style="background:#d1fae5;color:#059669;">✅</div>
+        <div class="kpi-value" style="color:#059669;">{{ attendance_pct }}%</div>
+        <div class="kpi-label">Student Attendance</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-bar" style="background:linear-gradient(90deg,#06b6d4,#22d3ee);"></div>
+        <div class="kpi-icon" style="background:#cffafe;color:#0891b2;">📋</div>
+        <div class="kpi-value" style="color:#0891b2;">{{ teacher_attendance_pct }}%</div>
+        <div class="kpi-label">Teacher Attendance</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-bar" style="background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706;">📄</div>
+        <div class="kpi-value" style="color:#d97706;">{{ unpaid_invoices }}</div>
+        <div class="kpi-label">Unpaid Invoices</div>
+    </div>
+</div>
+
+<!-- Finance Chart + Monthly Summary -->
+<div class="grid grid-2" style="margin-bottom:1.5rem;">
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>📊 Income vs Expenses ({{ current_year }})</span>
+            <div class="chart-legend">
+                <span><span class="legend-dot" style="background:#10b981;"></span> Income</span>
+                <span><span class="legend-dot" style="background:#ef4444;"></span> Expenses</span>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="financeChart"></canvas>
         </div>
     </div>
-    <div class="chart-container">
-        <canvas id="financeChart"></canvas>
+
+    <div class="card" style="margin-bottom:0;">
+        <div class="card-title">💰 This Month's Finance</div>
+        <div class="finance-metric">
+            <div class="fm-icon" style="background:#d1fae5;color:#059669;">💚</div>
+            <div class="fm-info">
+                <div class="fm-label">Total Income</div>
+                <div class="fm-value" style="color:#059669;">Tk. {{ month_income|floatformat:0 }}</div>
+            </div>
+        </div>
+        <div class="finance-metric">
+            <div class="fm-icon" style="background:#fee2e2;color:#dc2626;">❤️</div>
+            <div class="fm-info">
+                <div class="fm-label">Total Expenses</div>
+                <div class="fm-value" style="color:#dc2626;">Tk. {{ month_expenses|floatformat:0 }}</div>
+            </div>
+        </div>
+        <div class="finance-metric">
+            <div class="fm-icon" style="background:{% if month_net >= 0 %}#d1fae5{% else %}#fee2e2{% endif %};color:{% if month_net >= 0 %}#059669{% else %}#dc2626{% endif %};">📊</div>
+            <div class="fm-info">
+                <div class="fm-label">Net Balance</div>
+                <div class="fm-value" style="color:{% if month_net >= 0 %}#059669{% else %}#dc2626{% endif %};">Tk. {{ month_net|floatformat:0 }}</div>
+            </div>
+        </div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:2px solid var(--border);">
+            <div class="status-row">
+                <div class="sr-left">
+                    <div class="sr-icon" style="background:#fef3c7;color:#d97706;">📦</div>
+                    <span class="sr-label">Pending Purchase Requests</span>
+                </div>
+                <span class="badge badge-yellow">{{ pending_pr_count }}</span>
+            </div>
+            <div class="status-row">
+                <div class="sr-left">
+                    <div class="sr-icon" style="background:#fce7f3;color:#db2777;">✉️</div>
+                    <span class="sr-label">Pending Leave Requests</span>
+                </div>
+                <span class="badge badge-yellow">{{ pending_leaves }}</span>
+            </div>
+            <div class="status-row">
+                <div class="sr-left">
+                    <div class="sr-icon" style="background:#e0e7ff;color:#6366f1;">🏖️</div>
+                    <span class="sr-label">Staff on Leave Today</span>
+                </div>
+                <span class="badge badge-blue">{{ staff_on_leave_today }}</span>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Finance Summary + Quick Actions -->
+<!-- Quick Actions + System Overview -->
 <div class="grid grid-2">
     <div class="card">
-        <div class="card-title">💰 This Month's Finance</div>
-        <table>
-            <tbody>
-                <tr><td style="font-weight:500;">💚 Income (Payments)</td><td style="font-weight:700;color:var(--success);">Tk.{{ month_income }}</td></tr>
-                <tr><td style="font-weight:500;">❤️ Expenses</td><td style="font-weight:700;color:var(--danger);">Tk.{{ month_expenses }}</td></tr>
-                <tr style="border-top:2px solid var(--border);"><td style="font-weight:700;">📊 Net Balance</td><td style="font-weight:700;color:{% if month_net >= 0 %}var(--success){% else %}var(--danger){% endif %};">Tk.{{ month_net }}</td></tr>
-                <tr><td style="font-weight:500; padding-top:1rem;">📦 Pending Purchase Requests</td><td style="padding-top:1rem;"><span class="badge badge-yellow">{{ pending_pr_count }}</span></td></tr>
-                <tr><td style="font-weight:500;">✉️ Pending Leave Requests</td><td><span class="badge badge-yellow">{{ pending_leaves }}</span></td></tr>
-                <tr><td style="font-weight:500;">🏖️ Staff on Leave Today</td><td><span class="badge badge-blue">{{ staff_on_leave_today }}</span></td></tr>
-            </tbody>
-        </table>
+        <div class="card-title">⚡ Quick Actions</div>
+        <div class="action-grid">
+            <a href="{% url 'manage_users' %}" class="action-card">
+                <div class="ac-icon" style="background:#eef2ff;color:#6366f1;">👥</div>
+                <div>
+                    <div class="ac-label">User Management</div>
+                    <div class="ac-desc">Add or manage users</div>
+                </div>
+            </a>
+            <a href="{% url 'manage_classes' %}" class="action-card">
+                <div class="ac-icon" style="background:#f5f3ff;color:#8b5cf6;">🏫</div>
+                <div>
+                    <div class="ac-label">Classes & Subjects</div>
+                    <div class="ac-desc">Academic structure</div>
+                </div>
+            </a>
+            <a href="{% url 'timetable_gen' %}" class="action-card">
+                <div class="ac-icon" style="background:#cffafe;color:#0891b2;">📅</div>
+                <div>
+                    <div class="ac-label">Timetable</div>
+                    <div class="ac-desc">Generate schedules</div>
+                </div>
+            </a>
+            <a href="{% url 'manage_finance' %}" class="action-card">
+                <div class="ac-icon" style="background:#d1fae5;color:#059669;">💰</div>
+                <div>
+                    <div class="ac-label">Finance</div>
+                    <div class="ac-desc">Invoices & payments</div>
+                </div>
+            </a>
+            <a href="{% url 'admin_leave_review' %}" class="action-card">
+                <div class="ac-icon" style="background:#fce7f3;color:#db2777;">✉️</div>
+                <div>
+                    <div class="ac-label">Leave Requests</div>
+                    <div class="ac-desc">Review & approve</div>
+                </div>
+            </a>
+            <a href="{% url 'purchase_requests' %}" class="action-card">
+                <div class="ac-icon" style="background:#fee2e2;color:#dc2626;">🛒</div>
+                <div>
+                    <div class="ac-label">Procurement</div>
+                    <div class="ac-desc">Purchase requests</div>
+                </div>
+            </a>
+        </div>
     </div>
+
     <div class="card">
-        <div class="card-title">Quick Actions</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-            <a href="{% url 'manage_users' %}" class="btn btn-primary btn-block">👥 Add Users</a>
-            <a href="{% url 'manage_classes' %}" class="btn btn-primary btn-block" style="background:#8b5cf6;">🏫 Manage Classes</a>
-            <a href="{% url 'timetable_gen' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 Generate Timetable</a>
-            <a href="{% url 'manage_finance' %}" class="btn btn-primary btn-block" style="background:#10b981;">💰 Finance</a>
-            <a href="{% url 'admin_leave_review' %}" class="btn btn-primary btn-block" style="background:#f43f5e;">✉️ Leave Requests</a>
-            <a href="{% url 'purchase_requests' %}" class="btn btn-primary btn-block" style="background:#ef4444;">🛒 Purchase Requests</a>
+        <div class="card-title">🏫 System Overview</div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#eef2ff;color:#6366f1;">📚</div>
+                <span class="sr-label">Total Sections</span>
+            </div>
+            <span class="sr-value" style="color:var(--primary);">{{ total_sections }}</span>
+        </div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#d1fae5;color:#059669;">🎓</div>
+                <span class="sr-label">Students Enrolled</span>
+            </div>
+            <span class="sr-value" style="color:#059669;">{{ total_students }}</span>
+        </div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#f5f3ff;color:#8b5cf6;">👨‍🏫</div>
+                <span class="sr-label">Teachers on Staff</span>
+            </div>
+            <span class="sr-value" style="color:#8b5cf6;">{{ total_teachers }}</span>
+        </div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#fef3c7;color:#d97706;">📄</div>
+                <span class="sr-label">Outstanding Invoices</span>
+            </div>
+            <span class="sr-value" style="color:#d97706;">{{ unpaid_invoices }}</span>
+        </div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#cffafe;color:#0891b2;">📦</div>
+                <span class="sr-label">Inventory Items</span>
+            </div>
+            <span class="sr-value" style="color:#0891b2;">{{ inventory_count }}</span>
+        </div>
+        <div class="status-row">
+            <div class="sr-left">
+                <div class="sr-icon" style="background:#fce7f3;color:#db2777;">🏢</div>
+                <span class="sr-label">Capital Assets</span>
+            </div>
+            <span class="sr-value" style="color:#db2777;">{{ capex_count }}</span>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-title">System Summary</div>
-    <table>
-        <tbody>
-            <tr><td style="font-weight:500;">Total Sections</td><td>{{ total_sections }}</td></tr>
-            <tr><td style="font-weight:500;">Students Enrolled</td><td>{{ total_students }}</td></tr>
-            <tr><td style="font-weight:500;">Teachers on Staff</td><td>{{ total_teachers }}</td></tr>
-            <tr><td style="font-weight:500;">Outstanding Invoices</td><td><span class="badge badge-yellow">{{ unpaid_invoices }}</span></td></tr>
-            <tr><td style="font-weight:500;">Inventory Items</td><td>{{ inventory_count }}</td></tr>
-            <tr><td style="font-weight:500;">Capital Assets</td><td>{{ capex_count }}</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Staff Leave Balance Dashboard -->
-
-
 <script>
-// Load chart data
+// Finance Chart
 fetch('/api/monthly-finance/?year={{ current_year }}')
     .then(r => r.json())
     .then(data => {
@@ -113,18 +478,20 @@ fetch('/api/monthly-finance/?year={{ current_year }}')
                     {
                         label: 'Income',
                         data: data.income,
-                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.75)',
                         borderColor: '#10b981',
                         borderWidth: 1,
-                        borderRadius: 4,
+                        borderRadius: 6,
+                        borderSkipped: false,
                     },
                     {
                         label: 'Expenses',
                         data: data.expenses,
-                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.75)',
                         borderColor: '#ef4444',
                         borderWidth: 1,
-                        borderRadius: 4,
+                        borderRadius: 6,
+                        borderSkipped: false,
                     }
                 ]
             },
@@ -134,8 +501,13 @@ fetch('/api/monthly-finance/?year={{ current_year }}')
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        backgroundColor: '#1e1b4b',
+                        titleFont: { size: 12, weight: '600' },
+                        bodyFont: { size: 12 },
+                        padding: 12,
+                        cornerRadius: 8,
                         callbacks: {
-                            label: function(ctx) { return ctx.dataset.label + ': Tk.' + ctx.parsed.y.toLocaleString(); }
+                            label: function(ctx) { return ctx.dataset.label + ': Tk. ' + ctx.parsed.y.toLocaleString(); }
                         }
                     }
                 },
@@ -144,13 +516,14 @@ fetch('/api/monthly-finance/?year={{ current_year }}')
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) { return 'Tk.' + value.toLocaleString(); },
-                            font: { size: 11 }
+                            font: { size: 11 },
+                            color: '#94a3b8'
                         },
-                        grid: { color: 'rgba(0,0,0,0.05)' }
+                        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false }
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { font: { size: 11 } }
+                        ticks: { font: { size: 11 }, color: '#94a3b8' }
                     }
                 }
             }
