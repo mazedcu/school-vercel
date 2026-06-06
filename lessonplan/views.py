@@ -210,6 +210,35 @@ def lesson_plan_review(request, pk):
     return redirect('lesson_plan_detail', pk=pk)
 
 
+# ── Delete ────────────────────────────────────────────────────────────────────
+
+@login_required
+def lesson_plan_delete(request, pk):
+    plan = get_object_or_404(LessonPlan, pk=pk)
+    user = request.user
+
+    # Admin can delete anything; teacher can only delete their own draft/rejected plans
+    if user.role == User.Role.ADMIN:
+        can_delete = True
+    elif plan.teacher == user and plan.status in [LessonPlan.Status.DRAFT, LessonPlan.Status.REJECTED]:
+        can_delete = True
+    else:
+        can_delete = False
+
+    if not can_delete:
+        messages.error(request, "You cannot delete this lesson plan.")
+        return redirect('lesson_plan_detail', pk=pk)
+
+    if request.method == 'POST':
+        title = plan.lesson_title
+        plan.delete()
+        messages.success(request, f'Lesson plan "{title}" has been deleted.')
+        return redirect('lesson_plan_list')
+
+    # GET — show confirmation page
+    return render(request, 'lessonplan/lesson_plan_confirm_delete.html', {'plan': plan})
+
+
 # ── PDF Download ──────────────────────────────────────────────────────────────
 
 @login_required

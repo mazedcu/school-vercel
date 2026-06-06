@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block page_title %}Delete Lesson Plan{% endblock %}
+{% block breadcrumb %}<a href="{% url 'lesson_plan_list' %}" style="color:var(--primary);text-decoration:none;">Lesson Plans</a> / Delete{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:2rem auto;">
+    <div class="card" style="text-align:center;padding:2.5rem 2rem;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🗑️</div>
+        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.5rem;color:var(--danger);">Delete Lesson Plan?</h2>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:0.25rem;">You are about to permanently delete:</p>
+        <p style="font-weight:700;font-size:1rem;margin-bottom:0.25rem;">{{ plan.lesson_title }}</p>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:2rem;">
+            {{ plan.subject.name }} &nbsp;·&nbsp; {{ plan.section }} &nbsp;·&nbsp; {{ plan.date|date:"d M Y" }}
+        </p>
+        <div style="display:flex;gap:0.75rem;justify-content:center;">
+            <form method="POST">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+            </form>
+            <a href="{% url 'lesson_plan_detail' plan.pk %}" class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--text);">Cancel</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

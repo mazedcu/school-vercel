@@ -176,6 +176,9 @@
     <a href="{% url 'lesson_plan_pdf' plan.pk %}" class="btn" style="background:#059669;color:#fff;border:none;">⬇ Download PDF</a>
     {% endif %}
     <a href="{% url 'lesson_plan_list' %}" class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--text);">← Back to List</a>
+    {% if can_edit or user.role == 'admin' %}
+    <a href="{% url 'lesson_plan_delete' plan.pk %}" class="btn btn-danger" style="margin-left:auto;">🗑️ Delete</a>
+    {% endif %}
 </div>
 
 <!-- Content -->

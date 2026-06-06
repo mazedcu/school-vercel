@@ -127,6 +127,9 @@
         {% if plan.status == 'approved' %}
         <a href="{% url 'lesson_plan_pdf' plan.pk %}" class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;">⬇ PDF</a>
         {% endif %}
+        {% if user.role == 'admin' or plan.teacher == user and plan.status in 'draft,rejected' %}
+        <a href="{% url 'lesson_plan_delete' plan.pk %}" class="btn btn-sm btn-danger">🗑️</a>
+        {% endif %}
     </div>
 </div>
 {% endfor %}

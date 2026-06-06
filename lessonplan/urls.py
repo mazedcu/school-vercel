@@ -7,5 +7,6 @@ urlpatterns = [
     path('lesson-plans/<int:pk>/', views.lesson_plan_detail, name='lesson_plan_detail'),
     path('lesson-plans/<int:pk>/edit/', views.lesson_plan_edit, name='lesson_plan_edit'),
     path('lesson-plans/<int:pk>/review/', views.lesson_plan_review, name='lesson_plan_review'),
+    path('lesson-plans/<int:pk>/delete/', views.lesson_plan_delete, name='lesson_plan_delete'),
     path('lesson-plans/<int:pk>/pdf/', views.lesson_plan_pdf, name='lesson_plan_pdf'),
 ]
