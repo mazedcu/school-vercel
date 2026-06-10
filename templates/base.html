@@ -72,6 +72,7 @@
             margin-top: 2px;
         }
 
+        /* ── Nav sections / collapsible groups ── */
         .nav-section {
             font-size: 0.65rem;
             text-transform: uppercase;
@@ -80,6 +81,33 @@
             padding: 1rem 0.75rem 0.5rem;
             font-weight: 600;
         }
+        /* Clickable section header that toggles a group */
+        .nav-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(199,210,254,0.5);
+            padding: 1rem 0.75rem 0.4rem;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s;
+        }
+        .nav-group-header:hover { color: rgba(199,210,254,0.9); }
+        .nav-group-header .nav-arrow {
+            font-size: 0.55rem;
+            transition: transform 0.2s;
+            opacity: 0.6;
+        }
+        .nav-group-header.collapsed .nav-arrow { transform: rotate(-90deg); }
+        .nav-group-items {
+            overflow: hidden;
+            transition: max-height 0.25s ease;
+        }
+        .nav-group-items.collapsed { max-height: 0 !important; }
 
         .nav-links {
             list-style: none;
@@ -354,8 +382,33 @@
             font-size: 0.9rem;
         }
 
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text);
+            cursor: pointer;
+            margin-right: 1rem;
+            padding: 0.2rem;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 90;
+        }
+
         @media (max-width: 768px) {
-            .sidebar { display: none; }
+            .menu-toggle { display: block; }
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar-overlay.active { display: block; }
             .main-wrap { margin-left: 0; }
             .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
             .form-row { grid-template-columns: 1fr; }
@@ -364,6 +417,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
     {% if user.is_authenticated %}
     <aside class="sidebar">
         <div class="sidebar-brand">
@@ -376,14 +430,24 @@
             <li><a href="{% url 'dashboard_router' %}" class="{% if request.resolver_match.url_name in 'admin_dashboard teacher_dashboard student_dashboard accounts_dashboard' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a></li>
 
             {% if user.role == 'admin' %}
-            <li class="nav-section">Administration</li>
-            <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
+
+            {# ── Administration ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-admin">
+                Administration <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-admin">
+            <li><a href="{% url 'manage_users' %}" class="{% if request.resolver_match.url_name == 'manage_users' or request.resolver_match.url_name == 'recycle_bin' %}active{% endif %}"><span class="icon">👥</span> User Management</a></li>
             <li><a href="{% url 'manage_notices' %}" class="{% if request.resolver_match.url_name == 'manage_notices' %}active{% endif %}"><span class="icon">📢</span> Announcements</a></li>
             <li><a href="{% url 'student_profiles' %}" class="{% if request.resolver_match.url_name == 'student_profiles' or request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">🎓</span> Student Profiles</a></li>
             <li><a href="{% url 'parent_profiles' %}" class="{% if request.resolver_match.url_name == 'parent_profiles' or request.resolver_match.url_name == 'parent_profile_detail' %}active{% endif %}"><span class="icon">👪</span> Parent Profiles</a></li>
             <li><a href="{% url 'idcard_dashboard' %}" class="{% if 'idcard' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">🪪</span> ID Cards</a></li>
-            
-            <li class="nav-section">HR</li>
+            </div>
+
+            {# ── HR ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-hr">
+                HR <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-hr">
             <li><a href="{% url 'teacher_profiles' %}" class="{% if request.resolver_match.url_name == 'teacher_profiles' or request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👨‍🏫</span> Teacher Profiles</a></li>
             <li><a href="{% url 'mark_teacher_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_teacher_attendance' %}active{% endif %}"><span class="icon">✅</span> Teacher Attendance</a></li>
             <li><a href="{% url 'teacher_attendance_report' %}" class="{% if request.resolver_match.url_name == 'teacher_attendance_report' %}active{% endif %}"><span class="icon">📊</span> Staff Attendance Report</a></li>
@@ -391,10 +455,15 @@
             <li><a href="{% url 'leave_policy' %}" class="{% if request.resolver_match.url_name == 'leave_policy' %}active{% endif %}"><span class="icon">📋</span> Leave Policy</a></li>
             <li><a href="{% url 'admin_leave_review' %}" class="{% if request.resolver_match.url_name == 'admin_leave_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
             <li><a href="{% url 'staff_leave_balance_report' %}" class="{% if request.resolver_match.url_name == 'staff_leave_balance_report' %}active{% endif %}"><span class="icon">📈</span> Staff Leave Balances</a></li>
+            </div>
 
-            <li class="nav-section">Academic</li>
+            {# ── Academic (includes Lesson Plans) ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-academic">
+                Academic <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-academic">
             <li><a href="{% url 'manage_academic_years' %}" class="{% if request.resolver_match.url_name == 'manage_academic_years' %}active{% endif %}"><span class="icon">📆</span> Academic Years</a></li>
-            <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes & Subjects</a></li>
+            <li><a href="{% url 'manage_classes' %}" class="{% if request.resolver_match.url_name == 'manage_classes' %}active{% endif %}"><span class="icon">🏫</span> Classes &amp; Subjects</a></li>
             <li><a href="{% url 'timetable_gen' %}" class="{% if request.resolver_match.url_name == 'timetable_gen' %}active{% endif %}"><span class="icon">📅</span> Timetable Setup</a></li>
             <li><a href="{% url 'view_timetable' %}" class="{% if request.resolver_match.url_name == 'view_timetable' %}active{% endif %}"><span class="icon">🗓️</span> View Timetable</a></li>
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
@@ -402,28 +471,42 @@
             <li><a href="{% url 'attendance_report' %}" class="{% if request.resolver_match.url_name == 'attendance_report' %}active{% endif %}"><span class="icon">📊</span> Attendance Report</a></li>
             <li><a href="{% url 'grade_settings' %}" class="{% if request.resolver_match.url_name == 'grade_settings' %}active{% endif %}"><span class="icon">🎓</span> Grade Settings</a></li>
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
+            <li><a href="{% url 'lesson_plan_list' %}" class="{% if 'lesson_plan' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📋</span> Lesson Plans</a></li>
+            </div>
 
-            <li class="nav-section">Accounts & Procurement</li>
+            {# ── Accounts & Procurement ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-finance">
+                Accounts &amp; Procurement <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-finance">
             <li><a href="{% url 'manage_finance' %}" class="{% if request.resolver_match.url_name == 'manage_finance' %}active{% endif %}"><span class="icon">💰</span> Finance</a></li>
             <li><a href="{% url 'manage_expenses' %}" class="{% if request.resolver_match.url_name == 'manage_expenses' %}active{% endif %}"><span class="icon">💸</span> Expenses</a></li>
             <li><a href="{% url 'account_statement' %}" class="{% if request.resolver_match.url_name == 'account_statement' %}active{% endif %}"><span class="icon">📋</span> Account Statement</a></li>
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
-            <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
+            <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory &amp; CAPEX</a></li>
+            </div>
 
-            <li class="nav-section">Library</li>
+            {# ── Library ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-library">
+                Library <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-library">
             <li><a href="{% url 'library_dashboard' %}" class="{% if 'library' in request.resolver_match.url_name and request.resolver_match.url_name != 'library_my_books' %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
             <li><a href="{% url 'library_catalog' %}" class="{% if request.resolver_match.url_name == 'library_catalog' %}active{% endif %}"><span class="icon">📖</span> Book Catalog</a></li>
             <li><a href="{% url 'library_issue' %}" class="{% if request.resolver_match.url_name == 'library_issue' %}active{% endif %}"><span class="icon">📤</span> Issue Book</a></li>
             <li><a href="{% url 'library_history' %}" class="{% if request.resolver_match.url_name == 'library_history' %}active{% endif %}"><span class="icon">📋</span> Lending History</a></li>
             <li><a href="{% url 'library_categories' %}" class="{% if request.resolver_match.url_name == 'library_categories' %}active{% endif %}"><span class="icon">🏷️</span> Categories</a></li>
+            </div>
 
-            <li class="nav-section">Lesson Plans</li>
-            <li><a href="{% url 'lesson_plan_list' %}" class="{% if 'lesson_plan' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📋</span> Lesson Plans</a></li>
-
-            <li class="nav-section">Reports</li>
+            {# ── Reports ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-reports">
+                Reports <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-reports">
             <li><a href="{% url 'period_setup' %}" class="{% if request.resolver_match.url_name == 'period_setup' %}active{% endif %}"><span class="icon">📅</span> Period Setup</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Report Cards</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' or request.resolver_match.url_name == 'ct_progress_report_print' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
+            </div>
 
             {% elif user.role == 'accounts' %}
             <li class="nav-section">Accounts & Procurement</li>
@@ -434,14 +517,24 @@
             <li><a href="{% url 'inventory_capex' %}" class="{% if request.resolver_match.url_name == 'inventory_capex' %}active{% endif %}"><span class="icon">📦</span> Inventory & CAPEX</a></li>
 
             {% elif user.role == 'coordinator' %}
-            <li class="nav-section">HR</li>
+
+            {# ── HR ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-hr">
+                HR <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-hr">
             <li><a href="{% url 'teacher_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
             <li><a href="{% url 'performance_my_evaluations' %}" class="{% if request.resolver_match.url_name == 'performance_my_evaluations' %}active{% endif %}"><span class="icon">📊</span> My Performance</a></li>
             <li><a href="{% url 'apply_leave' %}" class="{% if request.resolver_match.url_name == 'apply_leave' %}active{% endif %}"><span class="icon">📝</span> Apply Leave</a></li>
             <li><a href="{% url 'my_leaves' %}" class="{% if request.resolver_match.url_name == 'my_leaves' %}active{% endif %}"><span class="icon">📋</span> My Leaves</a></li>
             <li><a href="{% url 'coordinator_review' %}" class="{% if request.resolver_match.url_name == 'coordinator_review' %}active{% endif %}"><span class="icon">✉️</span> Leave Requests</a></li>
+            </div>
 
-            <li class="nav-section">Academic</li>
+            {# ── Academic (includes Lesson Plans) ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-academic">
+                Academic <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-academic">
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
             <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Mark Attendance</a></li>
             <li><a href="{% url 'attendance_report' %}" class="{% if request.resolver_match.url_name == 'attendance_report' %}active{% endif %}"><span class="icon">📊</span> Attendance Report</a></li>
@@ -449,24 +542,44 @@
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
-            <li class="nav-section">Library</li>
+            <li><a href="{% url 'lesson_plan_list' %}" class="{% if 'lesson_plan' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📋</span> Lesson Plans</a></li>
+            </div>
+
+            {# ── Library ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-library">
+                Library <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-library">
             <li><a href="{% url 'library_dashboard' %}" class="{% if 'library_dashboard' == request.resolver_match.url_name %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
             <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📖</span> My Books</a></li>
+            </div>
 
-            <li class="nav-section">Lesson Plans</li>
-            <li><a href="{% url 'lesson_plan_list' %}" class="{% if 'lesson_plan' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📋</span> Lesson Plans</a></li>
-
-            <li class="nav-section">Procurement</li>
+            {# ── Procurement ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-procurement">
+                Procurement <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-procurement">
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
+            </div>
 
             {% elif user.role == 'teacher' %}
-            <li class="nav-section">HR</li>
+
+            {# ── HR ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-hr">
+                HR <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-hr">
             <li><a href="{% url 'teacher_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'teacher_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
             <li><a href="{% url 'performance_my_evaluations' %}" class="{% if request.resolver_match.url_name == 'performance_my_evaluations' %}active{% endif %}"><span class="icon">📊</span> My Performance</a></li>
             <li><a href="{% url 'apply_leave' %}" class="{% if request.resolver_match.url_name == 'apply_leave' %}active{% endif %}"><span class="icon">📝</span> Apply Leave</a></li>
             <li><a href="{% url 'my_leaves' %}" class="{% if request.resolver_match.url_name == 'my_leaves' %}active{% endif %}"><span class="icon">📋</span> My Leaves</a></li>
+            </div>
 
-            <li class="nav-section">Academic</li>
+            {# ── Academic (includes Lesson Plans) ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-academic">
+                Academic <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-academic">
             <li><a href="{% url 'manage_assessments' %}" class="{% if request.resolver_match.url_name == 'manage_assessments' %}active{% endif %}"><span class="icon">📝</span> Assessments</a></li>
             <li><a href="{% url 'mark_attendance' %}" class="{% if request.resolver_match.url_name == 'mark_attendance' %}active{% endif %}"><span class="icon">✅</span> Mark Attendance</a></li>
             <li><a href="{% url 'attendance_report' %}" class="{% if request.resolver_match.url_name == 'attendance_report' %}active{% endif %}"><span class="icon">📊</span> Attendance Report</a></li>
@@ -474,15 +587,25 @@
             <li><a href="{% url 'subject_comments' %}" class="{% if request.resolver_match.url_name == 'subject_comments' %}active{% endif %}"><span class="icon">💬</span> Subject Comments</a></li>
             <li><a href="{% url 'view_reports' %}" class="{% if request.resolver_match.url_name == 'view_reports' or request.resolver_match.url_name == 'student_report_detail' %}active{% endif %}"><span class="icon">📄</span> Student Reports</a></li>
             <li><a href="{% url 'ct_progress_report' %}" class="{% if request.resolver_match.url_name == 'ct_progress_report' %}active{% endif %}"><span class="icon">📊</span> CT Progress Report</a></li>
-            <li class="nav-section">Lesson Plans</li>
             <li><a href="{% url 'lesson_plan_list' %}" class="{% if 'lesson_plan' in request.resolver_match.url_name %}active{% endif %}"><span class="icon">📋</span> Lesson Plans</a></li>
+            </div>
 
-            <li class="nav-section">Library</li>
+            {# ── Library ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-library">
+                Library <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-library">
             <li><a href="{% url 'library_dashboard' %}" class="{% if 'library_dashboard' == request.resolver_match.url_name %}active{% endif %}"><span class="icon">📚</span> Library</a></li>
             <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📖</span> My Books</a></li>
+            </div>
 
-            <li class="nav-section">Procurement</li>
+            {# ── Procurement ── #}
+            <li class="nav-group-header" onclick="toggleGroup(this)" id="grp-procurement">
+                Procurement <span class="nav-arrow">▼</span>
+            </li>
+            <div class="nav-group-items" id="items-procurement">
             <li><a href="{% url 'purchase_requests' %}" class="{% if request.resolver_match.url_name == 'purchase_requests' %}active{% endif %}"><span class="icon">🛒</span> Purchase Requests</a></li>
+            </div>
 
             {% elif user.role == 'student' %}
             <li class="nav-section">My School</li>
@@ -517,8 +640,14 @@
     <div class="main-wrap">
         {% if user.is_authenticated %}
         <div class="topbar">
-            <h1>{% block page_title %}Dashboard{% endblock %}</h1>
-            <span class="breadcrumb">{% block breadcrumb %}Home{% endblock %}</span>
+            <div style="display:flex; align-items:center;">
+                <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
+                <div>
+                    <h1 style="margin-bottom:0.1rem; line-height: 1;">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <span class="breadcrumb" style="display:block; margin-top: 0.2rem;">{% block breadcrumb %}Home{% endblock %}</span>
+                </div>
+            </div>
+            <div></div>
         </div>
         {% endif %}
 
@@ -534,5 +663,57 @@
             {% block content %}{% endblock %}
         </div>
     </div>
+    <script>
+        function toggleSidebar() {
+            var sidebar = document.querySelector('.sidebar');
+            var overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.toggle('open');
+            if(overlay) overlay.classList.toggle('active');
+        }
+
+        // ── Collapsible nav groups ──────────────────────────────────────────
+        function toggleGroup(header) {
+            var groupId = header.id.replace('grp-', 'items-');
+            var items = document.getElementById(groupId);
+            if (!items) return;
+            var isCollapsed = items.classList.contains('collapsed');
+            if (isCollapsed) {
+                items.style.maxHeight = items.scrollHeight + 'px';
+                items.classList.remove('collapsed');
+                header.classList.remove('collapsed');
+                sessionStorage.setItem(header.id, 'open');
+            } else {
+                items.style.maxHeight = items.scrollHeight + 'px';
+                // Force reflow
+                items.getBoundingClientRect();
+                items.style.maxHeight = '0';
+                items.classList.add('collapsed');
+                header.classList.add('collapsed');
+                sessionStorage.setItem(header.id, 'closed');
+            }
+        }
+
+        // On page load: restore saved state, auto-expand group containing active link
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.nav-group-header').forEach(function(header) {
+                var groupId = header.id.replace('grp-', 'items-');
+                var items = document.getElementById(groupId);
+                if (!items) return;
+
+                var hasActive = items.querySelector('a.active') !== null;
+                var saved = sessionStorage.getItem(header.id);
+
+                if (hasActive || saved === 'open' || saved === null) {
+                    // Open by default or if active link inside
+                    items.style.maxHeight = items.scrollHeight + 'px';
+                } else {
+                    // Collapsed
+                    items.style.maxHeight = '0';
+                    items.classList.add('collapsed');
+                    header.classList.add('collapsed');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
