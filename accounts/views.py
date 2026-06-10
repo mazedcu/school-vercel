@@ -63,10 +63,12 @@ def manage_users(request):
                 messages.error(request, "You cannot delete your own account.")
             elif target.role == User.Role.ADMIN:
                 messages.error(request, "Cannot delete the Admin/Principal account.")
+            elif target.is_deleted:
+                messages.error(request, "User is already in the recycle bin.")
             else:
                 uname = target.username
-                target.delete()
-                messages.success(request, f"User '{uname}' deleted.")
+                target.soft_delete()
+                messages.success(request, f"User '{uname}' moved to the recycle bin. You can restore or permanently delete from Recycle Bin.")
             return redirect('manage_users')
 
         # ── Create a new user ────────────────────────────────────────────────
@@ -145,21 +147,27 @@ def manage_users(request):
 
         return redirect('manage_users')
 
-    users = User.objects.all().order_by('role', 'username')
+    from django.core.paginator import Paginator
+
+    # Fetch active (non-deleted) users
+    users_qs = User.objects.filter(is_deleted=False).prefetch_related('parent_profile__children', 'parents__user').all().order_by('role', 'username')
+    
+    paginator = Paginator(users_qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     sections = Section.objects.select_related('class_group').all()
 
     # Build user data with parent connections
     user_data = []
-    for u in users:
+    for u in page_obj:
         parent_of = ''
         child_of = ''
         if u.role == User.Role.PARENT:
-            pp = ParentProfile.objects.filter(user=u).first()
-            if pp:
-                parent_of = ", ".join([c.get_full_name() or c.username for c in pp.children.all()])
+            if hasattr(u, 'parent_profile'):
+                parent_of = ", ".join([c.get_full_name() or c.username for c in u.parent_profile.children.all()])
         if u.role == User.Role.STUDENT:
-            parents = ParentProfile.objects.filter(children=u)
-            child_of = ", ".join([p.user.get_full_name() or p.user.username for p in parents])
+            child_of = ", ".join([p.user.get_full_name() or p.user.username for p in u.parents.all()])
         user_data.append({'user': u, 'parent_of': parent_of, 'child_of': child_of})
 
     # Filter out admin and parent roles from role choices for the create form
@@ -167,9 +175,11 @@ def manage_users(request):
 
     context = {
         'user_data': user_data,
-        'all_users': users,
+        'page_obj': page_obj,
+        'all_users': users_qs,
         'sections': sections,
         'roles': roles_for_create,
+        'recycle_bin_count': User.objects.filter(is_deleted=True).count(),
     }
     return render(request, 'dashboard/manage_users.html', context)
 
@@ -233,3 +243,48 @@ def parent_profile_detail(request, parent_id):
         'children': profile.children.all()
     }
     return render(request, 'dashboard/parent_profile_detail.html', context)
+
+
+# ── Recycle Bin ──────────────────────────────────────────────────────────────
+
+@login_required
+@role_required(User.Role.ADMIN)
+def recycle_bin(request):
+    """List soft-deleted users and allow restore or permanent delete."""
+    from django.core.paginator import Paginator
+
+    deleted_users = User.objects.filter(is_deleted=True).order_by('-deleted_at')
+    paginator = Paginator(deleted_users, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {'page_obj': page_obj, 'total': deleted_users.count()}
+    return render(request, 'dashboard/recycle_bin.html', context)
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def restore_user(request, user_id):
+    """Restore a soft-deleted user from the recycle bin."""
+    if request.method == 'POST':
+        target = get_object_or_404(User, pk=user_id, is_deleted=True)
+        target.restore()
+        messages.success(request, f"User '{target.username}' has been restored successfully.")
+    return redirect('recycle_bin')
+
+
+@login_required
+@role_required(User.Role.ADMIN)
+def permanent_delete_user(request, user_id):
+    """Permanently delete a user that is already in the recycle bin."""
+    if request.method == 'POST':
+        target = get_object_or_404(User, pk=user_id, is_deleted=True)
+        if target == request.user:
+            messages.error(request, "You cannot permanently delete your own account.")
+        elif target.role == User.Role.ADMIN:
+            messages.error(request, "Cannot permanently delete the Admin/Principal account.")
+        else:
+            uname = target.username
+            target.delete()
+            messages.success(request, f"User '{uname}' has been permanently deleted.")
+    return redirect('recycle_bin')

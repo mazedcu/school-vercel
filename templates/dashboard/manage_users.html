@@ -90,7 +90,12 @@
 </div>
 
 <div class="card">
-    <div class="card-title">All Users ({{ all_users.count }})</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+        <div class="card-title" style="margin-bottom:0;">All Users ({{ all_users.count }})</div>
+        <a href="{% url 'recycle_bin' %}" style="display:inline-flex;align-items:center;gap:0.4rem;background:var(--danger,#ef4444);color:#fff;padding:0.35rem 0.85rem;border-radius:999px;font-size:0.78rem;font-weight:600;text-decoration:none;transition:opacity .15s;" onmouseover="this.style.opacity='.82'" onmouseout="this.style.opacity='1'">
+            🗑️ Recycle Bin{% if recycle_bin_count %} <span style="background:rgba(255,255,255,.25);padding:0.05rem 0.45rem;border-radius:999px;">{{ recycle_bin_count }}</span>{% endif %}
+        </a>
+    </div>
     <div class="table-wrap">
         <table>
             <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Connection</th><th>Actions</th></tr></thead>
@@ -115,11 +120,11 @@
                         {% if item.user.role == 'admin' %}
                         <span class="badge badge-blue">🔒 Principal</span>
                         {% elif item.user != request.user %}
-                        <form method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete user \'{{ item.user.username }}\'? This action cannot be undone.')">
+                        <form method="POST" style="display:inline;" onsubmit="return confirm('Move \'{{ item.user.username }}\' to the recycle bin? You can restore or permanently delete them from the Recycle Bin.')">
                             {% csrf_token %}
                             <input type="hidden" name="user_id" value="{{ item.user.id }}">
                             <button type="submit" name="action" value="delete_user"
-                                    class="btn btn-danger btn-sm">Delete</button>
+                                    class="btn btn-danger btn-sm" title="Move to Recycle Bin">🗑️ Move to Bin</button>
                         </form>
                         {% else %}
                         <span class="badge badge-blue">You</span>
@@ -130,6 +135,7 @@
             </tbody>
         </table>
     </div>
+    {% include "partials/pagination.html" %}
 </div>
 
 <script>

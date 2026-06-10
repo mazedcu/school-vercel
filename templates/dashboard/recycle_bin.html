@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block page_title %}Recycle Bin{% endblock %}
+{% block breadcrumb %}Admin / Users / Recycle Bin{% endblock %}
+{% block content %}
+
+<div class="card" style="border:2px solid var(--danger,#ef4444);">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
+        <div>
+            <div class="card-title" style="margin-bottom:0.25rem;">🗑️ Recycle Bin
+                <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted);">({{ total }} user{{ total|pluralize }})</span>
+            </div>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin:0;">
+                Users here have been soft-deleted and cannot log in.<br>
+                <strong>Restore</strong> to re-activate them, or <strong>Permanently Delete</strong> to remove all data forever.
+            </p>
+        </div>
+        <a href="{% url 'manage_users' %}" class="btn" style="background:var(--bg-card,#fff);border:1px solid var(--border);color:var(--text);">← Back to Users</a>
+    </div>
+
+    {% if page_obj.object_list %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Deleted On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in page_obj %}
+                <tr style="opacity:0.85;">
+                    <td><span class="badge badge-blue">{{ user.id }}</span></td>
+                    <td style="color:var(--text-muted);text-decoration:line-through;">{{ user.username }}</td>
+                    <td>{{ user.get_full_name|default:"—" }}</td>
+                    <td style="font-size:0.75rem;">{{ user.email|default:"—" }}</td>
+                    <td>
+                        <span class="badge {% if user.role == 'admin' %}badge-blue{% elif user.role == 'teacher' %}badge-green{% elif user.role == 'parent' %}badge-yellow{% else %}badge-blue{% endif %}">
+                            {{ user.get_role_display }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.75rem;color:var(--text-muted);">
+                        {% if user.deleted_at %}
+                            {{ user.deleted_at|date:"d M Y, H:i" }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <!-- Restore -->
+                        <form method="POST" action="{% url 'restore_user' user.id %}" style="display:inline;" onsubmit="return confirm('Restore user \'{{ user.username }}\'? They will be able to log in again.')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm" style="background:var(--success,#22c55e);color:#fff;border:none;">♻️ Restore</button>
+                        </form>
+
+                        <!-- Permanent Delete -->
+                        <form method="POST" action="{% url 'permanent_delete_user' user.id %}" style="display:inline;" onsubmit="return confirm('PERMANENTLY delete \'{{ user.username }}\'? This will erase ALL data and cannot be undone!')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">🗑️ Delete Forever</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "partials/pagination.html" %}
+    {% else %}
+    <div style="text-align:center;padding:3rem 1rem;color:var(--text-muted);">
+        <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
+        <div style="font-size:1.1rem;font-weight:600;">Recycle Bin is empty</div>
+        <div style="font-size:0.85rem;margin-top:0.5rem;">No deleted users found.</div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
