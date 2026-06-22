@@ -112,7 +112,7 @@ def _build_section_grid(section, entries, styles):
     data = [header]
 
     for start_time, end_time in unique_times:
-        time_str = f"{start_time.strftime('%H:%M')}\n{end_time.strftime('%H:%M')}"
+        time_str = f"{start_time.strftime('%I:%M %p')}\n{end_time.strftime('%I:%M %p')}"
         row = [Paragraph(time_str.replace('\n', '<br/>'), styles['TimeCell'])]
         for day in active_days:
             entry = lookup.get((day, str(start_time), str(end_time)))
@@ -152,7 +152,7 @@ def _build_teacher_grid(teacher, entries, styles):
     data = [header]
 
     for start_time, end_time in unique_times:
-        time_str = f"{start_time.strftime('%H:%M')}\n{end_time.strftime('%H:%M')}"
+        time_str = f"{start_time.strftime('%I:%M %p')}\n{end_time.strftime('%I:%M %p')}"
         row = [Paragraph(time_str.replace('\n', '<br/>'), styles['TimeCell'])]
         for day in active_days:
             entry = lookup.get((day, str(start_time), str(end_time)))

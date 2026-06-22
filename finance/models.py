@@ -30,8 +30,8 @@ class Invoice(models.Model):
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     amount_due = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal minus discount")
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.UNPAID)
-    issued_date = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.UNPAID, db_index=True)
+    issued_date = models.DateField(auto_now_add=True, db_index=True)
     due_date = models.DateField()
 
     def recalculate_totals(self):
@@ -70,7 +70,7 @@ class Payment(models.Model):
     """A payment record against an invoice."""
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_date = models.DateField(auto_now_add=True)
+    payment_date = models.DateField(auto_now_add=True, db_index=True)
     method = models.CharField(max_length=30, default='cash', help_text="e.g., cash, bank, online")
     reference = models.CharField(max_length=100, blank=True)
 

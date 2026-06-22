@@ -191,7 +191,7 @@
                     <tbody>
                         {% for e in timetable_entries %}
                         <tr>
-                            <td>{{ e.time_slot.get_day_display }} {{ e.time_slot.start_time|time:"H:i" }}-{{ e.time_slot.end_time|time:"H:i" }}</td>
+                            <td>{{ e.time_slot.get_day_display }} {{ e.time_slot.start_time|time:"h:i A" }}-{{ e.time_slot.end_time|time:"h:i A" }}</td>
                             <td>{{ e.section.class_group.name }} {{ e.section.name }}</td>
                             <td>{{ e.subject.name }}</td>
                         </tr>

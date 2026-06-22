@@ -41,7 +41,7 @@
                     {% for ts in time_slots %}
                     <tr>
                         <td style="font-weight:500;">{{ ts.get_day_display }}</td>
-                        <td>{{ ts.start_time|time:"H:i" }} – {{ ts.end_time|time:"H:i" }}</td>
+                        <td>{{ ts.start_time|time:"h:i A" }} – {{ ts.end_time|time:"h:i A" }}</td>
                         <td>
                             <form method="POST" action=".">
                                 {% csrf_token %}
@@ -92,7 +92,7 @@
                     <label>Time Slot</label>
                     <select name="time_slot" class="form-control" required>
                         <option value="">-- Select Slot --</option>
-                        {% for ts in time_slots %}<option value="{{ ts.id }}">{{ ts.get_day_display }} {{ ts.start_time|time:"H:i" }}-{{ ts.end_time|time:"H:i" }}</option>{% endfor %}
+                        {% for ts in time_slots %}<option value="{{ ts.id }}">{{ ts.get_day_display }} {{ ts.start_time|time:"h:i A" }}-{{ ts.end_time|time:"h:i A" }}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
@@ -125,7 +125,7 @@
                 <tr>
                     <td style="font-weight:500;">
                         <span class="badge badge-blue" style="font-size:0.65rem;">{{ e.time_slot.get_day_display }}</span>
-                        <span style="font-size:0.8rem;margin-left:0.25rem;">{{ e.time_slot.start_time|time:"H:i" }}–{{ e.time_slot.end_time|time:"H:i" }}</span>
+                        <span style="font-size:0.8rem;margin-left:0.25rem;">{{ e.time_slot.start_time|time:"h:i A" }}–{{ e.time_slot.end_time|time:"h:i A" }}</span>
                     </td>
                     <td>{{ e.section.class_group.name }} – {{ e.section.name }}</td>
                     <td>{{ e.subject.name }}</td>

@@ -218,7 +218,7 @@
         <table>
             <thead><tr><th>Invoice #</th><th>Student</th><th>Class</th><th>Fees</th><th>Subtotal</th><th>Discount</th><th>Due</th><th>Paid</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead>
             <tbody id="invoiceTableBody">
-                {% for inv in invoices %}
+                {% for inv in page_obj %}
                 <tr data-class-id="{{ inv.class_group_id }}">
                     <td><strong>{{ inv.invoice_number }}</strong></td>
                     <td>{{ inv.student.get_full_name|default:inv.student.username }}</td>
@@ -249,6 +249,7 @@
             </tbody>
         </table>
     </div>
+    {% include "partials/pagination.html" %}
 </div>
 
 <script>

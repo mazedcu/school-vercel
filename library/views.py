@@ -296,8 +296,14 @@ def lending_history(request):
             Q(book_copy__book__title__icontains=query) | Q(borrower__username__icontains=query)
         )
 
+    from django.core.paginator import Paginator
+    paginator = Paginator(lendings, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'lendings': lendings[:100],
+        'page_obj': page_obj,
+        'lendings': lendings,
         'status_filter': status_filter,
         'query': query,
     }

@@ -29,7 +29,7 @@
 <!-- Lending Table -->
 <div class="card">
     <div class="card-title">📋 Lending Records</div>
-    {% if lendings %}
+    {% if page_obj %}
     <div class="table-wrap">
     <table>
         <thead>
@@ -47,7 +47,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for l in lendings %}
+            {% for l in page_obj %}
             <tr>
                 <td style="font-weight:600;">{{ l.book_copy.book.title }}</td>
                 <td><span class="badge badge-blue">{{ l.book_copy.accession_number }}</span></td>
@@ -81,6 +81,7 @@
         </tbody>
     </table>
     </div>
+    {% include "partials/pagination.html" %}
     {% else %}
     <p class="empty-state">No lending records found.</p>
     {% endif %}

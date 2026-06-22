@@ -16,7 +16,7 @@ class Expense(models.Model):
         CAPEX = 'capex', 'Capital Expenditure'
         OTHER = 'other', 'Other'
 
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.now, db_index=True)
     description = models.CharField(max_length=300)
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
     amount = models.DecimalField(max_digits=12, decimal_places=2)

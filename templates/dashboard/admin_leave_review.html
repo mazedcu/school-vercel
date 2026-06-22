@@ -40,7 +40,7 @@
                     <td>{{ app.start_date|date:"M d, Y" }}</td>
                     <td>
                         {% if app.category == 'early' %}
-                            <span style="color:var(--primary); font-weight:500;">at {{ app.departure_time|time:"H:i" }}</span>
+                            <span style="color:var(--primary); font-weight:500;">at {{ app.departure_time|time:"h:i A" }}</span>
                         {% else %}
                             {{ app.end_date|date:"M d, Y" }}
                         {% endif %}

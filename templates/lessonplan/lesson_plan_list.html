@@ -99,8 +99,8 @@
     {% endfor %}
 </div>
 
-{% if plans %}
-{% for plan in plans %}
+{% if page_obj %}
+{% for plan in page_obj %}
 <div class="plan-card">
     <div class="plan-status-bar" style="background:
         {% if plan.status == 'approved' %}var(--success)
@@ -133,6 +133,7 @@
     </div>
 </div>
 {% endfor %}
+{% include "partials/pagination.html" %}
 {% else %}
 <div class="empty-state card">
     <div class="icon">📝</div>

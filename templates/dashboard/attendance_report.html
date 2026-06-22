@@ -91,7 +91,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for row in report_data %}
+                {% for row in page_obj %}
                 <tr>
                     <td>{{ row.roll|default:"-" }}</td>
                     <td><a href="{% url 'student_attendance_report' row.user.id %}?month={{ selected_month }}" style="color:var(--primary); font-weight:600; text-decoration:none;">{{ row.user.get_full_name|default:row.user.username }}</a></td>
@@ -104,6 +104,7 @@
             </tbody>
         </table>
     </div>
+    {% include "partials/pagination.html" %}
     <div style="margin-top: 1.5rem; text-align: right;">
         <button onclick="window.print()" class="btn btn-primary"><span class="icon">🖨️</span> Print Report</button>
     </div>

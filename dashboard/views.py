@@ -424,3 +424,48 @@ def manage_academic_years(request):
     years = AcademicYear.objects.all()
     context = {'years': years}
     return render(request, 'dashboard/academic_years.html', context)
+
+
+# ─── API endpoints ────────────────────────────────────────────────────────────
+
+from django.http import JsonResponse
+from django.db.models.functions import ExtractMonth
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.ACCOUNTS)
+def api_monthly_finance(request):
+    """Returns monthly income and expense data for the current year."""
+    import datetime
+    year = datetime.date.today().year
+
+    # Get payments by month
+    payments = Payment.objects.filter(payment_date__year=year)\
+        .annotate(month=ExtractMonth('payment_date'))\
+        .values('month')\
+        .annotate(total=Sum('amount'))\
+        .order_by('month')
+    
+    # Get expenses by month
+    expenses = Expense.objects.filter(date__year=year)\
+        .annotate(month=ExtractMonth('date'))\
+        .values('month')\
+        .annotate(total=Sum('amount'))\
+        .order_by('month')
+
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    income_data = [0] * 12
+    expense_data = [0] * 12
+
+    for p in payments:
+        if p['month']:
+            income_data[p['month'] - 1] = float(p['total'])
+
+    for e in expenses:
+        if e['month']:
+            expense_data[e['month'] - 1] = float(e['total'])
+
+    return JsonResponse({
+        'months': months,
+        'income': income_data,
+        'expenses': expense_data
+    })

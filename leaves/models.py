@@ -53,12 +53,12 @@ class LeaveApplication(models.Model):
     )
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE, null=True, blank=True)
     category = models.CharField(max_length=10, choices=Category.choices)
-    start_date = models.DateField()
+    start_date = models.DateField(db_index=True)
     end_date = models.DateField(null=True, blank=True)
     departure_time = models.TimeField(null=True, blank=True, help_text="Required for Early Leave")
     reason = models.TextField(help_text="Reason for leave")
 
-    status = models.CharField(max_length=25, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=25, choices=Status.choices, default=Status.PENDING, db_index=True)
 
     # Coordinator review
     coordinator_reviewed_by = models.ForeignKey(

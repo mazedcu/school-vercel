@@ -172,7 +172,7 @@
                 {% for ts in time_slots %}
                 <tr>
                     <td>{{ ts.get_day_display }}</td>
-                    <td>{{ ts.start_time|time:"H:i" }} - {{ ts.end_time|time:"H:i" }}</td>
+                    <td>{{ ts.start_time|time:"h:i A" }} - {{ ts.end_time|time:"h:i A" }}</td>
                     <td>
                         <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this time slot?');">
                             {% csrf_token %}

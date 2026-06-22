@@ -153,14 +153,21 @@ def manage_finance(request):
         return redirect('manage_finance')
 
     fee_structures = FeeStructure.objects.all().select_related('class_group')
-    invoices = Invoice.objects.all().select_related('student', 'class_group').prefetch_related('line_items').order_by('-issued_date')
+    invoices_qs = Invoice.objects.all().select_related('student', 'class_group').prefetch_related('line_items').order_by('-issued_date')
+    
+    from django.core.paginator import Paginator
+    paginator = Paginator(invoices_qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     class_groups = ClassGroup.objects.all()
     students = User.objects.filter(role=User.Role.STUDENT)
     sections = Section.objects.select_related('class_group').all()
 
     context = {
         'fee_structures': fee_structures,
-        'invoices': invoices,
+        'page_obj': page_obj,
+        'invoices': invoices_qs,
         'class_groups': class_groups,
         'students': students,
         'sections': sections,

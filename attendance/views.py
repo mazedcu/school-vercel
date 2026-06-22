@@ -186,10 +186,16 @@ def attendance_report(request):
             except ValueError:
                 messages.error(request, "Invalid month format.")
                 
+    from django.core.paginator import Paginator
+    paginator = Paginator(report_data, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'sections': sections,
         'selected_section': selected_section,
         'selected_month': selected_month,
+        'page_obj': page_obj,
         'report_data': report_data,
         'all_profiles': all_profiles,
         'selected_student_id': selected_student_id,

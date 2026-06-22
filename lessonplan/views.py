@@ -58,7 +58,13 @@ def lesson_plan_list(request):
     if status_filter:
         plans = plans.filter(status=status_filter)
 
+    from django.core.paginator import Paginator
+    paginator = Paginator(plans, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
+        'page_obj': page_obj,
         'plans': plans,
         'status_filter': status_filter,
         'pending_count': pending_count,

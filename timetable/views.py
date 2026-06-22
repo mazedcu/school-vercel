@@ -154,7 +154,7 @@ def view_timetable(request):
 
                 # Build grid rows
                 for start_time, end_time in unique_times:
-                    time_label = f"{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}"
+                    time_label = f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}"
                     cells = []
                     for day in active_days:
                         entry = lookup.get((day, str(start_time), str(end_time)))
@@ -254,7 +254,7 @@ def my_timetable(request):
 
         unique_times = TimeSlot.objects.values_list('start_time', 'end_time').distinct().order_by('start_time')
         for start_time, end_time in unique_times:
-            time_label = f"{start_time.strftime('%H:%M')} - {end_time.strftime('%H:%M')}"
+            time_label = f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}"
             cells = []
             for day in active_days:
                 entry = lookup.get((day, str(start_time), str(end_time)))

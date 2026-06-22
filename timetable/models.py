@@ -26,7 +26,7 @@ class TimeSlot(models.Model):
         ordering = ['day', 'start_time']
 
     def __str__(self):
-        return f"{self.get_day_display()} {self.start_time:%H:%M}-{self.end_time:%H:%M}"
+        return f"{self.get_day_display()} {self.start_time:%I:%M %p}-{self.end_time:%I:%M %p}"
 
 
 class TimetableEntry(models.Model):

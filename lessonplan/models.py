@@ -20,7 +20,7 @@ class LessonPlan(models.Model):
     )
     subject = models.ForeignKey(Subject, on_delete=models.PROTECT, related_name='lesson_plans')
     section = models.ForeignKey(Section, on_delete=models.PROTECT, related_name='lesson_plans')
-    date = models.DateField(help_text="Date this lesson will be delivered")
+    date = models.DateField(help_text="Date this lesson will be delivered", db_index=True)
     duration = models.CharField(max_length=50, help_text="e.g. 45 minutes")
 
     # ── Plan content fields ───────────────────────────────────────────
@@ -36,7 +36,7 @@ class LessonPlan(models.Model):
     plenary = models.TextField(help_text="Wrap-up, review, and assessment of learning")
 
     # ── Workflow ──────────────────────────────────────────────────────
-    status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFT, db_index=True)
     reviewed_by = models.ForeignKey(
         User, null=True, blank=True,
         on_delete=models.SET_NULL,
