@@ -27,8 +27,8 @@ MUTED_TEXT      = TEXT_MUTED
 STUDENT_BADGE   = colors.HexColor('#6366f1')
 TEACHER_BADGE   = SUCCESS
 
-SCHOOL_NAME = "OpDevSM"
-SCHOOL_SUB  = "School Management System"
+SCHOOL_NAME = "Radon Academy"
+SCHOOL_SUB  = "Coaching Management System"
 
 
 def _draw_card(c, x, y, header_color, badge_color, role_label,

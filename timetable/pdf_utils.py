@@ -220,7 +220,7 @@ def generate_section_timetable_pdf(section):
         styles['TitleCustom']
     )
     subtitle = Paragraph(
-        f"Academic Year: {section.academic_year} | SMS Pro — School Management System",
+        f"Academic Year: {section.academic_year} | Radon Academy — Coaching Management System",
         styles['SubTitle']
     )
 
@@ -273,7 +273,7 @@ def generate_teacher_timetable_pdf(teacher):
 
     title = Paragraph(f"📅 My Timetable — {teacher_name}", styles['TitleCustom'])
     subtitle = Paragraph(
-        f"SMS Pro — School Management System",
+        f"Radon Academy — Coaching Management System",
         styles['SubTitle']
     )
 

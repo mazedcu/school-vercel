@@ -1,6 +1,6 @@
-# OpDevSM — School Management System
+# Radon Academy — Coaching Management System
 
-A comprehensive, print-ready school management system built with Django.
+A comprehensive, print-ready coaching management system built with Django.
 
 ## 🚀 Key Features
 - **Student & Teacher Management**: Unified profiles with photo upload support.

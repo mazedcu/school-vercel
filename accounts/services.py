@@ -57,10 +57,10 @@ def send_credential_email(email, user, password, role, section=None):
     section_str = str(section) if section else 'Not Assigned'
     reset_url = _build_password_reset_url(user)
 
-    subject = f'OpDevSM — Account Created (User ID: {user.id})'
+    subject = f'Radon Academy — Account Created (User ID: {user.id})'
     message = (
         f"Dear {name},\n\n"
-        f"Your {role} account has been created at OpDevSM School Management System.\n\n"
+        f"Your {role} account has been created at Radon Academy Coaching Management System.\n\n"
         f"═══════════════════════════════════\n"
         f"  Account Details\n"
         f"═══════════════════════════════════\n"
@@ -74,7 +74,7 @@ def send_credential_email(email, user, password, role, section=None):
         f"This link is valid for 3 days. After that, use 'Forgot Password'\n"
         f"on the login page to request a new link.\n\n"
         f"Login page: {django_settings.LOGIN_URL_FULL}\n\n"
-        f"Regards,\nOpDevSM Administration"
+        f"Regards,\nRadon Academy Administration"
     )
     try:
         send_mail(subject, message, django_settings.DEFAULT_FROM_EMAIL, [email])

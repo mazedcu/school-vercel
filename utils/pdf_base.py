@@ -51,7 +51,7 @@ def get_base_styles():
     
     return styles
 
-def draw_footer(canvas, doc, school_name="OpDevSM School Management System"):
+def draw_footer(canvas, doc, school_name="Radon Academy Coaching Management System"):
     """Standard footer with page number and school name."""
     canvas.saveState()
     canvas.setFont('Helvetica', 8)
