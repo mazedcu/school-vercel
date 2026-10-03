@@ -258,6 +258,12 @@
             </div>
         </div>
 
+        {% if invoice.fee_month %}
+        <div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:8px;padding:0.85rem 1.25rem;margin-bottom:1.5rem;text-align:center;border:1px solid #c7d2fe;">
+            <span style="font-size:1rem;font-weight:600;color:#4338ca;">📅 Fees of the month of {{ invoice.fee_month }}</span>
+        </div>
+        {% endif %}
+
         <table class="items-table">
             <thead>
                 <tr><th>#</th><th>Description</th><th>Amount</th></tr>

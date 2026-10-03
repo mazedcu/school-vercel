@@ -152,6 +152,25 @@
         </div>
 
         <div class="form-group">
+            <label>📅 Fee Month <span style="font-weight:400;color:var(--text-muted);">(optional — adds "Fees of the month of …" text to invoice)</span></label>
+            <select name="bulk_fee_month" class="form-control">
+                <option value="">-- No Month --</option>
+                <option value="January">January</option>
+                <option value="February">February</option>
+                <option value="March">March</option>
+                <option value="April">April</option>
+                <option value="May">May</option>
+                <option value="June">June</option>
+                <option value="July">July</option>
+                <option value="August">August</option>
+                <option value="September">September</option>
+                <option value="October">October</option>
+                <option value="November">November</option>
+                <option value="December">December</option>
+            </select>
+        </div>
+
+        <div class="form-group">
             <label>Student <span style="font-weight:400;color:var(--text-muted);">(leave blank to invoice all students in class/section)</span></label>
             <select name="bulk_student" id="bulkStudentSelect" class="form-control" onchange="onBulkStudentChange()">
                 <option value="">-- All Students (Bulk) --</option>

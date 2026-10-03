@@ -55,6 +55,7 @@ def manage_finance(request):
             due_date = request.POST.get('bulk_due_date')
             discount_desc = request.POST.get('bulk_discount_description', '').strip()
             discount_amt = request.POST.get('bulk_discount_amount', '0')
+            fee_month = request.POST.get('bulk_fee_month', '').strip()
 
             try:
                 if not bulk_class_id:
@@ -116,6 +117,7 @@ def manage_finance(request):
                     invoice = Invoice(
                         student=student,
                         class_group=class_group,
+                        fee_month=fee_month,
                         subtotal=subtotal,
                         discount_description=discount_desc,
                         discount_amount=discount,
