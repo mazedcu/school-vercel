@@ -82,6 +82,14 @@ def manage_classes(request):
                 subj.delete()
                 messages.success(request, f"Subject '{name}' has been deleted.")
 
+        elif action == 'assign_class_subjects':
+            class_group_id = request.POST.get('class_group_id')
+            subject_ids = request.POST.getlist('subject_ids')
+            if class_group_id:
+                cg = get_object_or_404(ClassGroup, id=class_group_id)
+                cg.subjects.set(subject_ids)
+                messages.success(request, f"Subjects for '{cg.name}' updated.")
+
         elif action == 'delete_timeslot':
             timeslot_id = request.POST.get('timeslot_id')
             if timeslot_id:
@@ -91,7 +99,7 @@ def manage_classes(request):
 
         return redirect('manage_classes')
 
-    class_groups = ClassGroup.objects.prefetch_related('sections').all()
+    class_groups = ClassGroup.objects.prefetch_related('sections', 'subjects').all()
     subjects = Subject.objects.all()
     time_slots = TimeSlot.objects.all()
 

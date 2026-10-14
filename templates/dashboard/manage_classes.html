@@ -100,11 +100,45 @@
     </div>
 </div>
 
+<!-- Assign Subjects to Class -->
+<div class="card">
+    <div class="card-title">📚 Assign Subjects to a Class</div>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign_class_subjects">
+        <div class="form-row" style="align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+            <div class="form-group" style="min-width:200px;">
+                <label>Class / Grade</label>
+                <select name="class_group_id" class="form-control" id="class-group-select" required>
+                    <option value="">-- Select a Class --</option>
+                    {% for cg in class_groups %}
+                    <option value="{{ cg.id }}">{{ cg.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:280px;">
+                <label>Subjects for this Class</label>
+                <div id="subject-checkbox-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.4rem;margin-top:0.35rem;">
+                    {% for s in subjects %}
+                    <label style="display:flex;align-items:center;gap:0.4rem;padding:0.35rem 0.6rem;border:1.5px solid var(--border);border-radius:0.4rem;cursor:pointer;font-size:0.85rem;" class="subject-assign-item">
+                        <input type="checkbox" name="subject_ids" value="{{ s.id }}" class="subj-chk">
+                        {{ s.name }} <span style="color:var(--text-muted);font-size:0.73rem;">({{ s.code }})</span>
+                    </label>
+                    {% empty %}
+                    <span style="color:var(--text-muted);font-size:0.85rem;">No subjects yet.</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:0.5rem;">💾 Save Class Subjects</button>
+    </form>
+</div>
+
 <!-- Existing Data -->
 <div class="card">
     <div class="card-title">Existing Classes & Sections</div>
     <table>
-        <thead><tr><th>Class</th><th>Sections</th><th style="width:80px;">Actions</th></tr></thead>
+        <thead><tr><th>Class</th><th>Sections</th><th>Subjects</th><th style="width:80px;">Actions</th></tr></thead>
         <tbody>
             {% for cg in class_groups %}
             <tr>
@@ -124,6 +158,12 @@
                     {% endfor %}
                 </td>
                 <td>
+                    {% for subj in cg.subjects.all %}
+                    <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:600;background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;margin:0.1rem;">{{ subj.name }}</span>
+                    {% empty %}<span style="color:var(--text-muted);font-size:0.8rem;">—</span>
+                    {% endfor %}
+                </td>
+                <td>
                     <form method="POST" style="display:inline;" onsubmit="return confirm('Delete class \'{{ cg.name }}\' and ALL its sections? This cannot be undone.');">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="delete_class">
@@ -133,7 +173,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="empty-state">No classes created yet.</td></tr>
+            <tr><td colspan="4" class="empty-state">No classes created yet.</td></tr>
             {% endfor %}
         </tbody>
     </table>

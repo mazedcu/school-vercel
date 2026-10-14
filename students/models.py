@@ -14,6 +14,12 @@ class StudentProfile(models.Model):
     admission_date = models.DateField(auto_now_add=True)
     biometric_id = models.CharField(max_length=50, blank=True, null=True, unique=True, db_index=True, help_text="ID from attendance machine")
     photo = models.ImageField(upload_to='student_photos/', blank=True, null=True, verbose_name="Photo")
+    subjects = models.ManyToManyField(
+        'academics.Subject',
+        blank=True,
+        related_name='enrolled_students',
+        help_text="Subjects this student is enrolled in.",
+    )
 
     def __str__(self):
         section_str = self.section if self.section else "Unassigned"

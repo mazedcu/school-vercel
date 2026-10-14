@@ -59,6 +59,48 @@
         border-radius: 4px;
         transition: width 0.5s;
     }
+    /* Subject multi-select styling */
+    .subject-select-wrapper {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    .subject-checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.4rem;
+        border: 1.5px solid var(--border);
+        background: var(--bg);
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .subject-checkbox-item:hover {
+        border-color: var(--primary);
+    }
+    .subject-checkbox-item input[type=checkbox]:checked + label {
+        color: var(--primary);
+        font-weight: 600;
+    }
+    .subject-checkbox-item:has(input:checked) {
+        border-color: var(--primary);
+        background: #eff6ff;
+    }
+    .enrolled-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #dbeafe, #ede9fe);
+        color: #3730a3;
+        border: 1px solid #c7d2fe;
+        margin: 0.2rem;
+    }
 </style>
 {% endblock %}
 
@@ -147,6 +189,19 @@
         </table>
     </div>
     {% endif %}
+
+    {# --- Enrolled Subjects Summary --- #}
+    {% if enrolled_subjects %}
+    <div style="margin-bottom:1rem;">
+        <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">📚 Enrolled Subjects</div>
+        <div>
+            {% for subj in enrolled_subjects %}
+            <span class="enrolled-badge">📖 {{ subj.name }} <span style="opacity:0.6;font-size:0.7rem;">({{ subj.code }})</span></span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
 <!-- Editable Profile Info (Admin only) -->
@@ -234,6 +289,40 @@
             </div>
         </div>
         <button type="submit" class="btn btn-success">Save Changes</button>
+    </form>
+</div>
+
+<!-- Manage Subjects Card (Admin only) -->
+<div class="card">
+    <div class="card-title">📚 Manage Subject Enrollment</div>
+    {% if not section %}
+    <p style="color:var(--text-muted);font-size:0.875rem;">⚠️ Assign the student to a class/section first to see class-specific subjects.</p>
+    {% endif %}
+    <form method="POST" id="subjects-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="manage_subjects">
+        {% if class_subjects %}
+        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;">
+            {% if section %}Subjects available for <strong>{{ section.class_group.name }}</strong>{% else %}All available subjects{% endif %} — check the ones this student is enrolled in.
+        </p>
+        <div class="subject-select-wrapper">
+            {% for subj in class_subjects %}
+            <label class="subject-checkbox-item" for="subj-{{ subj.id }}">
+                <input type="checkbox" id="subj-{{ subj.id }}" name="subjects" value="{{ subj.id }}"
+                       {% if subj.id in enrolled_subject_ids %}checked{% endif %}>
+                <span style="font-size:0.85rem;">{{ subj.name }} <span style="color:var(--text-muted);font-size:0.75rem;">({{ subj.code }})</span></span>
+            </label>
+            {% endfor %}
+        </div>
+        <div style="margin-top:1rem;display:flex;align-items:center;gap:0.75rem;">
+            <button type="submit" class="btn btn-primary">💾 Save Subject Enrollment</button>
+            <span style="font-size:0.8rem;color:var(--text-muted);" id="subject-counter">
+                {% with enrolled_subjects|length as cnt %}{{ cnt }} subject{{ cnt|pluralize }} enrolled{% endwith %}
+            </span>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:0.875rem;">No subjects found. Go to <a href="{% url 'manage_classes' %}">Manage Classes</a> to add subjects to this class group.</p>
+        {% endif %}
     </form>
 </div>
 {% else %}

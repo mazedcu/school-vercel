@@ -32,6 +32,12 @@ class ClassGroup(models.Model):
     """Represents a grade level (e.g., Grade 1, Grade 2)."""
     name = models.CharField(max_length=50, unique=True)
     display_order = models.PositiveIntegerField(default=0)
+    subjects = models.ManyToManyField(
+        'Subject',
+        blank=True,
+        related_name='class_groups',
+        help_text="Subjects offered in this class/grade level."
+    )
 
     class Meta:
         ordering = ['display_order']

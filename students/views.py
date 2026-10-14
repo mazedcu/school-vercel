@@ -64,6 +64,16 @@ def student_profile_detail(request, student_id):
 
     # Handle edit (admin only)
     if request.method == 'POST' and is_admin:
+        action = request.POST.get('action', 'edit_profile')
+
+        if action == 'manage_subjects':
+            # Handle subject assignment
+            subject_ids = request.POST.getlist('subjects')
+            profile.subjects.set(subject_ids)
+            messages.success(request, "Subject enrollment updated.")
+            return redirect('student_profile_detail', student_id=student.id)
+
+        # Default: edit profile
         profile.section_id = request.POST.get('section') or None
         profile.roll_number = request.POST.get('roll_number', '').strip()
         profile.address = request.POST.get('address', '').strip()
@@ -104,6 +114,16 @@ def student_profile_detail(request, student_id):
 
     section = profile.section
 
+    # Subjects available for the student's class group (for the dropdown)
+    class_subjects = []
+    if section and section.class_group:
+        class_subjects = list(section.class_group.subjects.all())
+    if not class_subjects:
+        # Fallback: all subjects in the system
+        class_subjects = list(Subject.objects.all())
+
+    enrolled_subject_ids = set(profile.subjects.values_list('id', flat=True))
+    enrolled_subjects = profile.subjects.all()
     # Performance data
     total_att = Attendance.objects.filter(user=student).count()
     present_att = Attendance.objects.filter(user=student, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
@@ -141,6 +161,9 @@ def student_profile_detail(request, student_id):
         'overall_avg': overall_avg,
         'invoices': invoices,
         'parent_users': parent_users,
+        'class_subjects': class_subjects,
+        'enrolled_subjects': enrolled_subjects,
+        'enrolled_subject_ids': enrolled_subject_ids,
     }
     return render(request, 'dashboard/student_profile_detail.html', context)
 
