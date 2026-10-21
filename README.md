@@ -66,7 +66,7 @@ The system includes a gateway endpoint for local attendance machines:
 
 ## 🧪 Running Tests
 ```bash
-python manage.py test finance attendance exams
+python manage.py test
 ```
 
 ## 🚢 Deployment
