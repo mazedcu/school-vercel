@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.urls import reverse
 from decimal import Decimal
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
@@ -93,3 +94,54 @@ class ExamsTestCase(TestCase):
         self.assertEqual(term1.weightings.count(), 2)
         total_weight = sum(w.weight_percentage for w in term1.weightings.all())
         self.assertEqual(total_weight, Decimal('100.00'))
+
+
+class ReportAccessTestCase(TestCase):
+    """Who may open a student's report card pages."""
+
+    def setUp(self):
+        from students.models import StudentProfile, ParentProfile
+        import datetime
+
+        self.student = User.objects.create_user(username="kid", password="pw-test-1", role=User.Role.STUDENT)
+        self.other_student = User.objects.create_user(username="other_kid", password="pw-test-1", role=User.Role.STUDENT)
+        StudentProfile.objects.create(user=self.student)
+        StudentProfile.objects.create(user=self.other_student)
+
+        self.parent = User.objects.create_user(username="parent", password="pw-test-1", role=User.Role.PARENT)
+        ParentProfile.objects.create(user=self.parent).children.add(self.student)
+
+        self.admin = User.objects.create_user(username="admin_user", password="pw-test-1", role=User.Role.ADMIN)
+
+        config = AcademicPeriodConfig.objects.create(academic_year="2026")
+        self.period = ReportPeriod.objects.create(
+            config=config, label="Term 1", sequence=1, is_published=True,
+            start_date=datetime.date(2026, 1, 1), end_date=datetime.date(2026, 6, 30),
+        )
+
+    def _urls_for(self, student):
+        return [
+            reverse("student_report_detail", args=[student.id]),
+            reverse("period_report_select_student", args=[student.id]),
+            reverse("period_report", args=[self.period.id, student.id]),
+        ]
+
+    def test_parent_can_view_own_child(self):
+        self.client.login(username="parent", password="pw-test-1")
+        for url in self._urls_for(self.student):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+
+    def test_parent_cannot_view_unrelated_student(self):
+        self.client.login(username="parent", password="pw-test-1")
+        for url in self._urls_for(self.other_student):
+            self.assertRedirects(self.client.get(url), reverse("dashboard_router"), fetch_redirect_response=False, msg_prefix=url)
+
+    def test_student_cannot_view_another_student(self):
+        self.client.login(username="kid", password="pw-test-1")
+        for url in self._urls_for(self.other_student):
+            self.assertRedirects(self.client.get(url), reverse("dashboard_router"), fetch_redirect_response=False, msg_prefix=url)
+
+    def test_admin_can_view_any_student(self):
+        self.client.login(username="admin_user", password="pw-test-1")
+        for url in self._urls_for(self.other_student):
+            self.assertEqual(self.client.get(url).status_code, 200, url)

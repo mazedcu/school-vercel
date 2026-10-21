@@ -188,7 +188,7 @@ def admin_dashboard(request):
 @login_required
 @role_required(User.Role.TEACHER, User.Role.COORDINATOR)
 def teacher_dashboard(request):
-    from leaves.views import get_current_academic_year, get_leave_balance
+    from leaves.views import get_current_academic_year, get_leave_balance, get_early_leave_balance
     from leaves.models import LeaveType
 
     my_entries = TimetableEntry.objects.filter(teacher=request.user).select_related('section', 'subject', 'time_slot')

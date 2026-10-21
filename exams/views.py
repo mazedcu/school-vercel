@@ -12,7 +12,7 @@ import datetime
 
 from accounts.models import User
 from academics.models import ClassGroup, Section, Subject
-from students.models import StudentProfile
+from students.models import StudentProfile, ParentProfile
 from timetable.models import TimetableEntry
 from timetable.pdf_utils import generate_section_timetable_pdf
 from exams.models import (
@@ -259,6 +259,16 @@ def view_reports(request):
     }
     return render(request, 'dashboard/view_reports.html', context)
 
+
+def _can_view_student_report(viewer, student):
+    """Students may only see their own report; parents only their linked children."""
+    if viewer.role == User.Role.STUDENT:
+        return viewer == student
+    if viewer.role == User.Role.PARENT:
+        return ParentProfile.objects.filter(user=viewer, children=student).exists()
+    return True
+
+
 @login_required
 def student_report(request, student_id=None):
     """View a student's complete report card with weighted grades, letter grades, and comments."""
@@ -272,7 +282,7 @@ def student_report(request, student_id=None):
     else:
         return redirect('view_reports')
 
-    if viewer.role == User.Role.STUDENT and viewer != student:
+    if not _can_view_student_report(viewer, student):
         return redirect('dashboard_router')
 
     profile = StudentProfile.objects.filter(user=student).first()
@@ -804,7 +814,7 @@ def period_report_select(request, student_id=None):
     else:
         return redirect('view_reports')
 
-    if viewer.role == User.Role.STUDENT and viewer != student:
+    if not _can_view_student_report(viewer, student):
         return redirect('dashboard_router')
 
     profile = StudentProfile.objects.filter(user=student).first()
@@ -852,12 +862,8 @@ def period_report(request, period_id, student_id):
     student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
     printable = request.GET.get('print', '') == '1'
 
-    if viewer.role == User.Role.STUDENT and viewer != student:
+    if not _can_view_student_report(viewer, student):
         return redirect('dashboard_router')
-    if viewer.role == User.Role.PARENT:
-        parent_profile = ParentProfile.objects.filter(user=viewer).first()
-        if not parent_profile or student not in parent_profile.children.all():
-            return redirect('dashboard_router')
 
     if viewer.role not in [User.Role.ADMIN, User.Role.TEACHER] and not period.is_published:
         messages.error(request, "This report period is not yet published.")
