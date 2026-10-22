@@ -100,87 +100,11 @@ def accounts_dashboard(request):
 @login_required
 @role_required(User.Role.ADMIN)
 def admin_dashboard(request):
-    today = timezone.now().date()
-    now = timezone.now()
-    total_students = User.objects.filter(role=User.Role.STUDENT).count()
-    total_teachers = User.objects.filter(role=User.Role.TEACHER).count()
-    total_sections = Section.objects.count()
+    """Principal's home: what needs attention today, today's snapshot, trends and money."""
+    from dashboard.overview import admin_overview
 
-    today_attendance = Attendance.objects.filter(date=today)
-    
-    student_today_att = today_attendance.filter(user__role=User.Role.STUDENT)
-    student_present = student_today_att.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
-    student_total = student_today_att.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    attendance_pct = round((student_present / student_total * 100), 1) if student_total > 0 else 0
-
-    teacher_today_att = today_attendance.filter(user__role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
-    teacher_present = teacher_today_att.filter(status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
-    teacher_total = teacher_today_att.exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    teacher_attendance_pct = round((teacher_present / teacher_total * 100), 1) if teacher_total > 0 else 0
-
-    unpaid_invoices = Invoice.objects.filter(status=Invoice.Status.UNPAID).count()
-
-    # Monthly finance data
-    month_income = Payment.objects.filter(
-        payment_date__year=now.year, payment_date__month=now.month
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    month_expenses = Expense.objects.filter(
-        date__year=now.year, date__month=now.month
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    month_net = month_income - month_expenses
-
-    # Procurement stats
-    pending_pr_count = PurchaseRequest.objects.filter(status=PurchaseRequest.Status.PENDING).count()
-    inventory_count = InventoryItem.objects.count()
-    capex_count = CapexItem.objects.count()
-
-    # Leave Management stats
-    from leaves.models import LeaveApplication, LeaveType
-    from leaves.views import get_current_academic_year, get_leave_balance
-    
-    pending_leaves = LeaveApplication.objects.filter(status=LeaveApplication.Status.COORDINATOR_APPROVED).count()
-    staff_on_leave_today = LeaveApplication.objects.filter(
-        status=LeaveApplication.Status.ADMIN_APPROVED,
-        start_date__lte=today,
-        end_date__gte=today
-    ).count()
-
-    leave_types = LeaveType.objects.all()
-    current_academic_year = get_current_academic_year()
-    staff = User.objects.filter(role__in=[User.Role.TEACHER, User.Role.COORDINATOR])
-
-    # Greeting based on time of day
-    hour = now.hour
-    if hour < 12:
-        greeting = 'Morning'
-    elif hour < 17:
-        greeting = 'Afternoon'
-    else:
-        greeting = 'Evening'
-
-    context = {
-        'total_students': total_students,
-        'total_teachers': total_teachers,
-        'total_sections': total_sections,
-        'attendance_pct': attendance_pct,
-        'teacher_attendance_pct': teacher_attendance_pct,
-        'unpaid_invoices': unpaid_invoices,
-        'current_year': now.year,
-        'current_academic_year': current_academic_year,
-        'month_income': month_income,
-        'month_expenses': month_expenses,
-        'month_net': month_net,
-        'pending_pr_count': pending_pr_count,
-        'inventory_count': inventory_count,
-        'capex_count': capex_count,
-        'pending_leaves': pending_leaves,
-        'staff_on_leave_today': staff_on_leave_today,
-        'greeting': greeting,
-        'today_formatted': today.strftime('%A, %B %d, %Y'),
-        'today_day': today.strftime('%d'),
-        'today_month_year': today.strftime('%b %Y'),
-        'notices': Notice.objects.filter(is_active=True).order_by('-created_at')[:5],
-    }
+    context = admin_overview()
+    context['notices'] = Notice.objects.filter(is_active=True).order_by('-created_at')[:3]
     return render(request, 'dashboard/admin_dashboard.html', context)
 
 # ─── TEACHER Dashboard ───────────────────────────────────────────────────────

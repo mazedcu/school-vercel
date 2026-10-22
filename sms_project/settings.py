@@ -139,6 +139,9 @@ USE_I18N = True
 
 USE_TZ = True
 
+# The school's local clock, used for "today", greetings and the current period on dashboards.
+SCHOOL_TIME_ZONE = os.environ.get('SCHOOL_TIME_ZONE', 'Asia/Dhaka')
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/

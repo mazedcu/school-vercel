@@ -1,533 +1,359 @@
 {% extends "base.html" %}
-{% block page_title %}Principal Dashboard{% endblock %}
-{% block breadcrumb %}Admin / Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb %}Principal's overview{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
-    /* ── Welcome Banner ── */
-    .welcome-banner {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
-        border-radius: 1rem;
-        padding: 2rem 2.5rem;
-        color: #fff;
-        margin-bottom: 1.5rem;
-        position: relative;
-        overflow: hidden;
-    }
-    .welcome-banner::before {
-        content: '';
-        position: absolute;
-        top: -30%;
-        right: -5%;
-        width: 250px;
-        height: 250px;
-        background: rgba(255,255,255,0.06);
-        border-radius: 50%;
-    }
-    .welcome-banner::after {
-        content: '';
-        position: absolute;
-        bottom: -40%;
-        right: 10%;
-        width: 180px;
-        height: 180px;
-        background: rgba(255,255,255,0.04);
-        border-radius: 50%;
-    }
-    .welcome-banner h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 0.35rem;
-        letter-spacing: -0.3px;
-    }
-    .welcome-banner p {
-        opacity: 0.85;
-        font-size: 0.85rem;
-        font-weight: 400;
-    }
-    .welcome-date {
-        position: absolute;
-        top: 2rem;
-        right: 2.5rem;
-        text-align: right;
-        font-size: 0.8rem;
-        opacity: 0.9;
-    }
-    .welcome-date .day {
-        font-size: 2rem;
-        font-weight: 800;
-        line-height: 1;
+    .dash { --ink: var(--text); --muted: var(--text-muted); --line: var(--border);
+            --warn: #b45309; --warn-bg: #fffbeb; --alert: #b91c1c; --alert-bg: #fef2f2;
+            --act: #4338ca; --act-bg: #eef2ff; --ok: #047857; --ok-bg: #ecfdf5;
+            --s-present: #4f46e5; --s-late: #a5b4fc; --s-absent: #eb6834; --s-expense: #eb6834; }
+
+    .dash-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+    .dash-main, .dash-side { display: grid; gap: 1.25rem; min-width: 0; }
+    @media (max-width: 1100px) { .dash-layout { grid-template-columns: minmax(0, 1fr); } }
+
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.25rem 1.35rem; min-width: 0; }
+    .panel h2 { font-size: 1rem; font-weight: 700; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
+    .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+    .panel-sub { font-size: 0.8rem; color: var(--muted); }
+    .link { font-size: 0.8rem; font-weight: 600; color: var(--act); text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+
+    /* Greeting */
+    .hello { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .hello h1 { font-size: clamp(1.45rem, 2.4vw, 1.9rem); font-weight: 800; letter-spacing: -0.025em; color: var(--ink); margin: 0 0 0.3rem; line-height: 1.15; }
+    .hello p { color: var(--muted); font-size: 0.92rem; margin: 0; max-width: 62ch; line-height: 1.5; }
+    .hello p strong { color: var(--ink); font-weight: 600; }
+    .quick { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .quick a { font-size: 0.8rem; font-weight: 600; text-decoration: none; color: var(--ink); background: var(--surface);
+               border: 1px solid var(--line); border-radius: 9px; padding: 0.45rem 0.8rem; }
+    .quick a:hover, .quick a:focus-visible { border-color: var(--primary); color: var(--primary); }
+    .quick a.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Needs you today — the centrepiece */
+    .todo { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+    .todo-head { padding: 1.1rem 1.35rem 0.9rem; display: flex; align-items: baseline; gap: 0.6rem; }
+    .todo-head h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.015em; margin: 0; }
+    .todo-count { font-size: 0.78rem; font-weight: 700; color: var(--act); background: var(--act-bg); border-radius: 999px; padding: 0.1rem 0.55rem; }
+    .todo-row { display: grid; grid-template-columns: 6.4rem minmax(0, 1fr) auto; gap: 0.9rem; align-items: center;
+                padding: 0.95rem 1.35rem; border-top: 1px solid var(--line); position: relative; }
+    .todo-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tone); }
+    .todo-row.warn { --tone: #f59e0b; --tone-ink: var(--warn); --tone-bg: var(--warn-bg); }
+    .todo-row.alert { --tone: #ef4444; --tone-ink: var(--alert); --tone-bg: var(--alert-bg); }
+    .todo-row.act { --tone: var(--primary); --tone-ink: var(--act); --tone-bg: var(--act-bg); }
+    .tag { justify-self: start; font-size: 0.7rem; font-weight: 700; color: var(--tone-ink); background: var(--tone-bg); border-radius: 6px; padding: 0.2rem 0.45rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem; }
+    .tag svg { width: 12px; height: 12px; }
+    .todo-title { font-weight: 650; color: var(--ink); font-size: 0.93rem; line-height: 1.35; }
+    .todo-detail { color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; line-height: 1.4; }
+    .todo-btn { font-size: 0.8rem; font-weight: 600; white-space: nowrap; text-decoration: none; color: var(--tone-ink);
+                border: 1px solid currentColor; border-radius: 8px; padding: 0.4rem 0.75rem; }
+    .todo-btn:hover, .todo-btn:focus-visible { background: var(--tone-bg); }
+    .todo-clear { display: flex; gap: 0.85rem; align-items: center; padding: 1.1rem 1.35rem; border-top: 1px solid var(--line); background: var(--ok-bg); color: var(--ok); }
+    .todo-clear svg { width: 28px; height: 28px; flex: none; }
+    .todo-clear strong { display: block; color: var(--ok); }
+    .todo-clear span { color: #065f46; font-size: 0.82rem; }
+    @media (max-width: 640px) {
+        .todo-row { grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
+        .todo-row .tag { justify-self: start; }
+        .todo-btn { justify-self: start; }
     }
 
-    /* ── Stat Cards ── */
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    .kpi-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 0.875rem;
-        padding: 1.25rem 1.25rem 1rem;
-        position: relative;
-        overflow: hidden;
-        transition: all 0.25s ease;
-    }
-    .kpi-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-    .kpi-card .kpi-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 0.625rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        margin-bottom: 0.75rem;
-    }
-    .kpi-card .kpi-value {
-        font-size: 1.75rem;
-        font-weight: 800;
-        line-height: 1;
-        letter-spacing: -0.5px;
-    }
-    .kpi-card .kpi-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        font-weight: 500;
-        margin-top: 0.3rem;
-    }
-    .kpi-card .kpi-bar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
+    /* Today */
+    .today { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .today > div { padding: 0 1.1rem; border-left: 1px solid var(--line); }
+    .today > div:first-child { padding-left: 0; border-left: 0; }
+    .today > div:last-child { padding-right: 0; }
+    .t-label { font-size: 0.8rem; color: var(--muted); font-weight: 600; margin-bottom: 0.35rem; }
+    .t-big { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); line-height: 1.1; }
+    .t-big small { font-size: 0.85rem; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+    .t-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.45rem; line-height: 1.45; }
+    .t-note b { color: var(--ink); font-weight: 600; }
+    .t-note .bad { color: var(--alert); font-weight: 600; }
+    .split { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 0.6rem; background: var(--bg); }
+    .split span { display: block; height: 100%; }
+    @media (max-width: 640px) {
+        .today { grid-template-columns: minmax(0, 1fr); }
+        .today > div { padding: 0.9rem 0 0; margin-top: 0.9rem; border-left: 0; border-top: 1px solid var(--line); }
+        .today > div:first-child { padding-top: 0; margin-top: 0; border-top: 0; }
     }
 
-    /* ── Chart ── */
-    .chart-container {
-        position: relative;
-        height: 300px;
-        background: var(--surface);
-        border-radius: 0.75rem;
-        padding: 1rem;
-    }
-    .chart-legend {
-        display: flex;
-        gap: 1.25rem;
-        font-size: 0.78rem;
-        font-weight: 500;
-        color: var(--text-muted);
-    }
-    .chart-legend span {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-    .legend-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 3px;
-        display: inline-block;
-    }
+    /* Charts */
+    .chart-box { position: relative; height: 210px; }
+    .legend { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--muted); }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0.35rem; vertical-align: -1px; }
+    details.as-table summary { font-size: 0.75rem; color: var(--muted); cursor: pointer; margin-top: 0.6rem; }
+    details.as-table table { font-size: 0.78rem; margin-top: 0.5rem; }
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 1.5rem 0; text-align: center; }
 
-    /* ── Finance Summary Cards ── */
-    .finance-metric {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.875rem 0;
-        border-bottom: 1px solid var(--border);
-    }
-    .finance-metric:last-child { border-bottom: none; }
-    .finance-metric .fm-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    .finance-metric .fm-info { flex: 1; }
-    .finance-metric .fm-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        font-weight: 500;
-    }
-    .finance-metric .fm-value {
-        font-size: 1.1rem;
-        font-weight: 700;
-        letter-spacing: -0.3px;
-    }
+    /* Money */
+    .money { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .m-label { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .m-val { font-size: 1.15rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; margin-top: 0.15rem; white-space: nowrap; }
+    .m-val.neg { color: var(--alert); }
+    .m-note { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+    .meter { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 0.4rem 0 0.2rem; }
+    .meter span { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
+    @media (max-width: 640px) { .money { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-    /* ── Action Cards ── */
-    .action-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0.75rem;
-    }
-    .action-card {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.875rem 1rem;
-        border-radius: 0.625rem;
-        border: 1px solid var(--border);
-        text-decoration: none;
-        color: var(--text);
-        transition: all 0.2s ease;
-        background: var(--surface);
-    }
-    .action-card:hover {
-        border-color: var(--primary);
-        background: var(--primary-light);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99,102,241,0.1);
-    }
-    .action-card .ac-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 0.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    .action-card .ac-label {
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .action-card .ac-desc {
-        font-size: 0.68rem;
-        color: var(--text-muted);
-        margin-top: 0.1rem;
-    }
-
-    /* ── Status Items ── */
-    .status-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f1f5f9;
-    }
-    .status-row:last-child { border-bottom: none; }
-    .status-row .sr-left {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-    }
-    .status-row .sr-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 0.4rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-    }
-    .status-row .sr-label {
-        font-size: 0.8rem;
-        font-weight: 500;
-    }
-    .status-row .sr-value {
-        font-weight: 700;
-        font-size: 0.9rem;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 1200px) {
-        .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 768px) {
-        .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-        .action-grid { grid-template-columns: 1fr; }
-    }
+    /* Side lists */
+    .people { list-style: none; margin: 0; padding: 0; }
+    .people li { display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; padding: 0.55rem 0; border-top: 1px solid var(--line); font-size: 0.85rem; }
+    .people li:first-child { border-top: 0; padding-top: 0; }
+    .people a { color: var(--ink); text-decoration: none; font-weight: 600; }
+    .people a:hover { color: var(--primary); }
+    .people .where { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+    .notice { padding: 0.7rem 0; border-top: 1px solid var(--line); }
+    .notice:first-of-type { border-top: 0; padding-top: 0; }
+    .notice-title { font-weight: 650; font-size: 0.87rem; color: var(--ink); }
+    .notice-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+    .notice-body { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.45; }
+    .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1rem; }
+    .facts div { font-size: 0.78rem; color: var(--muted); }
+    .facts b { display: block; font-size: 1.2rem; color: var(--ink); font-weight: 800; letter-spacing: -0.02em; }
+    .side-warn { margin-top: 0.9rem; font-size: 0.8rem; color: var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 0.55rem 0.7rem; }
+    .side-warn a { color: inherit; font-weight: 700; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Welcome Banner -->
-<div class="welcome-banner">
-    <h2>Good {{ greeting }}, Principal 👋</h2>
-    <p>Here's your school overview for today. {{ today_formatted }}</p>
-    <div class="welcome-date">
-        <div class="day">{{ today_day }}</div>
-        <div>{{ today_month_year }}</div>
+<div class="dash">
+
+    <div class="hello">
+        <div>
+            <h1>{{ greeting }}{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}</h1>
+            <p>
+                {{ now|date:"l, j F" }}.
+                {% if classes.is_school_day %}
+                    <strong>{{ classes.classes }} class{{ classes.classes|pluralize:"es" }}</strong> across {{ classes.sections }} section{{ classes.sections|pluralize }} today.
+                    {% if classes.current %}Period {{ classes.current.start_time|time:"g:i" }}–{{ classes.current.end_time|time:"g:i A" }} is on now{% if classes.current_classes %} with {{ classes.current_classes }} class{{ classes.current_classes|pluralize:"es" }} running{% endif %}.
+                    {% elif classes.next %}Next period starts at {{ classes.next.start_time|time:"g:i A" }}.
+                    {% elif classes.finished %}Classes are over for today.{% endif %}
+                {% else %}
+                    No classes are scheduled today.
+                {% endif %}
+            </p>
+        </div>
+        <nav class="quick" aria-label="Quick actions">
+            <a href="{% url 'mark_attendance' %}" class="primary">Take attendance</a>
+            <a href="{% url 'manage_users' %}">Add a person</a>
+            <a href="{% url 'manage_notices' %}">Post a notice</a>
+            <a href="{% url 'timetable_gen' %}">Timetable</a>
+        </nav>
+    </div>
+
+    <div class="dash-layout">
+        <div class="dash-main">
+
+            <section class="todo" aria-labelledby="todoHeading">
+                <div class="todo-head">
+                    <h2 id="todoHeading">Needs you today</h2>
+                    {% if attention %}<span class="todo-count">{{ attention|length }}</span>{% endif %}
+                </div>
+                {% for item in attention %}
+                <div class="todo-row {{ item.level }}">
+                    <span class="tag">
+                        {% if item.level == 'alert' %}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.5 15 14H1L8 1.5Zm-.75 4.5v4h1.5V6h-1.5Zm0 5.25v1.5h1.5v-1.5h-1.5Z"/></svg>Overdue
+                        {% elif item.level == 'warn' %}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1Zm-.75 3.5v5h1.5v-5h-1.5Zm0 6.25v1.5h1.5v-1.5h-1.5Z"/></svg>Check
+                        {% else %}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 2h10v12H3V2Zm2 3v1.5h6V5H5Zm0 3v1.5h6V8H5Zm0 3v1.5h4V11H5Z"/></svg>To decide{% endif %}
+                    </span>
+                    <div>
+                        <div class="todo-title">{{ item.title }}</div>
+                        <div class="todo-detail">{{ item.detail }}</div>
+                    </div>
+                    <a class="todo-btn" href="{{ item.url }}">{{ item.action }}</a>
+                </div>
+                {% empty %}
+                <div class="todo-clear">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m7.5 12.5 3 3 6-6.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <div><strong>Nothing needs you right now.</strong>
+                    <span>Attendance is taken, approvals are clear and no fees are overdue.</span></div>
+                </div>
+                {% endfor %}
+            </section>
+
+            <section class="panel" aria-labelledby="todayHeading">
+                <div class="panel-head"><h2 id="todayHeading">Today so far</h2>
+                    <a class="link" href="{% url 'attendance_report' %}">Attendance report</a></div>
+                <div class="today">
+                    <div>
+                        <div class="t-label">Students in school</div>
+                        {% if students.marked %}
+                        <div class="t-big">{{ students.pct }}%</div>
+                        <div class="split" role="img" aria-label="{{ students.present }} present, {{ students.late }} late, {{ students.absent }} absent">
+                            {% if students.present %}<span style="flex:{{ students.present }};background:var(--s-present)"></span>{% endif %}
+                            {% if students.late %}<span style="flex:{{ students.late }};background:var(--s-late)"></span>{% endif %}
+                            {% if students.absent %}<span style="flex:{{ students.absent }};background:var(--s-absent)"></span>{% endif %}
+                        </div>
+                        <div class="t-note"><b>{{ students.present }}</b> present, <b>{{ students.late }}</b> late, <b>{{ students.absent }}</b> absent
+                            {% if students.sections_unmarked %}<br><span class="bad">{{ students.sections_unmarked|length }} of {{ students.sections_total }} sections not marked</span>{% endif %}</div>
+                        {% else %}
+                        <div class="t-big">—</div>
+                        <div class="t-note">{% if classes.is_school_day %}No attendance taken yet today.{% else %}Not a school day.{% endif %}</div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="t-label">Staff in</div>
+                        <div class="t-big">{{ staff.present }} <small>of {{ staff.total }}</small></div>
+                        <div class="t-note">
+                            <b>{{ staff.on_leave }}</b> on leave{% if staff.absent_without_leave %}, <span class="bad">{{ staff.absent_without_leave }} absent</span>{% endif %}{% if staff.not_marked %}, {{ staff.not_marked }} not marked{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="t-label">Classes</div>
+                        {% if classes.is_school_day %}
+                        <div class="t-big">{{ classes.classes }} <small>in {{ classes.periods }} periods</small></div>
+                        <div class="t-note">
+                            {% if classes.current %}On now: <b>{{ classes.current.start_time|time:"g:i" }}–{{ classes.current.end_time|time:"g:i A" }}</b>
+                            {% elif classes.next %}Next: <b>{{ classes.next.start_time|time:"g:i A" }}</b>
+                            {% else %}All periods finished.{% endif %}
+                        </div>
+                        {% else %}
+                        <div class="t-big">—</div>
+                        <div class="t-note">No periods on {{ now|date:"l" }}s.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" aria-labelledby="trendHeading">
+                <div class="panel-head">
+                    <div><h2 id="trendHeading">Student attendance</h2>
+                    <div class="panel-sub">{% if trend.values %}Last {{ trend.values|length }} school day{{ trend.values|length|pluralize }}, average {{ trend.average }}%{% else %}Daily share of students present or late{% endif %}</div></div>
+                </div>
+                {% if trend.values %}
+                <div class="chart-box"><canvas id="trendChart" aria-label="Bar chart of daily student attendance percentage"></canvas></div>
+                <details class="as-table"><summary>Show as table</summary>
+                    <table><thead><tr><th>Day</th><th>Present or late</th></tr></thead><tbody>
+                    {% for label, value in trend.rows %}<tr><td>{{ label }}</td><td>{{ value }}%</td></tr>{% endfor %}
+                    </tbody></table>
+                </details>
+                {% else %}
+                <div class="empty">Attendance trends appear here once attendance has been taken for a few days.</div>
+                {% endif %}
+            </section>
+
+            <section class="panel" aria-labelledby="moneyHeading">
+                <div class="panel-head">
+                    <div><h2 id="moneyHeading">Money</h2><div class="panel-sub">{{ now|date:"F Y" }}</div></div>
+                    <a class="link" href="{% url 'manage_finance' %}">Finance</a>
+                </div>
+                <div class="money">
+                    <div><div class="m-label">Collected</div><div class="m-val">Tk {{ money.collected|floatformat:"0g" }}</div></div>
+                    <div><div class="m-label">Spent</div><div class="m-val">Tk {{ money.spent|floatformat:"0g" }}</div></div>
+                    <div><div class="m-label">Net</div><div class="m-val{% if money.net < 0 %} neg{% endif %}">Tk {{ money.net|floatformat:"0g" }}</div></div>
+                    <div><div class="m-label">Fees outstanding</div><div class="m-val">Tk {{ money.outstanding|floatformat:"0g" }}</div>
+                        <div class="m-note">{{ money.outstanding_students }} student{{ money.outstanding_students|pluralize }}</div></div>
+                </div>
+                {% if money.month_fees_due %}
+                <div class="m-label">Fees due this month: {{ money.month_collection_pct }}% collected</div>
+                <div class="meter" role="img" aria-label="{{ money.month_collection_pct }} percent of this month's fees collected"><span style="width:{{ money.month_collection_pct }}%"></span></div>
+                <div class="m-note">Tk {{ money.month_fees_paid|floatformat:"0g" }} of Tk {{ money.month_fees_due|floatformat:"0g" }}</div>
+                {% endif %}
+                <div class="panel-head" style="margin:1.25rem 0 0.5rem;">
+                    <div class="panel-sub">Income and expenses by month, {{ now|date:"Y" }}</div>
+                    <div class="legend"><span><i style="background:var(--s-present)"></i>Income</span><span><i style="background:var(--s-expense)"></i>Expenses</span></div>
+                </div>
+                <div class="chart-box"><canvas id="financeChart" aria-label="Bar chart of monthly income and expenses"></canvas></div>
+            </section>
+        </div>
+
+        <aside class="dash-side">
+            <section class="panel" aria-labelledby="absentHeading">
+                <div class="panel-head"><h2 id="absentHeading">Absent today</h2>
+                    {% if students.absent %}<span class="panel-sub">{{ students.absent }} student{{ students.absent|pluralize }}</span>{% endif %}</div>
+                {% if students.absentees %}
+                <ul class="people">
+                    {% for a in students.absentees %}
+                    <li><a href="{% url 'student_attendance_report' a.user.id %}">{{ a.user.get_full_name|default:a.user.username }}</a>
+                        <span class="where">{% if a.section %}{{ a.section.class_group.name }} – {{ a.section.name }}{% endif %}</span></li>
+                    {% endfor %}
+                </ul>
+                {% if students.absent > students.absentees|length %}<div style="margin-top:0.6rem;"><a class="link" href="{% url 'attendance_report' %}">See all {{ students.absent }}</a></div>{% endif %}
+                {% else %}
+                <div class="empty" style="padding:0.75rem 0;text-align:left;">{% if students.marked %}No students are marked absent.{% else %}Absences show here once attendance is taken.{% endif %}</div>
+                {% endif %}
+            </section>
+
+            <section class="panel" aria-labelledby="noticeHeading">
+                <div class="panel-head"><h2 id="noticeHeading">Announcements</h2><a class="link" href="{% url 'manage_notices' %}">Manage</a></div>
+                {% for n in notices %}
+                <div class="notice">
+                    <div class="notice-title">{{ n.title }}</div>
+                    <div class="notice-meta">{{ n.created_at|date:"j M" }}{% if n.target_role != 'all' %}, for {{ n.get_target_role_display|lower }}{% endif %}</div>
+                    <div class="notice-body">{{ n.content|truncatewords:24 }}</div>
+                </div>
+                {% empty %}
+                <div class="empty" style="padding:0.5rem 0;text-align:left;">No active announcements. <a class="link" href="{% url 'manage_notices' %}">Post one</a></div>
+                {% endfor %}
+            </section>
+
+            <section class="panel" aria-labelledby="factsHeading">
+                <div class="panel-head"><h2 id="factsHeading">School at a glance</h2></div>
+                <div class="facts">
+                    <div><b>{{ counts.students }}</b>students</div>
+                    <div><b>{{ counts.staff }}</b>teaching staff</div>
+                    <div><b>{{ counts.sections }}</b>sections</div>
+                    <div><b>{{ counts.subjects }}</b>subjects</div>
+                </div>
+                {% if counts.unassigned_students %}
+                <div class="side-warn">{{ counts.unassigned_students }} student{{ counts.unassigned_students|pluralize:" has,s have" }} no section, so they won't appear in attendance or timetables. <a href="{% url 'student_profiles' %}">Assign sections</a></div>
+                {% endif %}
+            </section>
+        </aside>
     </div>
 </div>
 
-<!-- Notices -->
-{% include "dashboard/notices_snippet.html" %}
-
-<!-- KPI Cards -->
-<div class="kpi-grid">
-    <div class="kpi-card">
-        <div class="kpi-bar" style="background:linear-gradient(90deg,#6366f1,#818cf8);"></div>
-        <div class="kpi-icon" style="background:#eef2ff;color:#6366f1;">🎓</div>
-        <div class="kpi-value" style="color:#6366f1;">{{ total_students }}</div>
-        <div class="kpi-label">Total Students</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-bar" style="background:linear-gradient(90deg,#8b5cf6,#a78bfa);"></div>
-        <div class="kpi-icon" style="background:#f5f3ff;color:#8b5cf6;">👨‍🏫</div>
-        <div class="kpi-value" style="color:#8b5cf6;">{{ total_teachers }}</div>
-        <div class="kpi-label">Total Teachers</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-bar" style="background:linear-gradient(90deg,#10b981,#34d399);"></div>
-        <div class="kpi-icon" style="background:#d1fae5;color:#059669;">✅</div>
-        <div class="kpi-value" style="color:#059669;">{{ attendance_pct }}%</div>
-        <div class="kpi-label">Student Attendance</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-bar" style="background:linear-gradient(90deg,#06b6d4,#22d3ee);"></div>
-        <div class="kpi-icon" style="background:#cffafe;color:#0891b2;">📋</div>
-        <div class="kpi-value" style="color:#0891b2;">{{ teacher_attendance_pct }}%</div>
-        <div class="kpi-label">Teacher Attendance</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-bar" style="background:linear-gradient(90deg,#f59e0b,#fbbf24);"></div>
-        <div class="kpi-icon" style="background:#fef3c7;color:#d97706;">📄</div>
-        <div class="kpi-value" style="color:#d97706;">{{ unpaid_invoices }}</div>
-        <div class="kpi-label">Unpaid Invoices</div>
-    </div>
-</div>
-
-<!-- Finance Chart + Monthly Summary -->
-<div class="grid grid-2" style="margin-bottom:1.5rem;">
-    <div class="card" style="margin-bottom:0;">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>📊 Income vs Expenses ({{ current_year }})</span>
-            <div class="chart-legend">
-                <span><span class="legend-dot" style="background:#10b981;"></span> Income</span>
-                <span><span class="legend-dot" style="background:#ef4444;"></span> Expenses</span>
-            </div>
-        </div>
-        <div class="chart-container">
-            <canvas id="financeChart"></canvas>
-        </div>
-    </div>
-
-    <div class="card" style="margin-bottom:0;">
-        <div class="card-title">💰 This Month's Finance</div>
-        <div class="finance-metric">
-            <div class="fm-icon" style="background:#d1fae5;color:#059669;">💚</div>
-            <div class="fm-info">
-                <div class="fm-label">Total Income</div>
-                <div class="fm-value" style="color:#059669;">Tk. {{ month_income|floatformat:0 }}</div>
-            </div>
-        </div>
-        <div class="finance-metric">
-            <div class="fm-icon" style="background:#fee2e2;color:#dc2626;">❤️</div>
-            <div class="fm-info">
-                <div class="fm-label">Total Expenses</div>
-                <div class="fm-value" style="color:#dc2626;">Tk. {{ month_expenses|floatformat:0 }}</div>
-            </div>
-        </div>
-        <div class="finance-metric">
-            <div class="fm-icon" style="background:{% if month_net >= 0 %}#d1fae5{% else %}#fee2e2{% endif %};color:{% if month_net >= 0 %}#059669{% else %}#dc2626{% endif %};">📊</div>
-            <div class="fm-info">
-                <div class="fm-label">Net Balance</div>
-                <div class="fm-value" style="color:{% if month_net >= 0 %}#059669{% else %}#dc2626{% endif %};">Tk. {{ month_net|floatformat:0 }}</div>
-            </div>
-        </div>
-        <div style="margin-top:1rem;padding-top:1rem;border-top:2px solid var(--border);">
-            <div class="status-row">
-                <div class="sr-left">
-                    <div class="sr-icon" style="background:#fef3c7;color:#d97706;">📦</div>
-                    <span class="sr-label">Pending Purchase Requests</span>
-                </div>
-                <span class="badge badge-yellow">{{ pending_pr_count }}</span>
-            </div>
-            <div class="status-row">
-                <div class="sr-left">
-                    <div class="sr-icon" style="background:#fce7f3;color:#db2777;">✉️</div>
-                    <span class="sr-label">Pending Leave Requests</span>
-                </div>
-                <span class="badge badge-yellow">{{ pending_leaves }}</span>
-            </div>
-            <div class="status-row">
-                <div class="sr-left">
-                    <div class="sr-icon" style="background:#e0e7ff;color:#6366f1;">🏖️</div>
-                    <span class="sr-label">Staff on Leave Today</span>
-                </div>
-                <span class="badge badge-blue">{{ staff_on_leave_today }}</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions + System Overview -->
-<div class="grid grid-2">
-    <div class="card">
-        <div class="card-title">⚡ Quick Actions</div>
-        <div class="action-grid">
-            <a href="{% url 'manage_users' %}" class="action-card">
-                <div class="ac-icon" style="background:#eef2ff;color:#6366f1;">👥</div>
-                <div>
-                    <div class="ac-label">User Management</div>
-                    <div class="ac-desc">Add or manage users</div>
-                </div>
-            </a>
-            <a href="{% url 'manage_classes' %}" class="action-card">
-                <div class="ac-icon" style="background:#f5f3ff;color:#8b5cf6;">🏫</div>
-                <div>
-                    <div class="ac-label">Classes & Subjects</div>
-                    <div class="ac-desc">Academic structure</div>
-                </div>
-            </a>
-            <a href="{% url 'timetable_gen' %}" class="action-card">
-                <div class="ac-icon" style="background:#cffafe;color:#0891b2;">📅</div>
-                <div>
-                    <div class="ac-label">Timetable</div>
-                    <div class="ac-desc">Generate schedules</div>
-                </div>
-            </a>
-            <a href="{% url 'manage_finance' %}" class="action-card">
-                <div class="ac-icon" style="background:#d1fae5;color:#059669;">💰</div>
-                <div>
-                    <div class="ac-label">Finance</div>
-                    <div class="ac-desc">Invoices & payments</div>
-                </div>
-            </a>
-            <a href="{% url 'admin_leave_review' %}" class="action-card">
-                <div class="ac-icon" style="background:#fce7f3;color:#db2777;">✉️</div>
-                <div>
-                    <div class="ac-label">Leave Requests</div>
-                    <div class="ac-desc">Review & approve</div>
-                </div>
-            </a>
-            <a href="{% url 'purchase_requests' %}" class="action-card">
-                <div class="ac-icon" style="background:#fee2e2;color:#dc2626;">🛒</div>
-                <div>
-                    <div class="ac-label">Procurement</div>
-                    <div class="ac-desc">Purchase requests</div>
-                </div>
-            </a>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-title">🏫 System Overview</div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#eef2ff;color:#6366f1;">📚</div>
-                <span class="sr-label">Total Sections</span>
-            </div>
-            <span class="sr-value" style="color:var(--primary);">{{ total_sections }}</span>
-        </div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#d1fae5;color:#059669;">🎓</div>
-                <span class="sr-label">Students Enrolled</span>
-            </div>
-            <span class="sr-value" style="color:#059669;">{{ total_students }}</span>
-        </div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#f5f3ff;color:#8b5cf6;">👨‍🏫</div>
-                <span class="sr-label">Teachers on Staff</span>
-            </div>
-            <span class="sr-value" style="color:#8b5cf6;">{{ total_teachers }}</span>
-        </div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#fef3c7;color:#d97706;">📄</div>
-                <span class="sr-label">Outstanding Invoices</span>
-            </div>
-            <span class="sr-value" style="color:#d97706;">{{ unpaid_invoices }}</span>
-        </div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#cffafe;color:#0891b2;">📦</div>
-                <span class="sr-label">Inventory Items</span>
-            </div>
-            <span class="sr-value" style="color:#0891b2;">{{ inventory_count }}</span>
-        </div>
-        <div class="status-row">
-            <div class="sr-left">
-                <div class="sr-icon" style="background:#fce7f3;color:#db2777;">🏢</div>
-                <span class="sr-label">Capital Assets</span>
-            </div>
-            <span class="sr-value" style="color:#db2777;">{{ capex_count }}</span>
-        </div>
-    </div>
-</div>
-
+{{ trend|json_script:"trendData" }}
 <script>
-// Finance Chart
-fetch('/api/monthly-finance/?year={{ current_year }}')
-    .then(r => r.json())
-    .then(data => {
-        const ctx = document.getElementById('financeChart').getContext('2d');
-        new Chart(ctx, {
+(function () {
+    if (typeof Chart === 'undefined') return;
+    const css = getComputedStyle(document.querySelector('.dash'));
+    const color = (v) => css.getPropertyValue(v).trim();
+    const ink = color('--muted') || '#64748b', grid = '#eef2f6';
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = ink;
+    const tooltip = { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4 };
+    const bar = { borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 26, borderWidth: 0 };
+
+    const trend = JSON.parse(document.getElementById('trendData').textContent);
+    const tEl = document.getElementById('trendChart');
+    if (tEl && trend.values.length) {
+        new Chart(tEl, {
             type: 'bar',
-            data: {
-                labels: data.months,
-                datasets: [
-                    {
-                        label: 'Income',
-                        data: data.income,
-                        backgroundColor: 'rgba(16, 185, 129, 0.75)',
-                        borderColor: '#10b981',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                        borderSkipped: false,
-                    },
-                    {
-                        label: 'Expenses',
-                        data: data.expenses,
-                        backgroundColor: 'rgba(239, 68, 68, 0.75)',
-                        borderColor: '#ef4444',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                        borderSkipped: false,
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1e1b4b',
-                        titleFont: { size: 12, weight: '600' },
-                        bodyFont: { size: 12 },
-                        padding: 12,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function(ctx) { return ctx.dataset.label + ': Tk. ' + ctx.parsed.y.toLocaleString(); }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) { return 'Tk.' + value.toLocaleString(); },
-                            font: { size: 11 },
-                            color: '#94a3b8'
-                        },
-                        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 11 }, color: '#94a3b8' }
-                    }
-                }
-            }
+            data: { labels: trend.labels, datasets: [{ label: 'Present or late', data: trend.values,
+                    backgroundColor: color('--s-present'), hoverBackgroundColor: '#3730a3', ...bar }] },
+            options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false }, tooltip: { ...tooltip, displayColors: false,
+                    callbacks: { label: (c) => c.parsed.y + '% present or late' } } },
+                scales: { y: { min: 0, max: 100, ticks: { stepSize: 25, callback: (v) => v + '%' }, grid: { color: grid }, border: { display: false } },
+                          x: { grid: { display: false }, border: { color: '#e2e8f0' },
+                               ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 12, callback: function (v) { return this.getLabelForValue(v).slice(0, 6); } } } } }
         });
-    });
+    }
+
+    const fEl = document.getElementById('financeChart');
+    fetch('{% url "api_monthly_finance" %}?year={{ now|date:"Y" }}')
+        .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+        .then((d) => {
+            const taka = (v) => 'Tk ' + Math.round(v).toLocaleString('en-US');
+            new Chart(fEl, {
+                type: 'bar',
+                data: { labels: d.months, datasets: [
+                    { label: 'Income', data: d.income, backgroundColor: color('--s-present'), ...bar },
+                    { label: 'Expenses', data: d.expenses, backgroundColor: color('--s-expense'), ...bar },
+                ] },
+                options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.9 } },
+                    plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: { label: (c) => ' ' + c.dataset.label + ': ' + taka(c.parsed.y) } } },
+                    scales: { y: { beginAtZero: true, grid: { color: grid }, border: { display: false },
+                                   ticks: { maxTicksLimit: 5, callback: (v) => v >= 1000 ? (v / 1000) + 'k' : v } },
+                              x: { grid: { display: false }, border: { color: '#e2e8f0' } } } }
+            });
+        })
+        .catch(() => { fEl.parentElement.innerHTML = '<div class="empty">The monthly chart could not be loaded.</div>'; });
+})();
 </script>
 {% endblock %}
