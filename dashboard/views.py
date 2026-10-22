@@ -7,14 +7,14 @@ from django.utils import timezone
 from django.db.models import Sum
 from decimal import Decimal
 from accounts.models import User
-from academics.models import Section, Subject
+from academics.models import Section
 from students.models import StudentProfile, ParentProfile
 from timetable.models import TimetableEntry
 from attendance.models import Attendance
-from exams.models import AssessmentRecord, GradeSetting, AcademicPeriodConfig
+from exams.models import AssessmentRecord, AcademicPeriodConfig
 from finance.models import Invoice, Payment
 from procurement.models import Expense, PurchaseRequest, InventoryItem, CapexItem
-from exams.services import calculate_student_grade, get_letter_grade
+from exams.services import year_report
 from .models import Notice
 
 # ─── Home & Router ───────────────────────────────────────────────────────────
@@ -169,12 +169,7 @@ def student_dashboard(request):
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
     # Calculate grades per subject
-    grades = []
-    if section:
-        subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
-        for subj in subjects:
-            score = calculate_student_grade(request.user, subj, section)
-            grades.append({'subject': subj, 'score': score})
+    grades = year_report(request.user, viewer=request.user)['grades'] if section else []
 
     # Timetable for the student's section
     timetable = []
@@ -222,14 +217,7 @@ def parent_dashboard(request):
             att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
             # Grades
-            grades = []
-            if section:
-                grade_settings = GradeSetting.objects.all()
-                subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
-                for subj in subjects:
-                    score = calculate_student_grade(child, subj, section)
-                    letter = get_letter_grade(score, grade_settings)
-                    grades.append({'subject': subj, 'score': score, 'letter': letter['letter']})
+            grades = year_report(child, viewer=request.user)['grades'] if section else []
 
             # Fee status
             invoices = Invoice.objects.filter(student=child).prefetch_related('line_items').order_by('-issued_date')[:5]

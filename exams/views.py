@@ -22,7 +22,8 @@ from exams.models import (
 )
 from exams.services import (
     calculate_student_grade, get_grade_details,
-    get_letter_grade, calculate_period_grade
+    get_letter_grade, calculate_period_grade,
+    period_marks_filter, report_subjects, subject_result, summarise, year_report,
 )
 
 logger = logging.getLogger(__name__)
@@ -327,48 +328,18 @@ def student_report(request, student_id=None):
     if not _can_view_student_report(viewer, student):
         return redirect('dashboard_router')
 
-    profile = StudentProfile.objects.filter(user=student).first()
-    section = profile.section if profile else None
-    grade_settings = GradeSetting.objects.all()
+    report = year_report(student, viewer=viewer, with_details=True)
+    section = report['section']
+    for g in report['grades']:
+        comments = SubjectComment.objects.filter(
+            student=student, subject=g['subject'], section=section,
+            academic_year=section.academic_year, period__isnull=False,
+        ).select_related('period').order_by('period__sequence')
+        if report['marks_limited']:
+            comments = comments.filter(period__is_published=True)
+        g['comments'] = [{'label': pc.period.label, 'comment': pc.comment} for pc in comments]
 
-    grades = []
-    overall_total = Decimal('0')
-    subject_count = 0
-    if section:
-        subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
-        for subj in subjects:
-            score = calculate_student_grade(student, subj, section)
-            letter = get_letter_grade(score, grade_settings)
-            # Fetch ALL period comments for this subject
-            period_comments = SubjectComment.objects.filter(
-                student=student, subject=subj, section=section, academic_year=section.academic_year,
-                period__isnull=False
-            ).select_related('period').order_by('period__sequence')
-            comments_list = [{'label': pc.period.label, 'comment': pc.comment} for pc in period_comments]
-            grades.append({
-                'subject': subj,
-                'score': score,
-                'letter': letter['letter'],
-                'remark': letter['remark'],
-                'grade_point': letter['grade_point'],
-                'details': get_grade_details(student, subj, section),
-                'comments': comments_list,
-            })
-            overall_total += score
-            subject_count += 1
-
-    overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
-    overall_letter = get_letter_grade(overall_avg, grade_settings)
-
-    context = {
-        'student': student,
-        'profile': profile,
-        'section': section,
-        'grades': grades,
-        'overall_avg': overall_avg,
-        'overall_letter': overall_letter,
-        'grade_settings': grade_settings,
-    }
+    context = {'student': student, **report}
 
     if printable:
         return render(request, 'dashboard/report_card_print.html', context)
@@ -916,15 +887,12 @@ def period_report(request, period_id, student_id):
     grade_settings = GradeSetting.objects.all()
 
     grades = []
-    overall_total = Decimal('0')
-    subject_count = 0
 
     if section:
-        subjects = Subject.objects.filter(
-            assessmentrecord__section=section,
+        subjects = report_subjects(profile, section, Q(
             assessmentrecord__date_conducted__gte=period.start_date,
             assessmentrecord__date_conducted__lte=period.end_date,
-        ).distinct()
+        ))
 
         # Load all period weightings (defaults + subject-specific)
         all_weightings = period.weightings.select_related('assessment_type', 'subject').all()
@@ -949,9 +917,9 @@ def period_report(request, period_id, student_id):
         for subj in subjects:
             # Use subject-specific weights if available, else defaults
             weights_for_subj = subject_weight_overrides.get(subj.id, default_weights)
-            score, details = calculate_period_grade(
-                student, subj, section, period, weights_for_subj, at_name_map=at_name_map
-            )
+            result = subject_result(student, subj, section, weights_for_subj, at_name_map,
+                                    period_marks_filter(period))
+            score, details = result['score'], result['details']
             letter = get_letter_grade(score, grade_settings)
             comment_obj = SubjectComment.objects.filter(
                 student=student, subject=subj, section=section, academic_year=section.academic_year, period=period
@@ -963,13 +931,9 @@ def period_report(request, period_id, student_id):
                 'remark': letter['remark'],
                 'grade_point': letter['grade_point'],
                 'details': details,
+                'provisional': result['provisional'],
                 'comment': comment_obj.comment if comment_obj else '',
             })
-            overall_total += score
-            subject_count += 1
-
-    overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
-    overall_letter = get_letter_grade(overall_avg, grade_settings)
 
     context = {
         'student': student,
@@ -977,9 +941,8 @@ def period_report(request, period_id, student_id):
         'section': section,
         'period': period,
         'grades': grades,
-        'overall_avg': overall_avg,
-        'overall_letter': overall_letter,
         'grade_settings': grade_settings,
+        **summarise(grades, grade_settings),
     }
 
     if printable:

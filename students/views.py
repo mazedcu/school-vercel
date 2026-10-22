@@ -7,7 +7,6 @@ from accounts.decorators import role_required
 from django.contrib import messages
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
-from decimal import Decimal
 import datetime
 
 from accounts.models import User
@@ -19,7 +18,7 @@ from timetable.pdf_utils import generate_section_timetable_pdf, generate_teacher
 from attendance.models import Attendance
 from exams.models import AssessmentType, SubjectWeighting, WeightingComponent, AssessmentRecord, StudentScore, GradeSetting, SubjectComment
 from finance.models import FeeStructure, Invoice, Payment
-from exams.services import calculate_student_grade, get_letter_grade
+from exams.services import year_report
 
 logger = logging.getLogger(__name__)
 
@@ -129,18 +128,9 @@ def student_profile_detail(request, student_id):
     present_att = Attendance.objects.filter(user=student, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
     att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
 
-    grades = []
-    overall_total = Decimal('0')
-    subject_count = 0
-    if section:
-        subjects = Subject.objects.filter(assessmentrecord__section=section).distinct()
-        for subj in subjects:
-            score = calculate_student_grade(student, subj, section)
-            letter = get_letter_grade(score, grade_settings)
-            grades.append({'subject': subj, 'score': score, 'letter': letter['letter'], 'remark': letter['remark']})
-            overall_total += score
-            subject_count += 1
-    overall_avg = round(overall_total / subject_count, 1) if subject_count > 0 else 0
+    report = year_report(student, viewer=request.user)
+    grades = report['grades']
+    overall_avg = report['overall_avg']
 
     invoices = Invoice.objects.filter(student=student).order_by('-issued_date')[:5]
 

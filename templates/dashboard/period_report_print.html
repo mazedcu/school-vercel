@@ -78,13 +78,20 @@
 
     <div class="overall-box">
         <div class="label">Overall Average</div>
-        <div class="score">{{ overall_avg }}%
+        <div class="score">{% if overall_avg is None %}—{% else %}{{ overall_avg }}%{% endif %}
             {% if overall_letter.letter != '-' %}
             <span class="grade-badge {% if overall_avg >= 80 %}grade-green{% elif overall_avg >= 50 %}grade-yellow{% else %}grade-red{% endif %}" style="font-size:1.2rem;padding:0.3rem 0.8rem;vertical-align:middle;">{{ overall_letter.letter }}</span>
             {% endif %}
         </div>
         {% if overall_letter.remark %}<div style="font-size:0.85rem;color:#4f46e5;margin-top:0.25rem;font-weight:600;">{{ overall_letter.remark }}</div>{% endif %}
     </div>
+
+    {% if provisional or marks_limited %}
+    <p style="font-size:0.78rem;color:#92400e;margin:0.5rem 0 1rem;">
+        {% if provisional %}Grades marked “Provisional” are based on the assessments marked so far and may change.{% endif %}
+        {% if marks_limited %}Only marks from published terms are shown.{% endif %}
+    </p>
+    {% endif %}
 
     {% if grades %}
     <table>
@@ -102,7 +109,7 @@
             {% for g in grades %}
             <tr>
                 <td style="font-weight:600;">{{ g.subject.name }}</td>
-                <td style="font-weight:700;color:{% if g.score >= 80 %}#059669{% elif g.score >= 50 %}#d97706{% else %}#dc2626{% endif %};">{{ g.score }}%</td>
+                <td style="font-weight:700;color:{% if g.score >= 80 %}#059669{% elif g.score >= 50 %}#d97706{% elif g.score is None %}#64748b{% else %}#dc2626{% endif %};">{% if g.score is None %}No marks yet{% else %}{{ g.score }}%{% if g.provisional %} <span class="prov-tag" title="Some weighted assessments do not have marks yet" style="font-size:0.65rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:4px;padding:0.05rem 0.35rem;vertical-align:middle;">Provisional</span>{% endif %}{% endif %}</td>
                 <td>
                     {% if g.letter != '-' %}
                     <span class="grade-badge {% if g.score >= 80 %}grade-green{% elif g.score >= 50 %}grade-yellow{% else %}grade-red{% endif %}">{{ g.letter }}</span>
@@ -110,7 +117,7 @@
                 </td>
                 <td style="font-size:0.75rem;color:#64748b;">{{ g.remark|default:"—" }}</td>
                 <td style="font-size:0.7rem;">
-                    {% for d in g.details %}{{ d.type }}: {{ d.weighted_score }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                    {% for d in g.details %}{{ d.type }}: {{ d.weighted_score|default_if_none:"—" }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
                 </td>
                 <td style="font-size:0.75rem;font-style:italic;color:#475569;">{{ g.comment|default:"—" }}</td>
             </tr>

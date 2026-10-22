@@ -227,3 +227,123 @@ class TeacherAssessmentScopeTestCase(TestCase):
         r = self.client.get(reverse("manage_assessments"))
         self.assertEqual(len(r.context["recent_assessments"]), 3)
         self.assertEqual(self.client.get(reverse("enter_marks", args=[self.other_section.id])).status_code, 200)
+
+
+class ReportCardRulesTestCase(TestCase):
+    """The five report-card fixes: provisional scaling, no-marks, enrolment, grade gaps, publishing."""
+
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile, ParentProfile
+        from exams.models import SubjectWeighting, WeightingComponent, SubjectComment
+
+        grade = ClassGroup.objects.create(name="AS")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.phy = Subject.objects.create(name="Physics", code="P")
+        self.bio = Subject.objects.create(name="Biology", code="B")
+        self.teacher = User.objects.create_user(username="t", password="pw-test-1", role=User.Role.TEACHER)
+        self.student = User.objects.create_user(username="s", password="pw-test-1", role=User.Role.STUDENT)
+        self.profile = StudentProfile.objects.create(user=self.student, section=self.sec)
+        self.parent = User.objects.create_user(username="p", password="pw-test-1", role=User.Role.PARENT)
+        ParentProfile.objects.create(user=self.parent).children.add(self.student)
+        self.admin = User.objects.create_user(username="a", password="pw-test-1", role=User.Role.ADMIN)
+
+        self.quiz = AssessmentType.objects.create(name="Quiz")
+        self.final = AssessmentType.objects.create(name="Final")
+        w = SubjectWeighting.objects.create(section=self.sec, subject=self.phy, teacher=self.teacher, academic_year="2026")
+        WeightingComponent.objects.create(weighting_profile=w, assessment_type=self.quiz, weight_percentage=30)
+        WeightingComponent.objects.create(weighting_profile=w, assessment_type=self.final, weight_percentage=70)
+        for lo, hi, letter in [(90, 100, "A*"), (80, 89, "A"), (50, 79, "C"), (0, 49, "U")]:
+            GradeSetting.objects.create(letter=letter, min_score=lo, max_score=hi)
+
+        self.d = datetime.date
+        self.SubjectComment = SubjectComment
+
+    def mark(self, subject, atype, obtained, total, when):
+        a = AssessmentRecord.objects.create(section=self.sec, subject=subject, assessment_type=atype,
+                                            title=f"{atype.name} {when}", total_marks=Decimal(total), date_conducted=when)
+        StudentScore.objects.create(assessment=a, student=self.student, marks_obtained=Decimal(obtained))
+        return a
+
+    def report(self, viewer=None):
+        from exams.services import year_report
+        r = year_report(self.student, viewer=viewer or self.admin)
+        return r, {g["subject"].name: g for g in r["grades"]}
+
+    def test_missing_final_is_not_counted_as_zero(self):
+        self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))           # 90%
+        r, g = self.report()
+        self.assertEqual(g["Physics"]["score"], Decimal("90.0"))
+        self.assertTrue(g["Physics"]["provisional"])
+        self.assertEqual(g["Physics"]["letter"], "A*")
+        self.mark(self.phy, self.final, 70, 100, self.d(2026, 6, 1))         # 0.3*90 + 0.7*70 = 76
+        r, g = self.report()
+        self.assertEqual(g["Physics"]["score"], Decimal("76.0"))
+        self.assertFalse(g["Physics"]["provisional"])
+
+    def test_subject_without_marks_shows_none_and_is_left_out_of_average(self):
+        self.mark(self.phy, self.quiz, 16, 20, self.d(2026, 3, 1))           # Physics 80%
+        AssessmentRecord.objects.create(section=self.sec, subject=self.bio, assessment_type=self.quiz,
+                                        title="Bio quiz", total_marks=Decimal(20), date_conducted=self.d(2026, 3, 2))
+        r, g = self.report()
+        self.assertIsNone(g["Biology"]["score"])
+        self.assertEqual(g["Biology"]["letter"], "-")
+        self.assertEqual(r["overall_avg"], Decimal("80.0"))
+
+    def test_only_enrolled_subjects_appear(self):
+        self.mark(self.phy, self.quiz, 16, 20, self.d(2026, 3, 1))
+        self.mark(self.bio, self.quiz, 10, 20, self.d(2026, 3, 1))
+        self.assertEqual(set(self.report()[1]), {"Physics", "Biology"})      # no enrolment recorded: all subjects
+        self.profile.subjects.set([self.phy])
+        self.assertEqual(set(self.report()[1]), {"Physics"})
+
+    def test_no_gap_between_grade_bands(self):
+        from exams.services import get_letter_grade
+        self.assertEqual(get_letter_grade(Decimal("89.5"))["letter"], "A")
+        self.assertEqual(get_letter_grade(Decimal("49.9"))["letter"], "U")
+        self.assertEqual(get_letter_grade(None)["letter"], "-")
+
+    def test_students_and_parents_only_see_published_terms(self):
+        config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
+        t1 = ReportPeriod.objects.create(config=config, label="Term 1", sequence=1, is_published=True,
+                                         start_date=self.d(2026, 1, 1), end_date=self.d(2026, 4, 30))
+        t2 = ReportPeriod.objects.create(config=config, label="Term 2", sequence=2, is_published=False,
+                                         start_date=self.d(2026, 5, 1), end_date=self.d(2026, 8, 31))
+        self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))           # Term 1: 90%
+        self.mark(self.phy, self.final, 40, 100, self.d(2026, 6, 1))         # Term 2 (unpublished): 40%
+        self.SubjectComment.objects.create(student=self.student, subject=self.phy, section=self.sec,
+                                           academic_year="2026", period=t2, comment="Secret term 2 remark")
+
+        self.assertEqual(self.report(self.admin)[1]["Physics"]["score"], Decimal("55.0"))   # 0.3*90 + 0.7*40
+        for viewer in (self.student, self.parent):
+            r, g = self.report(viewer)
+            self.assertEqual(g["Physics"]["score"], Decimal("90.0"))
+            self.assertTrue(r["marks_limited"])
+
+        self.client.login(username="s", password="pw-test-1")
+        page = self.client.get(reverse("student_report"))
+        self.assertContains(page, "Only marks from published terms are shown.")
+        self.assertContains(page, "Provisional")
+        self.assertNotContains(page, "Secret term 2 remark")
+
+        t2.is_published = True
+        t2.save()
+        self.assertEqual(self.report(self.student)[1]["Physics"]["score"], Decimal("55.0"))
+
+    def test_report_pages_render_no_marks_and_provisional(self):
+        self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))
+        AssessmentRecord.objects.create(section=self.sec, subject=self.bio, assessment_type=self.quiz,
+                                        title="Bio quiz", total_marks=Decimal(20), date_conducted=self.d(2026, 3, 2))
+        self.client.login(username="a", password="pw-test-1")
+        for url in [reverse("student_report_detail", args=[self.student.id]),
+                    reverse("student_report_detail", args=[self.student.id]) + "?print=1",
+                    reverse("student_profile_detail", args=[self.student.id])]:
+            page = self.client.get(url)
+            self.assertEqual(page.status_code, 200, url)
+            self.assertContains(page, "No marks yet", msg_prefix=url)
+            self.assertContains(page, "Provisional", msg_prefix=url)
+            self.assertNotContains(page, "None%", msg_prefix=url)
+        self.client.login(username="p", password="pw-test-1")
+        self.assertContains(self.client.get(reverse("parent_dashboard")), "No marks yet")
+        self.client.login(username="s", password="pw-test-1")
+        self.assertContains(self.client.get(reverse("student_dashboard")), "No marks yet")
