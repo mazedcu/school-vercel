@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from accounts.decorators import role_required
 from django.contrib import messages
-from django.db.models import Count, Q, Avg
+from django.db.models import Count, Q, Avg, Exists, OuterRef
 from django.utils import timezone
 from decimal import Decimal
 import datetime
@@ -26,6 +26,33 @@ from exams.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _teaches(user, section_id, subject_id):
+    """True if the user teaches this subject in this section (per the timetable)."""
+    return TimetableEntry.objects.filter(
+        teacher=user, section_id=section_id, subject_id=subject_id
+    ).exists()
+
+
+def _can_manage_assessment(user, assessment):
+    """Admins manage every assessment; teachers only those for classes they teach."""
+    if user.role == User.Role.ADMIN:
+        return True
+    return _teaches(user, assessment.section_id, assessment.subject_id)
+
+
+def _assessments_for(user):
+    """AssessmentRecords the user may manage."""
+    qs = AssessmentRecord.objects.all()
+    if user.role == User.Role.ADMIN:
+        return qs
+    return qs.filter(Exists(TimetableEntry.objects.filter(
+        teacher=user, section=OuterRef('section'), subject=OuterRef('subject'),
+    )))
+
+
+NOT_YOUR_CLASS = "You can only manage assessments for subjects you teach in that section."
 
 
 
@@ -106,6 +133,10 @@ def manage_assessments(request):
             messages.error(request, "Assessment title is required.")
             return redirect('manage_assessments')
 
+        if request.user.role != User.Role.ADMIN and not _teaches(request.user, section_id, subject_id):
+            messages.error(request, NOT_YOUR_CLASS)
+            return redirect('manage_assessments')
+
         try:
             section = Section.objects.get(id=section_id)
             subject = Subject.objects.get(id=subject_id)
@@ -123,12 +154,16 @@ def manage_assessments(request):
             messages.error(request, "An unexpected error occurred. Please try again.")
         return redirect('manage_assessments')
 
-    sections = Section.objects.all()
-    subjects = Subject.objects.all()
+    if request.user.role == User.Role.ADMIN:
+        sections = Section.objects.all()
+        subjects = Subject.objects.all()
+    else:
+        sections = Section.objects.filter(timetable_entries__teacher=request.user).distinct()
+        subjects = Subject.objects.filter(timetableentry__teacher=request.user).distinct()
     assessment_types = AssessmentType.objects.all()
     try:
         recent = list(
-            AssessmentRecord.objects.all()
+            _assessments_for(request.user)
             .select_related('section__class_group', 'subject', 'assessment_type')
             .order_by('-date_conducted')[:20]
         )
@@ -149,14 +184,18 @@ def manage_assessments(request):
 @role_required(User.Role.ADMIN, User.Role.TEACHER)
 def delete_assessment(request, assessment_id):
     if request.method == 'POST':
+        allowed = _assessments_for(request.user)
+        if not allowed.filter(pk=assessment_id).exists():
+            messages.error(request, NOT_YOUR_CLASS)
+            return redirect('manage_assessments')
         try:
-            assessment = get_object_or_404(AssessmentRecord, pk=assessment_id)
+            assessment = get_object_or_404(allowed, pk=assessment_id)
             title = assessment.title
             assessment.delete()
             messages.success(request, f"Assessment '{title}' has been deleted successfully.")
         except Exception as e:
             # Fallback: if fetching fails due to corrupt decimal data, delete by pk directly
-            deleted, _ = AssessmentRecord.objects.filter(pk=assessment_id).delete()
+            deleted, _ = allowed.filter(pk=assessment_id).delete()
             if deleted:
                 messages.success(request, "Assessment deleted successfully.")
             else:
@@ -173,6 +212,9 @@ def enter_marks(request, assessment_id):
     except Exception as e:
         logger.error("Failed to load assessment %s (possible corrupt data): %s", assessment_id, e, exc_info=True)
         messages.error(request, "This assessment record could not be loaded due to data issues.")
+        return redirect('manage_assessments')
+    if not _can_manage_assessment(request.user, assessment):
+        messages.error(request, NOT_YOUR_CLASS)
         return redirect('manage_assessments')
     profiles = StudentProfile.objects.filter(section=assessment.section).select_related('user')
 
