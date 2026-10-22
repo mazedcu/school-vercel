@@ -14,13 +14,8 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from utils.pdf_base import get_base_styles, PRIMARY_DARK, BORDER, BG_LIGHT, TEXT_MUTED
 from timetable.models import TimeSlot, TimetableEntry
+from timetable.grid import DAY_ORDER, DAY_LABELS, working_days
 
-
-DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-DAY_LABELS = {
-    'monday': 'Mon', 'tuesday': 'Tue', 'wednesday': 'Wed',
-    'thursday': 'Thu', 'friday': 'Fri', 'saturday': 'Sat', 'sunday': 'Sun',
-}
 
 # ── Using Shared Palette ──────────────────────────────────────────────────
 HEADER_BG = PRIMARY_DARK
@@ -99,7 +94,7 @@ def _build_section_grid(section, entries, styles):
     active_day_set = set(e.time_slot.day for e in entries)
     active_days = [d for d in DAY_ORDER if d in active_day_set]
     if not active_days:
-        active_days = DAY_ORDER[:5]
+        active_days = working_days()
 
     # Get unique time slots for this section's entries
     slot_ids = set(e.time_slot_id for e in entries)
@@ -141,7 +136,7 @@ def _build_teacher_grid(teacher, entries, styles):
     active_day_set = set(e.time_slot.day for e in entries)
     active_days = [d for d in DAY_ORDER if d in active_day_set]
     if not active_days:
-        active_days = DAY_ORDER[:5]
+        active_days = working_days()
 
     slot_ids = set(e.time_slot_id for e in entries)
     unique_times = TimeSlot.objects.filter(id__in=slot_ids).values_list(

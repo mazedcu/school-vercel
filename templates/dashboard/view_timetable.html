@@ -127,7 +127,7 @@
         <div class="card-title" style="margin-bottom:0;">
             📅 {{ selected_section.class_group.name }} — Section {{ selected_section.name }} ({{ selected_section.academic_year }})
         </div>
-        <a href="{% url 'timetable_gen' %}" class="btn btn-primary btn-sm">+ Schedule Classes</a>
+        {% if request.user.role == "admin" %}<a href="{% url 'timetable_gen' %}?section={{ selected_section.id }}" class="btn btn-primary btn-sm">✏️ Edit Routine</a>{% endif %}
         {% if grid_rows %}
         <a href="{% url 'download_timetable_pdf' selected_section.id %}" class="btn btn-sm" style="background:#059669;color:#fff;margin-left:0.5rem;">📥 Download PDF</a>
         {% endif %}
@@ -167,7 +167,7 @@
         </tbody>
     </table>
     {% else %}
-    <div class="empty-state" style="padding:2.5rem;">No classes scheduled for this section yet.<br><a href="{% url 'timetable_gen' %}" style="color:var(--primary);font-weight:600;">Go to Timetable Generator →</a></div>
+    <div class="empty-state" style="padding:2.5rem;">No classes scheduled for this section yet.{% if request.user.role == "admin" %}<br><a href="{% url 'timetable_gen' %}?section={{ selected_section.id }}" style="color:var(--primary);font-weight:600;">Build this routine →</a>{% endif %}</div>
     {% endif %}
 </div>
 {% else %}

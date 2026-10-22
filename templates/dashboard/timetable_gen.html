@@ -1,149 +1,437 @@
 {% extends "base.html" %}
 {% block page_title %}Timetable Setup{% endblock %}
 {% block breadcrumb %}Admin / Timetable Setup{% endblock %}
+
+{% block extra_head %}
+<style>
+    [hidden] { display: none !important; }  /* .btn sets display, which would otherwise override hidden */
+    .section-pills { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .pill {
+        padding: 0.45rem 1.1rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600;
+        text-decoration: none; border: 2px solid var(--border); color: var(--text-muted);
+        background: var(--surface); display: inline-block;
+    }
+    .pill:hover { border-color: var(--primary); color: var(--primary); }
+    .pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .routine-head { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem; }
+    .routine-hint { font-size: 0.75rem; color: var(--text-muted); }
+
+    .tt-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tt-grid { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; }
+    .tt-grid th {
+        background: var(--sidebar-bg); color: #fff; padding: 0.7rem 0.5rem; font-size: 0.75rem;
+        text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; text-align: center;
+    }
+    .tt-grid th.time-header { background: #312e81; }
+    .tt-grid td { padding: 0; border: 1px solid var(--border); height: 76px; min-width: 120px; }
+    .tt-time-cell {
+        background: #f1f5f9; font-weight: 600; font-size: 0.72rem; color: var(--text);
+        padding: 0.5rem !important; white-space: nowrap; text-align: center; vertical-align: middle !important;
+        position: sticky; left: 0; z-index: 1; min-width: 92px !important;
+    }
+
+    .tt-btn {
+        width: 100%; height: 100%; min-height: 76px; border: 0; background: transparent; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
+        padding: 0.4rem; font: inherit; color: inherit; text-align: center;
+    }
+    .tt-btn:hover, .tt-btn:focus-visible { background: #f5f3ff; outline: 2px solid var(--primary); outline-offset: -2px; }
+    .tt-btn.has-class { background: linear-gradient(135deg, #eef2ff, #e0e7ff); box-shadow: inset 3px 0 0 var(--primary); }
+    .tt-btn.just-saved { animation: flash 1s ease-out; }
+    @keyframes flash { from { background: var(--success-light); } }
+    .tt-add { color: #a5b4fc; font-size: 0.75rem; font-weight: 600; }
+    .tt-subject { font-weight: 700; font-size: 0.8rem; color: var(--primary); line-height: 1.2; }
+    .tt-teacher { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; }
+    .tt-room { font-size: 0.62rem; color: #7c3aed; font-weight: 600; }
+    .tt-none {
+        height: 100%; min-height: 76px; display: flex; align-items: center; justify-content: center;
+        color: #cbd5e1; font-size: 0.7rem;
+        background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 6px, #f1f5f9 6px, #f1f5f9 12px);
+    }
+
+    /* Dialog */
+    #cellDialog { margin: auto; border: 0; border-radius: 1rem; padding: 0; width: min(440px, 94vw); box-shadow: 0 20px 50px rgba(15,23,42,0.25); }
+    #cellDialog::backdrop { background: rgba(15,23,42,0.45); }
+    .dlg-body { padding: 1.25rem; }
+    .dlg-title { font-weight: 700; font-size: 1rem; margin: 0; }
+    .dlg-sub { font-size: 0.78rem; color: var(--text-muted); margin: 0.15rem 0 1rem; }
+    .dlg-error { display: none; background: var(--danger-light); color: #991b1b; border-radius: 0.5rem; padding: 0.6rem 0.75rem; font-size: 0.8rem; margin-bottom: 0.75rem; }
+    .dlg-warn { display: none; color: #b45309; font-size: 0.72rem; margin-top: 0.3rem; }
+    .dlg-actions { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; padding: 0.9rem 1.25rem; border-top: 1px solid var(--border); background: var(--bg); border-radius: 0 0 1rem 1rem; }
+    .dlg-actions .spacer { flex: 1; }
+    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-ghost-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger-light); }
+
+    /* Periods panel */
+    details.periods > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+    details.periods > summary::-webkit-details-marker { display: none; }
+    details.periods > summary::after { content: '▸'; color: var(--text-muted); transition: transform .15s; }
+    details.periods[open] > summary::after { transform: rotate(90deg); }
+    .period-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .period-row input { flex: 1; min-width: 0; }
+    .period-row .num { width: 1.5rem; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+    .day-checks { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.25rem 0 1rem; }
+    .day-checks label { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.35rem 0.6rem; font-size: 0.8rem; cursor: pointer; }
+    .day-checks input:checked + span { color: var(--primary); font-weight: 700; }
+    .slot-day { margin-bottom: 0.9rem; }
+    .slot-day h4 { font-size: 0.78rem; margin: 0 0 0.35rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .slot-chip { display: inline-flex; align-items: center; gap: 0.25rem; background: var(--bg); border: 1px solid var(--border); border-radius: 9999px; padding: 0.2rem 0.3rem 0.2rem 0.65rem; font-size: 0.75rem; margin: 0 0.3rem 0.35rem 0; }
+    .slot-chip form { display: inline; margin: 0; }
+    .slot-chip button { border: 0; background: transparent; color: var(--danger); cursor: pointer; font-size: 0.85rem; padding: 0 0.3rem; line-height: 1; }
+</style>
+{% endblock %}
+
 {% block content %}
+{% if not sections %}
+<div class="card"><div class="empty-state">No sections exist yet. Create classes and sections first, then come back to build their routines.</div></div>
+{% else %}
 
-<div class="grid grid-2">
-    <!-- ── ADD TIME SLOT ──────────────────────────────────────────────── -->
-    <div class="card">
-        <div class="card-title">⏰ Manage Time Slots</div>
-        <form method="POST">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_slot">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Day</label>
-                    <select name="day" class="form-control" required>
-                        <option value="">-- Select Day --</option>
-                        {% for val, label in day_choices %}
-                        <option value="{{ val }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Start Time</label>
-                    <input type="time" name="start_time" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label>End Time</label>
-                    <input type="time" name="end_time" class="form-control" required>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">Add Time Slot</button>
-        </form>
-
-        {% if time_slots %}
-        <div style="margin-top:1rem;">
-            <div style="font-weight:600;font-size:0.8rem;margin-bottom:0.5rem;color:var(--text-muted);">Existing Time Slots ({{ time_slots.count }})</div>
-            <table>
-                <thead><tr><th>Day</th><th>Time</th><th></th></tr></thead>
-                <tbody>
-                    {% for ts in time_slots %}
-                    <tr>
-                        <td style="font-weight:500;">{{ ts.get_day_display }}</td>
-                        <td>{{ ts.start_time|time:"h:i A" }} – {{ ts.end_time|time:"h:i A" }}</td>
-                        <td>
-                            <form method="POST" action=".">
-                                {% csrf_token %}
-                                <input type="hidden" name="slot_id" value="{{ ts.id }}">
-                                <button type="submit" name="action" value="delete_slot" class="btn btn-danger btn-sm">✕ Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-state" style="padding:1rem;">No time slots created yet.</div>
-        {% endif %}
-    </div>
-
-    <!-- ── ASSIGN CLASS ENTRY ─────────────────────────────────────────── -->
-    <div class="card">
-        <div class="card-title">📅 Schedule a Class</div>
-        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;">Conflict detection is active — teachers and rooms cannot be double-booked.</div>
-        <form method="POST">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_entry">
-            <div class="form-group">
-                <label>Section</label>
-                <select name="section" class="form-control" required>
-                    <option value="">-- Select Section --</option>
-                    {% for s in sections %}<option value="{{ s.id }}">{{ s.class_group.name }} – {{ s.name }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Subject</label>
-                <select name="subject" class="form-control" required>
-                    <option value="">-- Select Subject --</option>
-                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Teacher</label>
-                <select name="teacher" class="form-control" required>
-                    <option value="">-- Select Teacher --</option>
-                    {% for t in teachers %}<option value="{{ t.id }}">{{ t.get_full_name|default:t.username }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Time Slot</label>
-                    <select name="time_slot" class="form-control" required>
-                        <option value="">-- Select Slot --</option>
-                        {% for ts in time_slots %}<option value="{{ ts.id }}">{{ ts.get_day_display }} {{ ts.start_time|time:"h:i A" }}-{{ ts.end_time|time:"h:i A" }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Room (optional)</label>
-                    <input type="text" name="room" class="form-control" placeholder="e.g. Room 101">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary">Assign →</button>
-        </form>
+<div class="card">
+    <div class="card-title">Choose a section</div>
+    <div class="section-pills">
+        {% for s in sections %}
+        <a href="?section={{ s.id }}" class="pill {% if s.id == selected_section.id %}active{% endif %}">{{ s.class_group.name }} – {{ s.name }}</a>
+        {% endfor %}
     </div>
 </div>
 
-<!-- ── TIMETABLE ENTRIES ──────────────────────────────────────────────── -->
 <div class="card">
-    <div class="card-title">All Timetable Entries ({{ entries.count }})</div>
-    <div class="table-wrap">
-        <table>
+    <div class="routine-head">
+        <div class="card-title" style="margin:0;">📅 {{ selected_section.class_group.name }} – {{ selected_section.name }} routine
+            <span style="font-weight:500;color:var(--text-muted);font-size:0.8rem;">· <span id="scheduledCount">{{ scheduled_count }}</span> classes</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <span class="routine-hint">Tap a period to add or change a class.</span>
+            <a href="{% url 'download_timetable_pdf' selected_section.id %}" class="btn btn-sm" style="background:#059669;color:#fff;">📥 PDF</a>
+        </div>
+    </div>
+
+    {% if grid_rows %}
+    <div class="tt-wrap">
+        <table class="tt-grid">
             <thead>
                 <tr>
-                    <th>Day &amp; Time</th>
-                    <th>Section</th>
-                    <th>Subject</th>
-                    <th>Teacher</th>
-                    <th>Room</th>
-                    <th>Action</th>
+                    <th class="time-header">Time</th>
+                    {% for dh in day_headers %}<th>{{ dh.label }}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
-                {% for e in entries %}
+                {% for row in grid_rows %}
                 <tr>
-                    <td style="font-weight:500;">
-                        <span class="badge badge-blue" style="font-size:0.65rem;">{{ e.time_slot.get_day_display }}</span>
-                        <span style="font-size:0.8rem;margin-left:0.25rem;">{{ e.time_slot.start_time|time:"h:i A" }}–{{ e.time_slot.end_time|time:"h:i A" }}</span>
-                    </td>
-                    <td>{{ e.section.class_group.name }} – {{ e.section.name }}</td>
-                    <td>{{ e.subject.name }}</td>
-                    <td>{{ e.teacher.get_full_name|default:e.teacher.username }}</td>
-                    <td>{{ e.room|default:"—" }}</td>
+                    <td class="tt-time-cell">{{ row.start|time:"h:i A" }}<br>{{ row.end|time:"h:i A" }}</td>
+                    {% for cell in row.cells %}
                     <td>
-                        <form method="POST" action=".">
-                            {% csrf_token %}
-                            <input type="hidden" name="entry_id" value="{{ e.id }}">
-                            <button type="submit" name="action" value="delete_entry" class="btn btn-danger btn-sm">✕ Delete</button>
-                        </form>
+                        {% if cell.slot %}
+                        <button type="button" class="tt-btn{% if cell.entry %} has-class{% endif %}"
+                                data-slot="{{ cell.slot.id }}"
+                                data-when="{{ cell.slot }}"
+                                data-entry="{{ cell.entry.id|default:'' }}"
+                                data-subject-id="{{ cell.entry.subject_id|default:'' }}"
+                                data-teacher-id="{{ cell.entry.teacher_id|default:'' }}"
+                                data-room="{{ cell.room }}"
+                                aria-label="{{ cell.slot }}{% if cell.entry %}: {{ cell.subject }}, {{ cell.teacher }}{% else %}: empty{% endif %}">
+                            {% if cell.entry %}
+                            <span class="tt-subject">{{ cell.subject }}</span>
+                            <span class="tt-teacher">{{ cell.teacher }}</span>
+                            {% if cell.room %}<span class="tt-room">📍 {{ cell.room }}</span>{% endif %}
+                            {% else %}
+                            <span class="tt-add">+ Add</span>
+                            {% endif %}
+                        </button>
+                        {% else %}
+                        <div class="tt-none" title="No period at this time on this day">—</div>
+                        {% endif %}
                     </td>
+                    {% endfor %}
                 </tr>
-                {% empty %}
-                <tr><td colspan="6" class="empty-state">No entries yet. Create time slots and schedule classes above.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    {% else %}
+    <div class="empty-state" style="padding:2rem;">No periods yet. Set up the school's periods and working days below, then the routine grid will appear here.</div>
+    {% endif %}
 </div>
+
+<div class="card">
+    <details class="periods" {% if not slots_by_day %}open{% endif %}>
+        <summary>⏰ Periods &amp; working days</summary>
+        <div class="grid grid-2" style="margin-top:1rem;align-items:start;">
+            <form method="POST" id="periodsForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_periods">
+                <input type="hidden" name="section" value="{{ selected_section.id }}">
+                <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.25rem;">Add periods</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;">Enter the periods once and tick the days they run. Periods that already exist are skipped.</div>
+                <div id="periodRows">
+                    <div class="period-row">
+                        <span class="num">1</span>
+                        <input type="time" name="start_time" class="form-control" aria-label="Start time" required>
+                        <span style="color:var(--text-muted);">–</span>
+                        <input type="time" name="end_time" class="form-control" aria-label="End time" required>
+                        <button type="button" class="btn btn-sm btn-ghost remove-period" aria-label="Remove period" hidden>✕</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-ghost" id="addPeriodRow" style="margin-bottom:1rem;">+ Another period</button>
+                <div style="font-weight:600;font-size:0.8rem;">On these days</div>
+                <div class="day-checks">
+                    {% for val, label in day_choices %}
+                    <label><input type="checkbox" name="days" value="{{ val }}"{% for d in day_headers %}{% if d.key == val %} checked{% endif %}{% endfor %}><span>{{ label }}</span></label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Add periods</button>
+            </form>
+
+            <div>
+                <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">Existing periods</div>
+                {% for group in slots_by_day %}
+                <div class="slot-day">
+                    <h4>{{ group.label }}</h4>
+                    {% for ts in group.slots %}
+                    <span class="slot-chip">{{ ts.start_time|time:"h:i A" }}–{{ ts.end_time|time:"h:i A" }}
+                        <form method="POST" onsubmit="return confirm('Delete this period? Any classes scheduled in it, in every section, will be removed.');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_slot">
+                            <input type="hidden" name="slot_id" value="{{ ts.id }}">
+                            <input type="hidden" name="section" value="{{ selected_section.id }}">
+                            <button type="submit" aria-label="Delete period {{ ts }}">✕</button>
+                        </form>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% empty %}
+                <div class="empty-state" style="padding:1rem;">No periods yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </details>
+</div>
+
+<dialog id="cellDialog" aria-labelledby="dlgTitle">
+    <form id="cellForm" method="dialog">
+        <div class="dlg-body">
+            <p class="dlg-title" id="dlgTitle">Period</p>
+            <p class="dlg-sub">{{ selected_section.class_group.name }} – {{ selected_section.name }}</p>
+            <div class="dlg-error" id="dlgError" role="alert"></div>
+            <div class="form-group">
+                <label for="fSubject">Subject</label>
+                <select id="fSubject" class="form-control" required>
+                    <option value="">-- Select subject --</option>
+                    {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="fTeacher">Teacher</label>
+                <select id="fTeacher" class="form-control" required>
+                    <option value="">-- Select teacher --</option>
+                    {% for t in teachers %}<option value="{{ t.id }}" data-name="{{ t.get_full_name|default:t.username }}{% if t.role == 'coordinator' %} (Coordinator){% endif %}">{{ t.get_full_name|default:t.username }}{% if t.role == 'coordinator' %} (Coordinator){% endif %}</option>{% endfor %}
+                </select>
+                <div class="dlg-warn" id="teacherNote"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label for="fRoom">Room <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+                <input type="text" id="fRoom" class="form-control" maxlength="50" placeholder="e.g. Room 101" autocomplete="off">
+                <div class="dlg-warn" id="roomWarn"></div>
+            </div>
+        </div>
+        <div class="dlg-actions">
+            <button type="button" class="btn btn-sm btn-ghost-danger" id="dlgRemove">Remove class</button>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-sm btn-ghost" id="dlgCancel">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary" id="dlgSave">Save</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    const SECTION = "{{ selected_section.id }}";
+    const CSRF = "{{ csrf_token }}";
+    const URLS = {
+        info: "{% url 'timetable_slot_info' %}",
+        save: "{% url 'timetable_save_entry' %}",
+        del: "{% url 'timetable_delete_entry' %}",
+    };
+
+    const dlg = document.getElementById('cellDialog');
+    const form = document.getElementById('cellForm');
+    const fSubject = document.getElementById('fSubject');
+    const fTeacher = document.getElementById('fTeacher');
+    const fRoom = document.getElementById('fRoom');
+    const errBox = document.getElementById('dlgError');
+    const teacherNote = document.getElementById('teacherNote');
+    const roomWarn = document.getElementById('roomWarn');
+    const btnRemove = document.getElementById('dlgRemove');
+    const btnSave = document.getElementById('dlgSave');
+    const countEl = document.getElementById('scheduledCount');
+
+    let cell = null;       // the grid button being edited
+    let busy = { busy_teachers: {}, busy_rooms: {} };
+
+    function showError(msg) {
+        errBox.textContent = msg || '';
+        errBox.style.display = msg ? 'block' : 'none';
+    }
+
+    function resetTeacherOptions() {
+        for (const opt of fTeacher.options) {
+            if (!opt.value) continue;
+            opt.textContent = opt.dataset.name;
+            opt.disabled = false;
+        }
+        teacherNote.style.display = 'none';
+    }
+
+    function markBusyTeachers() {
+        const current = cell.dataset.teacherId;
+        for (const opt of fTeacher.options) {
+            const where = busy.busy_teachers[opt.value];
+            if (opt.value && where && opt.value !== current) {
+                opt.textContent = opt.dataset.name + ' — busy: ' + where;
+                opt.disabled = true;
+            }
+        }
+        // The class's current teacher may have been double-booked elsewhere since
+        const clash = current && busy.busy_teachers[current];
+        teacherNote.textContent = clash ? 'This teacher also has ' + clash + ' at this time.' : '';
+        teacherNote.style.display = clash ? 'block' : 'none';
+    }
+
+    function checkRoom() {
+        const where = busy.busy_rooms[fRoom.value.trim().toLowerCase()];
+        roomWarn.textContent = where ? 'Already used by ' + where + ' at this time.' : '';
+        roomWarn.style.display = where ? 'block' : 'none';
+    }
+
+    async function openCell(btn) {
+        cell = btn;
+        const hasEntry = !!btn.dataset.entry;
+        showError('');
+        resetTeacherOptions();
+        roomWarn.style.display = 'none';
+        fSubject.value = btn.dataset.subjectId || '';
+        fTeacher.value = btn.dataset.teacherId || '';
+        fRoom.value = btn.dataset.room || '';
+        btnRemove.hidden = !hasEntry;
+        document.getElementById('dlgTitle').textContent = 'Loading…';
+        busy = { busy_teachers: {}, busy_rooms: {} };
+        dlg.showModal();
+        (hasEntry ? fTeacher : fSubject).focus();
+        try {
+            const r = await fetch(URLS.info + '?slot=' + btn.dataset.slot + '&section=' + SECTION,
+                                  { headers: { 'X-Requested-With': 'fetch' } });
+            if (!r.ok) throw new Error();
+            busy = await r.json();
+            if (cell !== btn) return;
+            document.getElementById('dlgTitle').textContent = busy.label;
+            markBusyTeachers();
+            checkRoom();
+        } catch (e) {
+            document.getElementById('dlgTitle').textContent = btn.dataset.when;
+        }
+    }
+
+    function el(tag, cls, text) {
+        const n = document.createElement(tag);
+        n.className = cls;
+        n.textContent = text;
+        return n;
+    }
+
+    function renderCell(btn, data) {
+        btn.replaceChildren();
+        btn.dataset.entry = data ? data.entry_id : '';
+        btn.dataset.subjectId = data ? data.subject_id : '';
+        btn.dataset.teacherId = data ? data.teacher_id : '';
+        btn.dataset.room = data ? data.room : '';
+        btn.classList.toggle('has-class', !!data);
+        const when = btn.dataset.when;
+        if (data) {
+            btn.append(el('span', 'tt-subject', data.subject), el('span', 'tt-teacher', data.teacher));
+            if (data.room) btn.append(el('span', 'tt-room', '📍 ' + data.room));
+            btn.setAttribute('aria-label', when + ': ' + data.subject + ', ' + data.teacher);
+        } else {
+            btn.append(el('span', 'tt-add', '+ Add'));
+            btn.setAttribute('aria-label', when + ': empty');
+        }
+        btn.classList.remove('just-saved');
+        void btn.offsetWidth;
+        btn.classList.add('just-saved');
+        countEl.textContent = document.querySelectorAll('.tt-btn.has-class').length;
+    }
+
+    async function post(url, fields) {
+        const body = new FormData();
+        for (const [k, v] of Object.entries(fields)) body.append(k, v);
+        const r = await fetch(url, { method: 'POST', body, headers: { 'X-CSRFToken': CSRF } });
+        let data = {};
+        try { data = await r.json(); } catch (e) { /* non-JSON error page */ }
+        if (!r.ok && !data.error) data.error = 'Something went wrong (' + r.status + '). Please reload the page.';
+        return data;
+    }
+
+    form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!fSubject.value || !fTeacher.value) { showError('Choose a subject and a teacher.'); return; }
+        btnSave.disabled = true;
+        try {
+            const data = await post(URLS.save, {
+                section: SECTION, slot: cell.dataset.slot, entry: cell.dataset.entry,
+                subject: fSubject.value, teacher: fTeacher.value, room: fRoom.value.trim(),
+            });
+            if (data.ok) { renderCell(cell, data.cell); dlg.close(); }
+            else showError(data.error);
+        } catch (e) {
+            showError('Could not reach the server. Check your connection and try again.');
+        } finally {
+            btnSave.disabled = false;
+        }
+    });
+
+    btnRemove.addEventListener('click', async () => {
+        btnRemove.disabled = true;
+        try {
+            const data = await post(URLS.del, { entry: cell.dataset.entry });
+            if (data.error) { showError(data.error); return; }
+            renderCell(cell, null);
+            dlg.close();
+        } catch (e) {
+            showError('Could not reach the server. Check your connection and try again.');
+        } finally {
+            btnRemove.disabled = false;
+        }
+    });
+
+    document.getElementById('dlgCancel').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
+    fRoom.addEventListener('input', checkRoom);
+    document.querySelectorAll('.tt-btn').forEach((b) => b.addEventListener('click', () => openCell(b)));
+
+    // Periods form: add/remove period rows
+    const rows = document.getElementById('periodRows');
+    function renumber() {
+        const all = rows.querySelectorAll('.period-row');
+        all.forEach((r, i) => {
+            r.querySelector('.num').textContent = i + 1;
+            r.querySelector('.remove-period').hidden = all.length === 1;
+        });
+    }
+    document.getElementById('addPeriodRow').addEventListener('click', () => {
+        const last = rows.lastElementChild;
+        const row = last.cloneNode(true);
+        const [start, end] = row.querySelectorAll('input');
+        start.value = last.querySelectorAll('input')[1].value;  // next period starts when the last one ends
+        end.value = '';
+        rows.append(row);
+        renumber();
+        (start.value ? end : start).focus();
+    });
+    rows.addEventListener('click', (ev) => {
+        const btn = ev.target.closest('.remove-period');
+        if (btn) { btn.closest('.period-row').remove(); renumber(); }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
