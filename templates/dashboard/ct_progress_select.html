@@ -1,63 +1,117 @@
 {% extends "base.html" %}
 {% block page_title %}CT Progress Report{% endblock %}
-{% block breadcrumb %}Admin / CT Progress Report{% endblock %}
+{% block breadcrumb %}Reports / CT Progress Report{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ct-form { max-width: 760px; }
+    .ct-form .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; line-height: 1.4; }
+    .layouts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .layouts label { display: block; border: 1.5px solid var(--border); border-radius: 0.6rem; padding: 0.75rem 0.9rem; cursor: pointer; }
+    .layouts label:has(input:checked) { border-color: var(--primary); background: var(--primary-light); }
+    .layouts input { margin-right: 0.4rem; accent-color: var(--primary); }
+    .layouts strong { font-size: 0.88rem; }
+    .layouts span { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; padding-left: 1.3rem; }
+    [hidden] { display: none !important; }
+    @media (max-width: 640px) { .layouts { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <div class="card-title">📊 Generate Monthly CT Progress Report</div>
-    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.25rem;">
-        Select a class section and report month. The report will aggregate all <strong>Class Test (CT)</strong> marks
-        from the start of the term up to the selected month.<br>
-        <strong>First Term:</strong> July – December &nbsp;|&nbsp; <strong>Second Term:</strong> January – June
+<div class="card ct-form">
+    <div class="card-title">Class test progress</div>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem;line-height:1.5;">
+        Shows each student's class test marks per subject from the start of the term.
+        A missed or not-yet-entered test is shown as “absent / not entered” and does not count as zero.
     </p>
-    <form method="GET" action="{% url 'ct_progress_report_print' %}">
+
+    <form method="GET" action="{% url 'ct_progress_report_print' %}" target="_blank">
+        <div class="form-group">
+            <label for="fSection">Section</label>
+            <select id="fSection" name="section" class="form-control" required>
+                <option value="">Choose a section</option>
+                {% for s in sections %}<option value="{{ s.id }}">{{ s.class_group.name }} – {{ s.name }} ({{ s.academic_year }})</option>{% endfor %}
+            </select>
+        </div>
+
+        {% if periods %}
         <div class="form-row">
             <div class="form-group">
-                <label>Section *</label>
-                <select name="section" class="form-control" required>
-                    <option value="">-- Select Section --</option>
-                    {% for s in sections %}
-                    <option value="{{ s.id }}">{{ s.class_group.name }} - {{ s.name }} ({{ s.academic_year }})</option>
+                <label for="fPeriod">Term</label>
+                <select id="fPeriod" name="period" class="form-control">
+                    {% regroup periods by config.academic_year as by_year %}
+                    {% for group in by_year %}
+                    <optgroup label="{{ group.grouper }}">
+                        {% for p in group.list %}
+                        <option value="{{ p.id }}" {% if p == current_period %}selected{% endif %}>{{ p.label }} ({{ p.start_date|date:"j M" }} to {{ p.end_date|date:"j M Y" }})</option>
+                        {% endfor %}
+                    </optgroup>
                     {% endfor %}
+                    <option value="">Choose by month instead</option>
                 </select>
+                <div class="hint">Terms come from Period Setup.</div>
             </div>
-            <div class="form-group">
-                <label>Report Month *</label>
-                <select name="month" class="form-control" required>
-                    <option value="">-- Select Month --</option>
-                    <optgroup label="First Term (Jul – Dec)">
-                        {% for m in month_options %}
-                        {% if m.term == 1 %}
-                        <option value="{{ m.value }}" {% if m.value == current_month %}selected{% endif %}>{{ m.label }}</option>
-                        {% endif %}
-                        {% endfor %}
-                    </optgroup>
-                    <optgroup label="Second Term (Jan – Jun)">
-                        {% for m in month_options %}
-                        {% if m.term == 2 %}
-                        <option value="{{ m.value }}" {% if m.value == current_month %}selected{% endif %}>{{ m.label }}</option>
-                        {% endif %}
-                        {% endfor %}
-                    </optgroup>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Year *</label>
-                <input type="number" name="year" class="form-control" value="{{ current_year }}" required min="2020" max="2050">
+            <div class="form-group" id="uptoGroup">
+                <label for="fUpto">Up to <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+                <input id="fUpto" type="date" name="upto" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                <div class="hint">Leave as today for a progress report so far, or clear it for the whole term.</div>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary" style="font-size:0.9rem;">📊 Generate CT Report</button>
+        {% endif %}
+
+        <div class="form-row" id="monthGroup" {% if periods %}hidden{% endif %}>
+            <div class="form-group">
+                <label for="fMonth">Up to the end of</label>
+                <select id="fMonth" name="month" class="form-control">
+                    {% for value, label in months %}<option value="{{ value }}" {% if value == current_month %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+                <div class="hint">{% if not periods %}No terms are set up in Period Setup, so the report uses First Term July–December and Second Term January–June.{% else %}First Term is July–December, Second Term January–June.{% endif %}</div>
+            </div>
+            <div class="form-group">
+                <label for="fYear">Year</label>
+                <input id="fYear" type="number" name="year" class="form-control" value="{{ current_year }}" min="2020" max="2050">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="fType">Class test type</label>
+            <select id="fType" name="ct_type" class="form-control">
+                {% for t in ct_types %}<option value="{{ t.id }}" {% if t == default_ct_type %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+            </select>
+            <div class="hint">The assessment type your teachers use for class tests.</div>
+        </div>
+
+        <div class="form-group">
+            <label>Layout</label>
+            <div class="layouts">
+                <label><input type="radio" name="layout" value="sheets" checked><strong>One page per student</strong>
+                    <span>To print and send home. Each subject with every class test, totals and the class average.</span></label>
+                <label><input type="radio" name="layout" value="marksheet"><strong>Class marksheet</strong>
+                    <span>One table for the whole section: students down the side, subjects across, with averages.</span></label>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create report</button>
     </form>
 </div>
 
-<div class="card" style="padding:1rem 1.5rem;">
-    <div style="font-size:0.8rem;color:var(--text-muted);">
-        <strong>How it works:</strong>
-        <ul style="margin-top:0.5rem;padding-left:1.25rem;">
-            <li>If you select <strong>August</strong> (First Term), the report covers all CT marks from <strong>July 1 to August 31</strong>.</li>
-            <li>If you select <strong>November</strong> (First Term), it covers <strong>July 1 to November 30</strong>.</li>
-            <li>If you select <strong>March</strong> (Second Term), it covers <strong>January 1 to March 31</strong>.</li>
-            <li>Each student's CT performance is shown subject-wise with aggregate percentage.</li>
-        </ul>
-    </div>
-</div>
+{% if periods %}
+<script>
+(function () {
+    const period = document.getElementById('fPeriod');
+    const month = document.getElementById('monthGroup');
+    const upto = document.getElementById('uptoGroup');
+    function sync() {
+        const byMonth = period.value === '';
+        month.hidden = !byMonth;
+        upto.hidden = byMonth;
+        document.getElementById('fUpto').disabled = byMonth;
+        document.getElementById('fMonth').disabled = !byMonth;
+        document.getElementById('fYear').disabled = !byMonth;
+    }
+    period.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endif %}
 {% endblock %}

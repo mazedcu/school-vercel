@@ -2,252 +2,190 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CT Progress Report — {{ section }} | {{ report_month_name }} {{ report_year }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CT progress: {{ section.class_group.name }} – {{ section.name }}, {{ term_label }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        @page { size: A4 {% if layout == 'marksheet' %}landscape{% endif %}; margin: 11mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; padding: 1.5rem; font-size: 0.8rem; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #eef1f5; color: #0f172a; font-size: 12px; line-height: 1.4; }
 
-        .report-header {
-            text-align: center;
-            border-bottom: 3px solid #4f46e5;
-            padding-bottom: 1.25rem;
-            margin-bottom: 1.25rem;
-        }
-        .report-header h1 { font-size: 1.4rem; color: #4f46e5; letter-spacing: -0.5px; }
-        .report-header h2 { font-size: 1rem; font-weight: 600; color: #1e293b; margin-top: 0.35rem; }
-        .report-header p { color: #64748b; font-size: 0.8rem; margin-top: 0.25rem; }
+        .toolbar { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0.75rem 1rem;
+                   display: flex; gap: 0.75rem; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .toolbar span { color: #475569; font-size: 0.85rem; }
+        .toolbar button, .toolbar a { font: inherit; font-size: 0.85rem; font-weight: 600; border: 0; border-radius: 8px; padding: 0.55rem 1.1rem; cursor: pointer; text-decoration: none; }
+        .toolbar .primary { background: #4f46e5; color: #fff; }
+        .toolbar .plain { background: #e2e8f0; color: #0f172a; }
 
-        .meta-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            background: #f8fafc;
-            padding: 0.85rem 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 1.25rem;
-            border: 1px solid #e2e8f0;
-            font-size: 0.75rem;
-        }
-        .meta-bar .label { color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.6rem; letter-spacing: 0.5px; }
-        .meta-bar .value { font-weight: 700; margin-top: 0.1rem; }
+        .sheet { background: #fff; width: 210mm; max-width: 100%; min-height: 272mm; margin: 1.25rem auto; padding: 13mm 12mm 11mm;
+                 box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); display: flex; flex-direction: column; }
+        .sheet.wide { width: 297mm; min-height: 0; }
+        .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; border-bottom: 3px solid #4f46e5; padding-bottom: 0.65rem; margin-bottom: 0.85rem; }
+        .head h1 { font-size: 19px; font-weight: 800; color: #312e81; letter-spacing: -0.02em; }
+        .head p { font-size: 12.5px; color: #475569; font-weight: 600; margin-top: 2px; }
+        .head .meta { text-align: right; font-size: 11px; color: #475569; }
 
-        .class-avg-bar {
-            text-align: center;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-            border: 2px solid #a5b4fc;
-            border-radius: 0.75rem;
-            margin-bottom: 1.25rem;
-        }
-        .class-avg-bar .score { font-size: 1.5rem; font-weight: 800; color: #4f46e5; }
-        .class-avg-bar .label { font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .info { display: grid; grid-template-columns: 2fr 1.5fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem; }
+        .info dt { font-size: 10px; color: #64748b; font-weight: 600; }
+        .info dd { font-size: 13px; font-weight: 700; }
 
-        /* Per-student card */
-        .student-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
-            page-break-inside: avoid;
-            overflow: hidden;
-        }
-        .student-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0.85rem;
-            background: #1e1b4b;
-            color: #fff;
-        }
-        .student-card-header .name { font-weight: 700; font-size: 0.85rem; }
-        .student-card-header .roll { font-size: 0.7rem; opacity: 0.8; }
-        .student-card-header .overall {
-            font-weight: 800;
-            font-size: 1rem;
-            padding: 0.15rem 0.6rem;
-            border-radius: 0.25rem;
-        }
-        .overall-green { background: #d1fae5; color: #065f46; }
-        .overall-yellow { background: #fef3c7; color: #92400e; }
-        .overall-red { background: #fee2e2; color: #991b1b; }
+        .summary { display: flex; border: 1px solid #c7d2fe; background: #f5f7ff; border-radius: 8px; margin-bottom: 0.8rem; }
+        .summary > div { flex: 1; padding: 0.55rem 0.85rem; border-left: 1px solid #c7d2fe; }
+        .summary > div:first-child { border-left: 0; }
+        .k { font-size: 10px; color: #475569; font-weight: 600; }
+        .v { font-size: 19px; font-weight: 800; color: #312e81; letter-spacing: -0.02em; }
+        .s { font-size: 10.5px; color: #475569; }
+        .badge { display: inline-block; font-size: 12px; background: #312e81; color: #fff; border-radius: 4px; padding: 0 6px; vertical-align: 3px; margin-left: 2px; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-        th {
-            background: #f1f5f9;
-            color: #475569;
-            padding: 0.45rem 0.6rem;
-            text-align: left;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        td {
-            padding: 0.45rem 0.6rem;
-            border-bottom: 1px solid #f1f5f9;
-            vertical-align: middle;
-        }
-        tr:nth-child(even) td { background: #fafbfc; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1e1b4b; color: #fff; font-size: 10px; font-weight: 600; text-align: left; padding: 6px 7px; vertical-align: bottom; }
+        td { border-bottom: 1px solid #e2e8f0; padding: 6px 7px; vertical-align: top; }
+        tbody tr:nth-child(even) td { background: #f8fafc; }
+        .num { text-align: right; white-space: nowrap; }
+        .subj { font-weight: 700; }
+        .pct { font-weight: 700; font-size: 12.5px; }
+        .muted { color: #64748b; }
+        .small { font-size: 10px; }
+        .tests { list-style: none; font-size: 10.5px; }
+        .tests li { display: flex; justify-content: space-between; gap: 0.75rem; }
+        .tests .miss { color: #b45309; font-style: italic; }
+        .note { font-size: 10.5px; color: #92400e; margin: 0.6rem 0; }
+        .scale { font-size: 10px; color: #475569; display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; margin-top: 0.6rem; }
+        .sign { margin-top: auto; padding-top: 14mm; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
+        .sign div { border-top: 1px solid #64748b; padding-top: 4px; text-align: center; font-size: 10.5px; color: #475569; }
 
-        .ct-detail { font-size: 0.65rem; color: #64748b; }
-        .pct-badge {
-            display: inline-block;
-            padding: 0.15rem 0.4rem;
-            border-radius: 0.2rem;
-            font-weight: 700;
-            font-size: 0.7rem;
-        }
-        .pct-green { background: #d1fae5; color: #065f46; }
-        .pct-yellow { background: #fef3c7; color: #92400e; }
-        .pct-red { background: #fee2e2; color: #991b1b; }
-
-        .grade-scale {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.4rem;
-            padding: 0.5rem 0.75rem;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            margin-top: 1rem;
-            font-size: 0.6rem;
-        }
-        .grade-scale span {
-            padding: 0.15rem 0.4rem;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.2rem;
-        }
-
-        .footer {
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid #e2e8f0;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            font-size: 0.7rem;
-            color: #64748b;
-        }
-        .sig-line {
-            border-top: 1px solid #94a3b8;
-            padding-top: 0.5rem;
-            margin-top: 2rem;
-            text-align: center;
-        }
+        /* Marksheet */
+        .ms th.sub { text-align: center; border-left: 1px solid #3730a3; }
+        .ms td.c { text-align: center; border-left: 1px solid #e2e8f0; white-space: nowrap; }
+        .ms td { padding: 4px 7px; }
+        .ms td.c small { font-size: 9.5px; color: #64748b; margin-left: 4px; }
+        .ms .star { color: #b45309; font-weight: 700; }
+        .ms tfoot td { font-weight: 700; background: #eef2ff; border-top: 2px solid #312e81; }
+        .ms tfoot td.c { color: #312e81; }
+        .empty { color: #64748b; padding: 2rem 0; text-align: center; }
 
         @media print {
-            body { padding: 0.5rem; font-size: 0.75rem; }
-            .no-print { display: none !important; }
-            .student-card { page-break-inside: avoid; }
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet { margin: 0; width: auto; min-height: 270mm; box-shadow: none; padding: 0; break-after: page; }
+            .sheet.wide { min-height: 0; }
+            .sheet:last-of-type { break-after: auto; }
+            tr { break-inside: avoid; }
+            th, .summary, tbody tr:nth-child(even) td, .ms tfoot td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+        @media (max-width: 640px) {
+            .sheet { padding: 1rem; min-height: 0; }
+            .info { grid-template-columns: 1fr; }
+            .summary { flex-direction: column; }
+            .summary > div { border-left: 0; border-top: 1px solid #c7d2fe; }
+            .summary > div:first-child { border-top: 0; }
+            .scroll { overflow-x: auto; }
         }
     </style>
 </head>
 <body>
-    <div class="no-print" style="text-align:center;margin-bottom:1.25rem;">
-        <button onclick="window.print()" style="padding:0.6rem 1.5rem;background:#4f46e5;color:#fff;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;">🖨️ Print / Save as PDF</button>
-        <a href="{% url 'ct_progress_report' %}" style="padding:0.6rem 1.5rem;background:#e2e8f0;color:#1e293b;border:none;border-radius:0.5rem;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-left:0.5rem;text-decoration:none;display:inline-block;">← Back</a>
-    </div>
+<div class="toolbar">
+    <span>{% if layout == 'marksheet' %}Class marksheet{% else %}{{ students|length }} student page{{ students|length|pluralize }}{% endif %}</span>
+    <button class="primary" onclick="window.print()">Print or save as PDF</button>
+    <a class="plain" href="?{% for k, v in request.GET.items %}{% if k != 'layout' %}{{ k }}={{ v|urlencode }}&amp;{% endif %}{% endfor %}layout={% if layout == 'marksheet' %}sheets{% else %}marksheet{% endif %}">{% if layout == 'marksheet' %}Switch to one page per student{% else %}Switch to class marksheet{% endif %}</a>
+    <button class="plain" onclick="window.close()">Close</button>
+</div>
 
-    <div class="report-header">
-        <h1>Radon Academy — CT Progress Report</h1>
-        <h2>{{ section.class_group.name }} – {{ section.name }}</h2>
-        <p>{{ term_label }} | Report as of {{ report_month_name }} {{ report_year }} &nbsp;|&nbsp; Period: {{ term_start|date:"d M Y" }} – {{ term_end|date:"d M Y" }}</p>
-    </div>
+{% if layout == 'marksheet' %}
+<section class="sheet wide">
+    <header class="head">
+        <div><h1>Radon Academy</h1><p>Class test marksheet: {{ section.class_group.name }} – {{ section.name }}</p></div>
+        <div class="meta">{{ term_label }}, {{ start|date:"j M" }} to {{ end|date:"j M Y" }}<br>{{ ct_type.name }} only</div>
+    </header>
 
-    <div class="meta-bar">
-        <div><div class="label">Class</div><div class="value">{{ section.class_group.name }} – {{ section.name }}</div></div>
-        <div><div class="label">Academic Year</div><div class="value">{{ section.academic_year }}</div></div>
-        <div><div class="label">Report Period</div><div class="value">{{ term_start|date:"d M" }} – {{ term_end|date:"d M Y" }}</div></div>
-        <div><div class="label">Students</div><div class="value">{{ students_data|length }}</div></div>
-    </div>
-
-    <div class="class-avg-bar">
-        <div class="label">Class Average CT Performance</div>
-        <div class="score">{{ class_avg }}%</div>
-    </div>
-
-    {% if students_data %}
-    {% for sd in students_data %}
-    <div class="student-card">
-        <div class="student-card-header">
-            <div>
-                <span class="name">{{ sd.student.get_full_name|default:sd.student.username }}</span>
-                <span class="roll" style="margin-left:0.5rem;">Roll: {{ sd.profile.roll_number|default:"—" }}</span>
-            </div>
-            <div>
-                <span class="overall {% if sd.overall_pct >= 80 %}overall-green{% elif sd.overall_pct >= 50 %}overall-yellow{% else %}overall-red{% endif %}">
-                    {{ sd.overall_pct }}% ({{ sd.overall_grade }})
-                </span>
-            </div>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Subject</th>
-                    <th>CT Details</th>
-                    <th>Total Obtained</th>
-                    <th>Total Max</th>
-                    <th>Percentage</th>
-                    <th>Grade</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ss in sd.subjects %}
-                <tr>
-                    <td style="font-weight:600;">{{ ss.subject.name }}</td>
-                    <td class="ct-detail">
-                        {% for d in ss.details %}
-                        {{ d.title }} ({{ d.obtained }}/{{ d.total }}, {{ d.date|date:"d M" }}){% if not forloop.last %}; {% endif %}
-                        {% empty %}
-                        —
-                        {% endfor %}
-                    </td>
-                    <td style="font-weight:600;">{{ ss.total_obtained }}</td>
-                    <td>{{ ss.total_max }}</td>
-                    <td>
-                        <span class="pct-badge {% if ss.percentage >= 80 %}pct-green{% elif ss.percentage >= 50 %}pct-yellow{% else %}pct-red{% endif %}">
-                            {{ ss.percentage }}%
-                        </span>
-                    </td>
-                    <td style="font-weight:700;">{{ ss.grade }}</td>
-                </tr>
+    {% if subjects and students %}
+    <div class="scroll">
+    <table class="ms">
+        <thead>
+            <tr>
+                <th>Roll</th>
+                <th>Student</th>
+                {% for s in subjects %}<th class="sub">{{ s.subject.name }}<br><span style="font-weight:400;opacity:.8;">{{ s.tests|length }} test{{ s.tests|length|pluralize }}</span></th>{% endfor %}
+                <th class="sub">Overall</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for st in students %}
+            <tr>
+                <td>{{ st.profile.roll_number|default:"—" }}</td>
+                <td class="subj">{{ st.student.get_full_name|default:st.student.username }}</td>
+                {% for r in st.cells %}
+                <td class="c">{% if r is None %}<span class="muted small">not taken</span>{% elif r.pct is None %}<span class="muted">—</span>{% else %}{{ r.pct }}%{% if r.missing %}<span class="star">*</span>{% endif %}<small>{{ r.grade }}</small>{% endif %}</td>
                 {% endfor %}
-                <tr style="background:#f1f5f9;font-weight:700;">
-                    <td colspan="4" style="text-align:right;">Overall CT Aggregate:</td>
-                    <td>
-                        <span class="pct-badge {% if sd.overall_pct >= 80 %}pct-green{% elif sd.overall_pct >= 50 %}pct-yellow{% else %}pct-red{% endif %}" style="font-size:0.8rem;">
-                            {{ sd.overall_pct }}%
-                        </span>
-                    </td>
-                    <td style="font-size:0.85rem;">{{ sd.overall_grade }}</td>
-                </tr>
-            </tbody>
-        </table>
+                <td class="c pct">{% if st.overall is None %}—{% else %}{{ st.overall }}%<small>{{ st.overall_grade }}</small>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr><td></td><td>Class average</td>{% for s in subjects %}<td class="c">{% if s.avg is None %}—{% else %}{{ s.avg }}%{% endif %}</td>{% endfor %}<td class="c">{% if class_avg is None %}—{% else %}{{ class_avg }}%{% endif %}</td></tr>
+            <tr><td></td><td>Highest</td>{% for s in subjects %}<td class="c">{% if s.high is None %}—{% else %}{{ s.high }}%{% endif %}</td>{% endfor %}<td class="c">{% if class_high is None %}—{% else %}{{ class_high }}%{% endif %}</td></tr>
+        </tfoot>
+    </table>
     </div>
-    {% endfor %}
+    {% if any_missing %}<p class="note"><span class="star">*</span> Some class tests were missed or not entered; the percentage uses the tests with marks.</p>{% endif %}
     {% else %}
-    <div style="text-align:center;padding:2rem;color:#64748b;font-size:0.9rem;">
-        No CT assessment data found for this section in the selected period.
+    <p class="empty">No class tests with marks in this period.</p>
+    {% endif %}
+    {% if unmarked %}<p class="note">Not included because no marks are entered yet: {% for a in unmarked %}{{ a.subject.name }} {{ a.title }} ({{ a.date_conducted|date:"j M" }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+</section>
+
+{% else %}
+{% for st in students %}
+<section class="sheet">
+    <header class="head">
+        <div><h1>Radon Academy</h1><p>Class Test Progress Report: {{ term_label }}</p></div>
+        <div class="meta">{{ start|date:"j M" }} to {{ end|date:"j M Y" }}<br>Academic year {{ section.academic_year }}</div>
+    </header>
+
+    <dl class="info">
+        <div><dt>Student</dt><dd>{{ st.student.get_full_name|default:st.student.username }}</dd></div>
+        <div><dt>Class and section</dt><dd>{{ section.class_group.name }} – {{ section.name }}</dd></div>
+        <div><dt>Roll number</dt><dd>{{ st.profile.roll_number|default:"—" }}</dd></div>
+    </dl>
+
+    <div class="summary">
+        <div><div class="k">Class test average</div>
+            <div class="v">{% if st.overall is None %}—{% else %}{{ st.overall }}%{% if st.overall_grade != '-' %}<span class="badge">{{ st.overall_grade }}</span>{% endif %}{% endif %}</div>
+            {% if st.overall_remark %}<div class="s">{{ st.overall_remark }}</div>{% endif %}</div>
+        <div><div class="k">Class average</div><div class="v">{% if class_avg is None %}—{% else %}{{ class_avg }}%{% endif %}</div><div class="s">All students in the section</div></div>
+        <div><div class="k">Tests missed or not entered</div><div class="v">{{ st.missing }}</div><div class="s">{% if st.missing %}Not counted in the averages{% else %}None{% endif %}</div></div>
     </div>
+
+    {% if st.rows %}
+    <table>
+        <thead><tr><th>Subject</th><th>Class tests</th><th class="num">Total</th><th class="num">Percentage</th><th>Grade</th><th class="num">Class average</th></tr></thead>
+        <tbody>
+            {% for r in st.rows %}
+            <tr>
+                <td class="subj">{{ r.subject.name }}</td>
+                <td><ul class="tests">{% for t in r.tests %}
+                    <li><span>{{ t.ct.title }}, {{ t.ct.date_conducted|date:"j M" }}</span>
+                        {% if t.obtained is None %}<span class="miss">absent / not entered</span>{% else %}<span>{{ t.obtained|floatformat:"-2" }} / {{ t.total|floatformat:"-2" }}</span>{% endif %}</li>
+                {% endfor %}</ul></td>
+                <td class="num">{% if r.maximum %}{{ r.obtained|floatformat:"-2" }} / {{ r.maximum|floatformat:"-2" }}{% else %}—{% endif %}</td>
+                <td class="num pct">{% if r.pct is None %}<span class="muted">—</span>{% else %}{{ r.pct }}%{% endif %}</td>
+                <td>{% if r.grade != '-' %}<strong>{{ r.grade }}</strong>{% if r.remark %}<div class="muted small">{{ r.remark }}</div>{% endif %}{% else %}—{% endif %}</td>
+                <td class="num muted">{% if r.class_avg is None %}—{% else %}{{ r.class_avg }}%{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No class tests with marks in this period.</p>
     {% endif %}
 
-    {% if grade_settings %}
-    <div class="grade-scale">
-        <strong style="margin-right:0.25rem;">Grading Scale:</strong>
-        {% for g in grade_settings %}
-        <span><strong>{{ g.letter }}</strong> {{ g.min_score }}–{{ g.max_score }}%</span>
-        {% endfor %}
-    </div>
-    {% endif %}
+    {% if grade_settings %}<div class="scale"><strong>Grading:</strong>{% for gs in grade_settings %}<span>{{ gs.letter }} {{ gs.min_score|floatformat:"-2" }}%+</span>{% endfor %}</div>{% endif %}
 
-    <div class="footer">
-        <div>
-            <div class="sig-line">Class Teacher's Signature</div>
-        </div>
-        <div>
-            <div class="sig-line">Principal's Signature</div>
-        </div>
-    </div>
+    <footer class="sign"><div>Class teacher's signature</div><div>Guardian's signature</div></footer>
+</section>
+{% empty %}
+<section class="sheet"><p class="empty">There are no students in this section.</p></section>
+{% endfor %}
+{% endif %}
 </body>
 </html>

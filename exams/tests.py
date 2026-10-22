@@ -429,3 +429,99 @@ class ReportCardExtrasTestCase(TestCase):
         self.assertContains(page, "Works hard.")
         self.assertContains(page, "Well done.")
         self.assertContains(page, "Class average")
+
+
+class CTProgressReportTestCase(TestCase):
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile
+
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.math = Subject.objects.create(name="Math", code="M")
+        self.bio = Subject.objects.create(name="Biology", code="B")
+        AssessmentType.objects.get_or_create(name="Practical")
+        self.ct, _ = AssessmentType.objects.get_or_create(name="Class Test")
+        self.teacher = User.objects.create_user(username="tea", password="pw-test-1", role=User.Role.TEACHER)
+        GradeSetting.objects.create(letter="A", min_score=80, max_score=100)
+        GradeSetting.objects.create(letter="F", min_score=0, max_score=79)
+
+        self.a = User.objects.create_user(username="a", password="pw-test-1", role=User.Role.STUDENT, first_name="Amin")
+        self.b = User.objects.create_user(username="b", password="pw-test-1", role=User.Role.STUDENT, first_name="Bina")
+        self.gone = User.objects.create_user(username="g", password="pw-test-1", role=User.Role.STUDENT, is_active=False)
+        self.pa = StudentProfile.objects.create(user=self.a, section=self.sec, roll_number="2")
+        StudentProfile.objects.create(user=self.b, section=self.sec, roll_number="1")
+        StudentProfile.objects.create(user=self.gone, section=self.sec, roll_number="3")
+
+        self.ct1 = self.make_ct(self.math, "CT 1", self.d(2026, 2, 1))
+        self.ct2 = self.make_ct(self.math, "CT 2", self.d(2026, 3, 1))
+        self.bio1 = self.make_ct(self.bio, "CT 1", self.d(2026, 2, 5))
+        self.new = self.make_ct(self.math, "CT 3", self.d(2026, 3, 20))   # no marks entered yet
+        self.mark(self.ct1, self.a, 18)
+        self.mark(self.ct1, self.b, 10)
+        self.mark(self.ct2, self.b, 12)          # Amin missed CT 2
+        self.mark(self.bio1, self.b, 16)
+        self.mark(self.ct1, self.gone, 1)
+
+    def make_ct(self, subject, title, when):
+        return AssessmentRecord.objects.create(section=self.sec, subject=subject, assessment_type=self.ct,
+                                               title=title, total_marks=Decimal(20), date_conducted=when)
+
+    def mark(self, record, student, marks):
+        StudentScore.objects.create(assessment=record, student=student, marks_obtained=Decimal(marks))
+
+    def report(self):
+        from exams.ct_report import ct_progress
+        return ct_progress(self.sec, self.ct, self.d(2026, 1, 1), self.d(2026, 4, 30))
+
+    def test_missing_marks_are_not_zero_and_unmarked_tests_are_skipped(self):
+        r = self.report()
+        amin = next(s for s in r["students"] if s["student"] == self.a)
+        math = amin["by_subject"][self.math.id]
+        self.assertEqual(math["pct"], Decimal("90.0"))        # 18/20, CT 2 not counted as zero
+        self.assertEqual(math["missing"], 1)
+        self.assertEqual([t["ct"].title for t in math["tests"]], ["CT 1", "CT 2"])  # CT 3 left out
+        self.assertEqual(r["unmarked"], [self.new])
+
+    def test_only_current_students_in_roll_order_and_enrolled_subjects(self):
+        self.pa.subjects.set([self.math])
+        r = self.report()
+        self.assertEqual([s["student"] for s in r["students"]], [self.b, self.a])   # inactive student left out
+        amin = next(s for s in r["students"] if s["student"] == self.a)
+        self.assertNotIn(self.bio.id, amin["by_subject"])
+        self.assertIsNone(amin["cells"][[x["subject"] for x in r["subjects"]].index(self.bio)])
+        stats = {x["subject"].name: x for x in r["subjects"]}
+        self.assertEqual(stats["Math"]["avg"], Decimal("72.5"))    # Amin 90, Bina 55
+        self.assertEqual(stats["Math"]["high"], Decimal("90.0"))
+
+    def test_class_test_type_detection_ignores_words_containing_ct(self):
+        from exams.ct_report import detect_ct_type
+        practical0 = AssessmentType.objects.get(name="Practical")
+        self.assertEqual(detect_ct_type([practical0, self.ct]), self.ct)
+        practical = AssessmentType.objects.get(name="Practical")
+        project, _ = AssessmentType.objects.get_or_create(name="Project")
+        self.assertIsNone(detect_ct_type([practical, project]))
+        weekly, _ = AssessmentType.objects.get_or_create(name="Weekly CT")
+        self.assertEqual(detect_ct_type([practical, weekly]), weekly)
+
+    def test_print_uses_configured_term_and_both_layouts(self):
+        config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
+        term = ReportPeriod.objects.create(config=config, label="Term 1", sequence=1,
+                                           start_date=self.d(2026, 1, 1), end_date=self.d(2026, 6, 30))
+        self.client.login(username="tea", password="pw-test-1")
+        url = reverse("ct_progress_report_print")
+        r = self.client.get(url, {"section": self.sec.id, "period": term.id, "upto": "2026-02-15"})
+        self.assertEqual((r.context["start"], r.context["end"]), (self.d(2026, 1, 1), self.d(2026, 2, 15)))
+        self.assertContains(r, "absent / not entered")
+        self.assertContains(r, "Term 1")
+        r = self.client.get(url, {"section": self.sec.id, "period": term.id, "layout": "marksheet"})
+        self.assertContains(r, "Class average")
+        self.assertContains(r, "Some class tests were missed or not entered")
+        r = self.client.get(url, {"section": self.sec.id, "month": 3, "year": 2026})   # no term chosen: old month mode
+        self.assertEqual((r.context["start"], r.context["end"]), (self.d(2026, 1, 1), self.d(2026, 3, 31)))
+        self.assertEqual(self.client.get(reverse("ct_progress_report")).status_code, 200)
+
+    def test_students_cannot_open_it(self):
+        self.client.login(username="a", password="pw-test-1")
+        self.assertEqual(self.client.get(reverse("ct_progress_report")).status_code, 302)
