@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 from accounts.decorators import role_required
 from django.contrib import messages
 from django.db.models import Count, Q, Avg, Exists, OuterRef
@@ -23,8 +24,9 @@ from exams.models import (
 from exams.services import (
     calculate_student_grade, get_grade_details,
     get_letter_grade, calculate_period_grade,
-    period_marks_filter, report_subjects, subject_result, summarise, year_report,
+    build_report_cards, period_config, report_card, section_profiles,
 )
+from exams.models import ReportRemark
 
 logger = logging.getLogger(__name__)
 
@@ -295,10 +297,19 @@ def view_reports(request):
             'profile': p,
         })
 
+    section_obj, periods = None, []
+    if section_id:
+        section_obj = sections.filter(id=section_id).first()
+        config = period_config(section_obj) if section_obj else None
+        if config:
+            periods = list(config.periods.order_by('sequence'))
+
     context = {
         'sections': sections,
         'students': students,
         'selected_section': section_id,
+        'section_obj': section_obj,
+        'periods': periods,
     }
     return render(request, 'dashboard/view_reports.html', context)
 
@@ -328,22 +339,82 @@ def student_report(request, student_id=None):
     if not _can_view_student_report(viewer, student):
         return redirect('dashboard_router')
 
-    report = year_report(student, viewer=viewer, with_details=True)
-    section = report['section']
-    for g in report['grades']:
-        comments = SubjectComment.objects.filter(
-            student=student, subject=g['subject'], section=section,
-            academic_year=section.academic_year, period__isnull=False,
-        ).select_related('period').order_by('period__sequence')
-        if report['marks_limited']:
-            comments = comments.filter(period__is_published=True)
-        g['comments'] = [{'label': pc.period.label, 'comment': pc.comment} for pc in comments]
-
-    context = {'student': student, **report}
-
+    card = report_card(student, viewer=viewer)
+    context = _report_context(request, student, card)
     if printable:
-        return render(request, 'dashboard/report_card_print.html', context)
+        return render(request, 'dashboard/report_card_print.html',
+                      {'cards': [card] if card else [], 'section': context['section']})
     return render(request, 'dashboard/student_report.html', context)
+
+
+def _remark_permissions(user, section):
+    """(can edit class teacher's remark, can edit principal's remark) for this section."""
+    if user.role == User.Role.ADMIN:
+        return True, True
+    if section and user.role in (User.Role.TEACHER, User.Role.COORDINATOR):
+        return TimetableEntry.objects.filter(teacher=user, section=section).exists(), False
+    return False, False
+
+
+def _report_context(request, student, card, period=None):
+    section = card['section'] if card else None
+    can_teacher, can_principal = _remark_permissions(request.user, section)
+    empty = {'grades': [], 'overall_avg': None, 'overall_letter': get_letter_grade(None), 'gpa': None,
+             'provisional': False, 'marks_limited': False, 'attendance': {'total': 0},
+             'remarks': {'class_teacher': '', 'principal': ''}, 'grade_settings': []}
+    return {
+        'student': student,
+        'section': section,
+        'profile': card['profile'] if card else StudentProfile.objects.filter(user=student).first(),
+        'period': period,
+        **(card or empty),
+        'can_edit_class_teacher_remark': can_teacher,
+        'can_edit_principal_remark': can_principal,
+    }
+
+
+@login_required
+@require_POST
+def save_report_remarks(request):
+    """Save the class teacher's and/or principal's remark for one student's report card."""
+    student = get_object_or_404(User, pk=request.POST.get('student'), role=User.Role.STUDENT)
+    profile = StudentProfile.objects.filter(user=student).select_related('section').first()
+    section = profile.section if profile else None
+    period = None
+    if request.POST.get('period'):
+        period = get_object_or_404(ReportPeriod, pk=request.POST['period'])
+    can_teacher, can_principal = _remark_permissions(request.user, section)
+    back = (reverse('period_report', args=[period.id, student.id]) if period
+            else reverse('student_report_detail', args=[student.id]))
+    if not section or not (can_teacher or can_principal):
+        messages.error(request, "You can't write remarks for this student.")
+        return redirect(back)
+
+    remark, _ = ReportRemark.objects.get_or_create(
+        student=student, academic_year=section.academic_year, period=period)
+    if can_teacher and 'class_teacher_remark' in request.POST:
+        remark.class_teacher_remark = request.POST['class_teacher_remark'].strip()
+    if can_principal and 'principal_remark' in request.POST:
+        remark.principal_remark = request.POST['principal_remark'].strip()
+    remark.updated_by = request.user
+    remark.save()
+    messages.success(request, "Remarks saved.")
+    return redirect(back)
+
+
+@login_required
+@role_required(User.Role.ADMIN, User.Role.TEACHER, User.Role.COORDINATOR)
+def print_section_report_cards(request):
+    """Every student's report card in a section on one printable page, one card per page."""
+    section = get_object_or_404(Section.objects.select_related('class_group'), pk=request.GET.get('section'))
+    period = None
+    if request.GET.get('period'):
+        period = get_object_or_404(ReportPeriod, pk=request.GET['period'])
+    cards = build_report_cards(section, section_profiles(section), viewer=request.user, period=period)
+    return render(request, 'dashboard/report_card_print.html',
+                  {'cards': cards, 'section': section, 'period': period})
+
+
 
 @login_required
 @role_required(User.Role.ADMIN)
@@ -882,71 +953,12 @@ def period_report(request, period_id, student_id):
         messages.error(request, "This report period is not yet published.")
         return redirect('dashboard_router')
 
-    profile = StudentProfile.objects.filter(user=student).first()
-    section = profile.section if profile else None
-    grade_settings = GradeSetting.objects.all()
-
-    grades = []
-
-    if section:
-        subjects = report_subjects(profile, section, Q(
-            assessmentrecord__date_conducted__gte=period.start_date,
-            assessmentrecord__date_conducted__lte=period.end_date,
-        ))
-
-        # Load all period weightings (defaults + subject-specific)
-        all_weightings = period.weightings.select_related('assessment_type', 'subject').all()
-        default_weights = {pw.assessment_type_id: pw.weight_percentage for pw in all_weightings if pw.subject is None}
-
-        # Build per-subject override map: {subject_id: {at_id: weight}}
-        subject_weight_overrides = {}
-        for pw in all_weightings:
-            if pw.subject_id:
-                subject_weight_overrides.setdefault(pw.subject_id, {})[pw.assessment_type_id] = pw.weight_percentage
-
-        # Pre-fetch all assessment type names to avoid N+1 inside loop
-        all_at_ids = set()
-        for wt in default_weights.keys():
-            all_at_ids.add(wt)
-        for overrides in subject_weight_overrides.values():
-            all_at_ids.update(overrides.keys())
-        at_name_map = dict(
-            AssessmentType.objects.filter(id__in=all_at_ids).values_list('id', 'name')
-        )
-
-        for subj in subjects:
-            # Use subject-specific weights if available, else defaults
-            weights_for_subj = subject_weight_overrides.get(subj.id, default_weights)
-            result = subject_result(student, subj, section, weights_for_subj, at_name_map,
-                                    period_marks_filter(period))
-            score, details = result['score'], result['details']
-            letter = get_letter_grade(score, grade_settings)
-            comment_obj = SubjectComment.objects.filter(
-                student=student, subject=subj, section=section, academic_year=section.academic_year, period=period
-            ).first()
-            grades.append({
-                'subject': subj,
-                'score': score,
-                'letter': letter['letter'],
-                'remark': letter['remark'],
-                'grade_point': letter['grade_point'],
-                'details': details,
-                'provisional': result['provisional'],
-                'comment': comment_obj.comment if comment_obj else '',
-            })
-
-    context = {
-        'student': student,
-        'profile': profile,
-        'section': section,
-        'period': period,
-        'grades': grades,
-        'grade_settings': grade_settings,
-        **summarise(grades, grade_settings),
-    }
+    card = report_card(student, viewer=viewer, period=period)
+    context = _report_context(request, student, card, period=period)
 
     if printable:
-        return render(request, 'dashboard/period_report_print.html', context)
+        return render(request, 'dashboard/report_card_print.html',
+                      {'cards': [card] if card else [], 'section': context['section'], 'period': period})
     return render(request, 'dashboard/period_report.html', context)
 
 

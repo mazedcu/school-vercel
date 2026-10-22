@@ -168,3 +168,34 @@ class PeriodWeighting(models.Model):
     def __str__(self):
         subj = f" [{self.subject.name}]" if self.subject else ""
         return f"{self.period.label}{subj} — {self.assessment_type.name}: {self.weight_percentage}%"
+
+
+class ReportRemark(models.Model):
+    """
+    Overall remarks on a student's report card: one for the full year
+    (period empty) and one per report period.
+    """
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                limit_choices_to={'role': 'student'}, related_name='report_remarks')
+    academic_year = models.CharField(max_length=10)
+    period = models.ForeignKey(ReportPeriod, on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='remarks')
+    class_teacher_remark = models.TextField(blank=True)
+    principal_remark = models.TextField(blank=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   blank=True, related_name='report_remarks_written')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['student', 'academic_year', 'period'],
+                                    condition=models.Q(period__isnull=False),
+                                    name='unique_report_remark_period'),
+            models.UniqueConstraint(fields=['student', 'academic_year'],
+                                    condition=models.Q(period__isnull=True),
+                                    name='unique_report_remark_year'),
+        ]
+
+    def __str__(self):
+        label = self.period.label if self.period else f"Year {self.academic_year}"
+        return f"Remarks for {self.student} — {label}"

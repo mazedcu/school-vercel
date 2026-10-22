@@ -1,0 +1,108 @@
+{# One printable report card. Expects `c`, a card from exams.services.build_report_cards. #}
+<article class="rc">
+    <header class="rc-head">
+        <div>
+            <h1>Radon Academy</h1>
+            <p>Student Report Card{% if c.period %}: {{ c.period.label }}{% endif %}</p>
+        </div>
+        <div class="rc-term">
+            Academic year {{ c.section.academic_year }}
+            {% if c.period %}<br>{{ c.period.start_date|date:"j M" }} to {{ c.period.end_date|date:"j M Y" }}{% endif %}
+        </div>
+    </header>
+
+    <dl class="rc-info">
+        <div><dt>Student</dt><dd>{{ c.student.get_full_name|default:c.student.username }}</dd></div>
+        <div><dt>Class and section</dt><dd>{{ c.section.class_group.name }} – {{ c.section.name }}</dd></div>
+        <div><dt>Roll number</dt><dd>{{ c.profile.roll_number|default:"—" }}</dd></div>
+    </dl>
+
+    <div class="rc-summary">
+        <div>
+            <div class="rc-k">Overall average</div>
+            <div class="rc-v">{% if c.overall_avg is None %}—{% else %}{{ c.overall_avg }}%{% endif %}
+                {% if c.overall_letter.letter != '-' %}<span class="rc-grade">{{ c.overall_letter.letter }}</span>{% endif %}</div>
+            {% if c.overall_letter.remark %}<div class="rc-s">{{ c.overall_letter.remark }}</div>{% endif %}
+        </div>
+        {% if c.gpa is not None %}
+        <div>
+            <div class="rc-k">GPA</div>
+            <div class="rc-v">{{ c.gpa }}</div>
+            <div class="rc-s">Average grade point</div>
+        </div>
+        {% endif %}
+        <div>
+            <div class="rc-k">Attendance</div>
+            {% if c.attendance.total %}
+            <div class="rc-v">{{ c.attendance.pct }}%</div>
+            <div class="rc-s">Present {{ c.attendance.present|add:c.attendance.late }} of {{ c.attendance.total }} days{% if c.attendance.late %}, {{ c.attendance.late }} late{% endif %}</div>
+            {% else %}
+            <div class="rc-v">—</div><div class="rc-s">No attendance recorded</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if c.provisional or c.marks_limited %}
+    <p class="rc-note">
+        {% if c.provisional %}Grades marked “Provisional” are based on the assessments marked so far and may change.{% endif %}
+        {% if c.marks_limited %}Only marks from published terms are shown.{% endif %}
+    </p>
+    {% endif %}
+
+    {% if c.grades %}
+    <table class="rc-table">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th class="num">Score</th>
+                <th>Grade</th>
+                <th class="num">Class average</th>
+                <th class="num">Highest</th>
+                <th>Breakdown</th>
+                <th>Teacher's comment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in c.grades %}
+            <tr>
+                <td class="subj">{{ g.subject.name }}</td>
+                <td class="num score">{% if g.score is None %}<span class="muted">No marks yet</span>{% else %}{{ g.score }}%{% if g.provisional %}<span class="prov">Provisional</span>{% endif %}{% endif %}</td>
+                <td>{% if g.letter != '-' %}<strong>{{ g.letter }}</strong>{% if g.remark %}<div class="muted small">{{ g.remark }}</div>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td class="num">{% if g.class_avg is None %}—{% else %}{{ g.class_avg }}%{% endif %}</td>
+                <td class="num">{% if g.class_high is None %}—{% else %}{{ g.class_high }}%{% endif %}</td>
+                <td class="small">{% for d in g.details %}{{ d.type }} {{ d.weight|floatformat:"-2" }}%: {% if d.avg_pct is None %}—{% else %}{{ d.avg_pct }}%{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</td>
+                <td class="small comment">
+                    {% if c.period %}{{ g.comment|default:"—" }}
+                    {% else %}{% for cm in g.comments %}<div><strong>{{ cm.label }}:</strong> {{ cm.comment }}</div>{% empty %}—{% endfor %}{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="rc-empty">No subjects have been assessed{% if c.period %} in this period{% endif %} yet.</p>
+    {% endif %}
+
+    <section class="rc-remarks">
+        <div>
+            <h2>Class teacher's remark</h2>
+            {% if c.remarks.class_teacher %}<p>{{ c.remarks.class_teacher|linebreaksbr }}</p>{% else %}<div class="lines"></div>{% endif %}
+        </div>
+        <div>
+            <h2>Principal's remark</h2>
+            {% if c.remarks.principal %}<p>{{ c.remarks.principal|linebreaksbr }}</p>{% else %}<div class="lines"></div>{% endif %}
+        </div>
+    </section>
+
+    {% if c.grade_settings %}
+    <div class="rc-scale"><strong>Grading:</strong>
+        {% for gs in c.grade_settings %}<span>{{ gs.letter }} {{ gs.min_score|floatformat:"-2" }}%+</span>{% endfor %}
+    </div>
+    {% endif %}
+
+    <footer class="rc-sign">
+        <div>Class teacher's signature</div>
+        <div>Principal's signature</div>
+        <div>Guardian's signature</div>
+    </footer>
+</article>

@@ -1,0 +1,40 @@
+{# Overall remarks on the on-screen report card; editable by permitted staff. #}
+<div class="card" id="remarks">
+    <div class="card-title">Overall remarks{% if period %} for {{ period.label }}{% endif %}</div>
+    {% if can_edit_class_teacher_remark or can_edit_principal_remark %}
+    <form method="POST" action="{% url 'save_report_remarks' %}">
+        {% csrf_token %}
+        <input type="hidden" name="student" value="{{ student.id }}">
+        {% if period %}<input type="hidden" name="period" value="{{ period.id }}">{% endif %}
+        <div class="grid grid-2">
+            <div class="form-group">
+                <label for="ctRemark">Class teacher's remark</label>
+                {% if can_edit_class_teacher_remark %}
+                <textarea id="ctRemark" name="class_teacher_remark" class="form-control" rows="4" maxlength="1500"
+                          placeholder="Progress, effort and next steps for this {% if period %}term{% else %}year{% endif %}.">{{ remarks.class_teacher }}</textarea>
+                {% else %}
+                <div style="font-size:0.85rem;">{{ remarks.class_teacher|linebreaksbr|default:"Not written yet." }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label for="prRemark">Principal's remark</label>
+                {% if can_edit_principal_remark %}
+                <textarea id="prRemark" name="principal_remark" class="form-control" rows="4" maxlength="1500"
+                          placeholder="Shown above the principal's signature.">{{ remarks.principal }}</textarea>
+                {% else %}
+                <div style="font-size:0.85rem;">{{ remarks.principal|linebreaksbr|default:"Not written yet." }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Save remarks</button>
+        <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem;">Remarks appear on the printed report card.</span>
+    </form>
+    {% else %}
+    <div class="grid grid-2">
+        <div><div style="font-weight:600;font-size:0.8rem;margin-bottom:0.25rem;">Class teacher's remark</div>
+            <div style="font-size:0.85rem;color:var(--text-muted);">{{ remarks.class_teacher|linebreaksbr|default:"—" }}</div></div>
+        <div><div style="font-weight:600;font-size:0.8rem;margin-bottom:0.25rem;">Principal's remark</div>
+            <div style="font-size:0.85rem;color:var(--text-muted);">{{ remarks.principal|linebreaksbr|default:"—" }}</div></div>
+    </div>
+    {% endif %}
+</div>

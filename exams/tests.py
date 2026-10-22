@@ -305,7 +305,7 @@ class ReportCardRulesTestCase(TestCase):
 
     def test_students_and_parents_only_see_published_terms(self):
         config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
-        t1 = ReportPeriod.objects.create(config=config, label="Term 1", sequence=1, is_published=True,
+        ReportPeriod.objects.create(config=config, label="Term 1", sequence=1, is_published=True,
                                          start_date=self.d(2026, 1, 1), end_date=self.d(2026, 4, 30))
         t2 = ReportPeriod.objects.create(config=config, label="Term 2", sequence=2, is_published=False,
                                          start_date=self.d(2026, 5, 1), end_date=self.d(2026, 8, 31))
@@ -347,3 +347,85 @@ class ReportCardRulesTestCase(TestCase):
         self.assertContains(self.client.get(reverse("parent_dashboard")), "No marks yet")
         self.client.login(username="s", password="pw-test-1")
         self.assertContains(self.client.get(reverse("student_dashboard")), "No marks yet")
+
+
+class ReportCardExtrasTestCase(TestCase):
+    """Class average/highest, GPA, attendance, remarks and section printing."""
+
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile
+        from timetable.models import TimeSlot, TimetableEntry
+        from attendance.models import Attendance
+
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.math = Subject.objects.create(name="Math", code="M")
+        self.quiz = AssessmentType.objects.create(name="Quiz")
+        self.admin = User.objects.create_user(username="adm", password="pw-test-1", role=User.Role.ADMIN)
+        self.teacher = User.objects.create_user(username="tea", password="pw-test-1", role=User.Role.TEACHER)
+        self.other_teacher = User.objects.create_user(username="tea2", password="pw-test-1", role=User.Role.TEACHER)
+        slot = TimeSlot.objects.create(day="sunday", start_time=datetime.time(9), end_time=datetime.time(10))
+        TimetableEntry.objects.create(section=self.sec, subject=self.math, teacher=self.teacher, time_slot=slot)
+        for lo, letter, gp in [(80, "A", 4), (60, "B", 3), (0, "F", 0)]:
+            GradeSetting.objects.create(letter=letter, min_score=lo, max_score=100, grade_point=gp)
+
+        self.students = []
+        quiz = AssessmentRecord.objects.create(section=self.sec, subject=self.math, assessment_type=self.quiz,
+                                               title="Q1", total_marks=Decimal(10), date_conducted=self.d(2026, 3, 1))
+        for i, (roll, marks) in enumerate([("10", 9), ("2", 6), ("1", 7)]):
+            u = User.objects.create_user(username=f"s{i}", password="pw-test-1", role=User.Role.STUDENT, first_name=f"S{i}")
+            StudentProfile.objects.create(user=u, section=self.sec, roll_number=roll)
+            StudentScore.objects.create(assessment=quiz, student=u, marks_obtained=Decimal(marks))
+            self.students.append(u)
+        for day, status in [(1, "present"), (2, "late"), (3, "absent"), (4, "present")]:
+            Attendance.objects.create(user=self.students[0], section=self.sec, date=self.d(2026, 3, day), status=status)
+
+    def card(self, student, viewer=None, period=None):
+        from exams.services import report_card
+        return report_card(student, viewer=viewer or self.admin, period=period)
+
+    def test_class_average_highest_gpa_and_attendance(self):
+        c = self.card(self.students[0])
+        g = c["grades"][0]
+        self.assertEqual((g["score"], g["class_avg"], g["class_high"]), (Decimal("90.0"), Decimal("73.3"), Decimal("90.0")))
+        self.assertEqual(c["gpa"], Decimal("4.00"))
+        self.assertEqual(c["attendance"], {"present": 2, "late": 1, "absent": 1, "total": 4, "pct": 75})
+
+    def test_section_print_orders_by_roll_number_and_shows_everyone(self):
+        self.client.login(username="tea", password="pw-test-1")
+        r = self.client.get(reverse("print_section_report_cards"), {"section": self.sec.id})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([c["profile"].roll_number for c in r.context["cards"]], ["1", "2", "10"])
+        self.assertContains(r, "3 report cards, one per page")
+        self.client.login(username=self.students[0].username, password="pw-test-1")
+        self.assertEqual(self.client.get(reverse("print_section_report_cards"), {"section": self.sec.id}).status_code, 302)
+
+    def test_term_print_uses_only_that_terms_marks(self):
+        config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
+        t2 = ReportPeriod.objects.create(config=config, label="Term 2", sequence=2, is_published=True,
+                                         start_date=self.d(2026, 5, 1), end_date=self.d(2026, 8, 31))
+        c = self.card(self.students[0], period=t2)
+        self.assertEqual(c["grades"], [])  # the March quiz is outside Term 2
+        self.assertEqual(c["attendance"]["total"], 0)
+
+    def test_remarks_permissions_and_display(self):
+        url = reverse("save_report_remarks")
+        s = self.students[0]
+        # A teacher who teaches the section can write the class teacher's remark, not the principal's
+        self.client.login(username="tea", password="pw-test-1")
+        self.client.post(url, {"student": s.id, "class_teacher_remark": "Works hard.", "principal_remark": "Hacked"})
+        # A teacher who doesn't teach the section can't write anything
+        self.client.login(username="tea2", password="pw-test-1")
+        self.client.post(url, {"student": s.id, "class_teacher_remark": "Overwritten"})
+        # The admin can write the principal's remark
+        self.client.login(username="adm", password="pw-test-1")
+        self.client.post(url, {"student": s.id, "principal_remark": "Well done."})
+
+        c = self.card(s)
+        self.assertEqual(c["remarks"], {"class_teacher": "Works hard.", "principal": "Well done."})
+        page = self.client.get(reverse("student_report_detail", args=[s.id]) + "?print=1")
+        self.assertContains(page, "Works hard.")
+        self.assertContains(page, "Well done.")
+        self.assertContains(page, "Class average")

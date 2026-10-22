@@ -1,33 +1,41 @@
 """
-exams/services.py — Centralised business logic for exam grade calculations.
+exams/services.py — Centralised business logic for exam grades and report cards.
 
 All grade and report-card numbers come from here, so every page (report cards,
-dashboards, profiles) shows the same result. Views should import from here —
-never duplicate this logic.
+bulk printing, dashboards, profiles) shows the same result. Views should import
+from here — never duplicate this logic.
 
 Rules:
 - A subject's grade only counts the assessment types that have marks so far.
   Their weights are scaled up to 100%, and the grade is flagged `provisional`
-  until every weighted type has marks. (Previously a missing final exam counted
-  as zero, so a 90% quiz score showed as 27%.)
+  until every weighted type has marks.
 - A subject with no marks at all has score None ("No marks yet") and is left
-  out of the overall average.
+  out of the overall average, GPA and class statistics.
 - Letter grades are chosen by minimum score only (highest band whose minimum is
-  met), so there are no gaps between bands such as 89.5 between 80–89 and 90–100.
+  met), so there are no gaps between bands.
 - Students and parents only see marks from published report periods, when the
-  academic year has report periods configured.
+  academic year has report periods configured. Class averages/highest use the
+  same visible marks, so they never reveal unpublished results.
 - If a student has enrolled subjects, only those appear on their report.
+
+Report cards are built a whole section at a time: one query loads the marks,
+and grades, class statistics, attendance, comments and remarks are assembled
+in Python. This keeps single cards and bulk printing fast.
 """
 import logging
+import re
+from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from accounts.models import User
 from academics.models import Subject
+from attendance.models import Attendance
 from students.models import StudentProfile
 from .models import (
-    AcademicPeriodConfig, AssessmentType, GradeSetting, StudentScore, SubjectWeighting,
+    AcademicPeriodConfig, AssessmentType, GradeSetting, ReportRemark, StudentScore,
+    SubjectComment, SubjectWeighting,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,42 +67,30 @@ def get_letter_grade(score, grade_settings=None):
 
 # ─── CORE CALCULATION ─────────────────────────────────────────────────────────
 
-def _average_pct(scores):
-    """Mean percentage of a StudentScore queryset, or None if there are no usable marks."""
-    total, count = Decimal('0'), 0
-    for s in scores:
-        if s.assessment.total_marks > 0:
-            total += (s.marks_obtained / s.assessment.total_marks) * HUNDRED
-            count += 1
-    return (total / count) if count else None
+def _pct(obtained, total):
+    return (obtained / total) * HUNDRED if total and total > 0 else None
 
 
-def subject_result(student, subject, section, weights=None, at_names=None, marks_filter=None):
+def combine(pcts_by_type, weights=None, at_names=None):
     """
-    Weighted result for one student in one subject.
+    Combine a student's percentages in one subject into a result.
 
+    pcts_by_type: {assessment_type_id: [percentage, ...]}
     weights:      {assessment_type_id: weight_percentage}; None/empty = simple average.
-    marks_filter: optional Q on StudentScore (e.g. a date range or published periods).
 
     Returns {'score': Decimal|None, 'provisional': bool, 'details': [...]}.
     Each detail is {'type', 'weight', 'avg_pct' (None if no marks), 'weighted_score'}.
     """
-    scores = StudentScore.objects.filter(
-        student=student, assessment__subject=subject, assessment__section=section,
-    ).select_related('assessment')
-    if marks_filter is not None:
-        scores = scores.filter(marks_filter)
-
     if not weights:
-        avg = _average_pct(scores)
+        all_pcts = [p for pcts in pcts_by_type.values() for p in pcts]
+        avg = sum(all_pcts) / len(all_pcts) if all_pcts else None
         return {'score': None if avg is None else round(avg, 1), 'provisional': False, 'details': []}
 
-    if at_names is None:
-        at_names = dict(AssessmentType.objects.filter(id__in=weights.keys()).values_list('id', 'name'))
-
+    at_names = at_names or {}
     details, weighted_sum, weight_with_marks, missing = [], Decimal('0'), Decimal('0'), False
     for at_id, weight in weights.items():
-        avg = _average_pct(scores.filter(assessment__assessment_type_id=at_id))
+        pcts = pcts_by_type.get(at_id) or []
+        avg = sum(pcts) / len(pcts) if pcts else None
         if avg is None:
             missing = True
         else:
@@ -110,21 +106,53 @@ def subject_result(student, subject, section, weights=None, at_names=None, marks
     if not weight_with_marks:
         return {'score': None, 'provisional': False, 'details': details}
     # Scale to the weights that have marks, so a missing exam isn't counted as zero.
-    return {
-        'score': round(weighted_sum / weight_with_marks, 1),
-        'provisional': missing,
-        'details': details,
-    }
+    return {'score': round(weighted_sum / weight_with_marks, 1), 'provisional': missing, 'details': details}
+
+
+def _score_rows(qs):
+    return qs.values_list('student_id', 'assessment__subject_id', 'assessment__assessment_type_id',
+                          'marks_obtained', 'assessment__total_marks')
+
+
+def subject_result(student, subject, section, weights=None, at_names=None, marks_filter=None):
+    """Weighted result for one student in one subject (see `combine`)."""
+    scores = StudentScore.objects.filter(student=student, assessment__subject=subject, assessment__section=section)
+    if marks_filter is not None:
+        scores = scores.filter(marks_filter)
+    pcts = defaultdict(list)
+    for _, _, at_id, obtained, total in _score_rows(scores):
+        p = _pct(obtained, total)
+        if p is not None:
+            pcts[at_id].append(p)
+    if weights and at_names is None:
+        at_names = dict(AssessmentType.objects.filter(id__in=weights.keys()).values_list('id', 'name'))
+    return combine(pcts, weights, at_names)
+
+
+# ─── WEIGHTS ──────────────────────────────────────────────────────────────────
+
+def year_weights(section):
+    """{subject_id: (weights, names)} from each subject's SubjectWeighting for the section's year."""
+    out = {}
+    for w in SubjectWeighting.objects.filter(section=section, academic_year=section.academic_year) \
+                                     .prefetch_related('components__assessment_type'):
+        comps = list(w.components.all())
+        out[w.subject_id] = ({c.assessment_type_id: c.weight_percentage for c in comps},
+                             {c.assessment_type_id: c.assessment_type.name for c in comps})
+    return out
+
+
+def period_weights(period):
+    """{subject_id or None: (weights, names)} — None holds the period's default weights."""
+    out, names = {}, {}
+    for pw in period.weightings.select_related('assessment_type'):
+        out.setdefault(pw.subject_id, {})[pw.assessment_type_id] = pw.weight_percentage
+        names[pw.assessment_type_id] = pw.assessment_type.name
+    return {k: (v, names) for k, v in out.items()}
 
 
 def _year_weights(subject, section):
-    try:
-        w = SubjectWeighting.objects.get(section=section, subject=subject, academic_year=section.academic_year)
-    except SubjectWeighting.DoesNotExist:
-        return None, None
-    comps = list(w.components.select_related('assessment_type'))
-    return ({c.assessment_type_id: c.weight_percentage for c in comps},
-            {c.assessment_type_id: c.assessment_type.name for c in comps})
+    return year_weights(section).get(subject.id, (None, None))
 
 
 # ─── BACKWARDS-COMPATIBLE HELPERS ─────────────────────────────────────────────
@@ -148,15 +176,15 @@ def period_marks_filter(period):
              assessment__date_conducted__lte=period.end_date)
 
 
-def calculate_period_grade(student, subject, section, period, period_weights, at_name_map=None):
+def calculate_period_grade(student, subject, section, period, period_weights_map, at_name_map=None):
     """Weighted score for one report period. Returns (score or None, details)."""
-    r = subject_result(student, subject, section, period_weights, at_name_map, period_marks_filter(period))
+    r = subject_result(student, subject, section, period_weights_map, at_name_map, period_marks_filter(period))
     return r['score'], r['details']
 
 
-# ─── REPORT CARD ASSEMBLY ─────────────────────────────────────────────────────
+# ─── VISIBILITY & SUBJECTS ────────────────────────────────────────────────────
 
-def _period_config(section):
+def period_config(section):
     config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
     if not config:
         config = AcademicPeriodConfig.objects.filter(academic_year__icontains=section.academic_year).first()
@@ -172,7 +200,7 @@ def visible_marks_filter(section, viewer):
     """
     if viewer is None or viewer.role not in RESTRICTED_VIEWERS:
         return None
-    config = _period_config(section)
+    config = period_config(section)
     if not config:
         return None
     q = Q(pk__in=[])
@@ -193,36 +221,133 @@ def report_subjects(profile, section, assessment_filter=None):
 
 
 def summarise(grades, grade_settings):
-    """Overall average across subjects that have marks."""
-    scored = [g['score'] for g in grades if g['score'] is not None]
-    overall = round(sum(scored) / len(scored), 1) if scored else None
+    """Overall average and GPA across subjects that have marks."""
+    scored = [g for g in grades if g['score'] is not None]
+    overall = round(sum(g['score'] for g in scored) / len(scored), 1) if scored else None
+    uses_gpa = any(gs.grade_point for gs in grade_settings)
+    gpa = None
+    if uses_gpa and scored:
+        gpa = round(sum(Decimal(g['grade_point']) for g in scored) / len(scored), 2)
     return {
         'overall_avg': overall,
         'overall_letter': get_letter_grade(overall, grade_settings),
+        'gpa': gpa,
         'provisional': any(g['provisional'] for g in grades),
     }
 
 
-def year_report(student, viewer=None, with_details=False):
-    """
-    Full-year grades for a student, as `viewer` is allowed to see them.
+def _natural_key(text):
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', text or '')]
 
-    Returns {'profile', 'section', 'grades', 'overall_avg', 'overall_letter',
-             'provisional', 'marks_limited', 'grade_settings'}.
-    Each grade: {'subject', 'score', 'provisional', 'letter', 'remark', 'grade_point', 'details'}.
+
+def section_profiles(section):
+    """Active students in a section, ordered by roll number then name."""
+    profiles = list(
+        StudentProfile.objects.filter(section=section, user__is_active=True, user__is_deleted=False)
+        .select_related('user').prefetch_related('subjects')
+    )
+    profiles.sort(key=lambda p: (p.roll_number == '' or p.roll_number is None, _natural_key(p.roll_number),
+                                 (p.user.get_full_name() or p.user.username).lower()))
+    return profiles
+
+
+# ─── REPORT CARDS ─────────────────────────────────────────────────────────────
+
+def build_report_cards(section, profiles, viewer=None, period=None):
     """
-    profile = StudentProfile.objects.filter(user=student).select_related('section').first()
-    section = profile.section if profile else None
+    Report cards for `profiles` (StudentProfile list, all in `section`).
+
+    period=None builds the full-year card; otherwise the card for that report
+    period. Class averages and highest marks are computed over every active
+    student in the section, using the marks `viewer` is allowed to see.
+    """
     grade_settings = list(GradeSetting.objects.all())
-    grades = []
-    marks_filter = None
+    year = section.academic_year
 
-    if section:
+    if period is not None:
+        marks_filter = period_marks_filter(period)
+        marks_limited = False
+        weights_map = period_weights(period)
+        default_weights = weights_map.get(None, (None, None))
+        weights_for = lambda subject_id: weights_map.get(subject_id, default_weights)  # noqa: E731
+        assessed = Subject.objects.filter(
+            assessmentrecord__section=section,
+            assessmentrecord__date_conducted__gte=period.start_date,
+            assessmentrecord__date_conducted__lte=period.end_date,
+        )
+    else:
         marks_filter = visible_marks_filter(section, viewer)
-        for subj in report_subjects(profile, section):
-            weights, names = _year_weights(subj, section)
-            r = subject_result(student, subj, section, weights, names, marks_filter)
+        marks_limited = marks_filter is not None
+        weights_map = year_weights(section)
+        weights_for = lambda subject_id: weights_map.get(subject_id, (None, None))  # noqa: E731
+        assessed = Subject.objects.filter(assessmentrecord__section=section)
+    assessed = list(assessed.distinct().order_by('name'))
+
+    # All visible marks for the whole section in one query.
+    everyone = section_profiles(section)
+    student_ids = {p.user_id for p in everyone} | {p.user_id for p in profiles}
+    scores = StudentScore.objects.filter(assessment__section=section, student_id__in=student_ids)
+    if marks_filter is not None:
+        scores = scores.filter(marks_filter)
+    pcts = defaultdict(lambda: defaultdict(list))  # (student, subject) -> {type: [pct]}
+    for stu, subj, at_id, obtained, total in _score_rows(scores):
+        p = _pct(obtained, total)
+        if p is not None:
+            pcts[(stu, subj)][at_id].append(p)
+
+    results = {}
+    for stu in student_ids:
+        for subj in assessed:
+            w, n = weights_for(subj.id)
+            results[(stu, subj.id)] = combine(pcts.get((stu, subj.id), {}), w, n)
+
+    # Class statistics per subject, over students who have marks in it
+    stats = {}
+    for subj in assessed:
+        vals = [results[(p.user_id, subj.id)]['score'] for p in everyone
+                if results[(p.user_id, subj.id)]['score'] is not None]
+        stats[subj.id] = {
+            'class_avg': round(sum(vals) / len(vals), 1) if vals else None,
+            'class_high': max(vals) if vals else None,
+            'class_count': len(vals),
+        }
+
+    ids = [p.user_id for p in profiles]
+
+    # Teacher comments per subject
+    comments = defaultdict(list)
+    cq = SubjectComment.objects.filter(student_id__in=ids, section=section, academic_year=year)
+    if period is not None:
+        cq = cq.filter(period=period)
+    else:
+        cq = cq.filter(period__isnull=False)
+        if marks_limited:
+            cq = cq.filter(period__is_published=True)
+    for c in cq.select_related('period').order_by('period__sequence'):
+        comments[(c.student_id, c.subject_id)].append({'label': c.period.label, 'comment': c.comment})
+
+    # Overall remarks
+    remarks = {r.student_id: r for r in ReportRemark.objects.filter(
+        student_id__in=ids, academic_year=year, period=period)}
+
+    # Attendance in this section (and period, if any)
+    aq = Attendance.objects.filter(user_id__in=ids, section=section) \
+                           .exclude(status=Attendance.Status.NOT_APPLICABLE)
+    if period is not None:
+        aq = aq.filter(date__gte=period.start_date, date__lte=period.end_date)
+    att = defaultdict(lambda: defaultdict(int))
+    for uid, status, n in aq.values_list('user_id', 'status').annotate(n=Count('id')):
+        att[uid][status] = n
+
+    cards = []
+    for profile in profiles:
+        enrolled = {s.id for s in profile.subjects.all()}
+        subjects = [s for s in assessed if not enrolled or s.id in enrolled]
+        grades = []
+        for subj in subjects:
+            r = results[(profile.user_id, subj.id)]
             letter = get_letter_grade(r['score'], grade_settings)
+            subj_comments = comments.get((profile.user_id, subj.id), [])
             grades.append({
                 'subject': subj,
                 'score': r['score'],
@@ -230,14 +355,60 @@ def year_report(student, viewer=None, with_details=False):
                 'letter': letter['letter'],
                 'remark': letter['remark'],
                 'grade_point': letter['grade_point'],
-                'details': r['details'] if with_details else [],
+                'details': r['details'],
+                'comments': subj_comments,
+                'comment': subj_comments[0]['comment'] if period is not None and subj_comments else '',
+                **stats[subj.id],
             })
 
-    return {
-        'profile': profile,
-        'section': section,
-        'grades': grades,
-        'marks_limited': marks_filter is not None,
-        'grade_settings': grade_settings,
-        **summarise(grades, grade_settings),
-    }
+        a = att.get(profile.user_id, {})
+        present, late, absent = (a.get(Attendance.Status.PRESENT, 0), a.get(Attendance.Status.LATE, 0),
+                                 a.get(Attendance.Status.ABSENT, 0))
+        total = present + late + absent
+        remark = remarks.get(profile.user_id)
+        cards.append({
+            'student': profile.user,
+            'profile': profile,
+            'section': section,
+            'period': period,
+            'grades': grades,
+            'grade_settings': grade_settings,
+            'marks_limited': marks_limited,
+            'attendance': {
+                'present': present, 'late': late, 'absent': absent, 'total': total,
+                'pct': round((present + late) * 100 / total) if total else None,
+            },
+            'remarks': {
+                'class_teacher': remark.class_teacher_remark if remark else '',
+                'principal': remark.principal_remark if remark else '',
+            },
+            **summarise(grades, grade_settings),
+        })
+    return cards
+
+
+def report_card(student, viewer=None, period=None):
+    """One student's report card (see build_report_cards); None if they have no section."""
+    profile = StudentProfile.objects.filter(user=student).select_related('section') \
+                                    .prefetch_related('subjects').first()
+    if not profile or not profile.section:
+        return None
+    return build_report_cards(profile.section, [profile], viewer=viewer, period=period)[0]
+
+
+def year_report(student, viewer=None, with_details=False):
+    """
+    Full-year grades for a student, as `viewer` is allowed to see them.
+    Kept for dashboards and profiles; returns the report-card dict, or an
+    empty one (no grades) if the student has no section.
+    """
+    card = report_card(student, viewer=viewer)
+    if card is None:
+        grade_settings = list(GradeSetting.objects.all())
+        profile = StudentProfile.objects.filter(user=student).first()
+        return {'profile': profile, 'section': None, 'grades': [], 'marks_limited': False,
+                'grade_settings': grade_settings, **summarise([], grade_settings)}
+    if not with_details:
+        for g in card['grades']:
+            g['details'] = []
+    return card

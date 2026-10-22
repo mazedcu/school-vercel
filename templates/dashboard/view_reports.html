@@ -16,6 +16,21 @@
     </form>
 </div>
 
+{% if section_obj %}
+<div class="card">
+    <div class="card-title">Print report cards for {{ section_obj.class_group.name }} – {{ section_obj.name }}</div>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;">Opens every student's report card on one page, one card per sheet. Use “Print or save as PDF” there.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        <a href="{% url 'print_section_report_cards' %}?section={{ section_obj.id }}" target="_blank" class="btn btn-primary btn-sm">Full year</a>
+        {% for p in periods %}
+        <a href="{% url 'print_section_report_cards' %}?section={{ section_obj.id }}&period={{ p.id }}" target="_blank" class="btn btn-sm" style="background:var(--surface);border:1px solid var(--border);color:var(--text);">{{ p.label }}{% if not p.is_published %} <span style="color:var(--text-muted);font-weight:500;">(not published)</span>{% endif %}</a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="card" style="font-size:0.85rem;color:var(--text-muted);">Choose a section above to print all of its report cards at once.</div>
+{% endif %}
+
 <div class="card">
     <div class="card-title">Students ({{ students|length }})</div>
     {% if students %}

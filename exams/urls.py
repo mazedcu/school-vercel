@@ -17,5 +17,7 @@ urlpatterns = [
     path('period_reports/', views.period_report_select, name='period_report_select'),
     path('period_reports/<int:student_id>/', views.period_report_select, name='period_report_select_student'),
     path('period_report/<int:period_id>/<int:student_id>/', views.period_report, name='period_report'),
+    path('report_cards/remarks/', views.save_report_remarks, name='save_report_remarks'),
+    path('report_cards/print/', views.print_section_report_cards, name='print_section_report_cards'),
 ]
 
