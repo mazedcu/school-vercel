@@ -6,6 +6,9 @@ on:
     paths: [ "android/**", ".github/workflows/android.yml" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,3 +37,16 @@ jobs:
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
+
+      # Also attach the unsigned build to a temporary pre-release, so it can be fetched and
+      # signed outside GitHub (the signing key is not stored in this repository).
+      - name: Attach unsigned build to a temporary release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="android-unsigned-${{ github.run_number }}"
+          gh release create "$tag" --prerelease --target "${{ github.sha }}" \
+            --title "Android build ${{ github.run_number }} (unsigned)" \
+            --notes "Unsigned build for signing. Not installable as is." \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/bundle/release/app-release.aab
