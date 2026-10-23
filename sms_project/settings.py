@@ -38,6 +38,15 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost,104.248.226.234,learnwithhasan.com,www.learnwithhasan.com,opdevsystems.xyz,www.opdevsystems.xyz').split(',')
 
+# HTTPS behind nginx: nginx's proxy_params sends X-Forwarded-Proto, so Django knows the
+# request was secure. Without these, logging in over https (including from the Android
+# app) fails with "CSRF verification failed".
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://opdevsystems.xyz,https://www.opdevsystems.xyz,https://learnwithhasan.com,https://www.learnwithhasan.com',
+).split(',')
+
 
 # Application definition
 
