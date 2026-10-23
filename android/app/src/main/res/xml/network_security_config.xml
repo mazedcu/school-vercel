@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only secure (https) connections are allowed, so passwords and marks are
+  never sent unencrypted. If the website is ever served over plain http,
+  set up HTTPS on the server rather than relaxing this.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
