@@ -219,14 +219,28 @@ def enter_marks(request, assessment_id):
     if not _can_manage_assessment(request.user, assessment):
         messages.error(request, NOT_YOUR_CLASS)
         return redirect('manage_assessments')
-    profiles = StudentProfile.objects.filter(section=assessment.section).select_related('user')
+    profiles = section_profiles(assessment.section)   # current students, by roll number
+    existing = {s.student_id: s for s in StudentScore.objects.filter(assessment=assessment)}
 
     if request.method == 'POST':
-        saved = 0
+        saved, not_applicable, cleared = 0, 0, 0
         errors = []
         for p in profiles:
-            marks = request.POST.get(f'marks_{p.user.id}', '').strip()
+            name = p.user.get_full_name() or p.user.username
+            current = existing.get(p.user_id)
+            if request.POST.get(f'na_{p.user_id}') == 'on':
+                StudentScore.objects.update_or_create(
+                    assessment=assessment, student=p.user,
+                    defaults={'marks_obtained': Decimal('0'), 'not_applicable': True},
+                )
+                not_applicable += 1
+                continue
+            marks = request.POST.get(f'marks_{p.user_id}', '').strip()
             if not marks:
+                # Unticking N/A without entering a mark returns the student to "not entered".
+                if current and current.not_applicable:
+                    current.delete()
+                    cleared += 1
                 continue
             try:
                 m = Decimal(marks)
@@ -236,44 +250,45 @@ def enter_marks(request, assessment_id):
                     raise ValueError(f"Marks ({m}) exceed total ({assessment.total_marks}).")
                 StudentScore.objects.update_or_create(
                     assessment=assessment, student=p.user,
-                    defaults={'marks_obtained': m}
+                    defaults={'marks_obtained': m, 'not_applicable': False},
                 )
                 saved += 1
-            except ValueError as e:
-                errors.append(f"{p.user.get_full_name() or p.user.username}: {e}")
+            except (ValueError, ArithmeticError) as e:
+                errors.append(f"{name}: {e if isinstance(e, ValueError) else 'not a valid number.'}")
             except Exception as e:
                 logger.warning("Could not save mark for student %s: %s", p.user_id, e)
-                errors.append(f"{p.user.get_full_name() or p.user.username}: Could not save.")
-        if errors:
-            for err in errors:
-                messages.warning(request, err)
-        if saved:
-            messages.success(request, f"Marks saved for '{assessment.title}' ({saved} student(s)).")
+                errors.append(f"{name}: Could not save.")
+        for err in errors:
+            messages.warning(request, err)
+        if saved or not_applicable or cleared:
+            parts = [f"{saved} mark{'s' if saved != 1 else ''} saved"]
+            if not_applicable:
+                parts.append(f"{not_applicable} marked N/A")
+            if cleared:
+                parts.append(f"{cleared} N/A cleared")
+            messages.success(request, f"'{assessment.title}': " + ", ".join(parts) + ".")
         return redirect(reverse('enter_marks', args=[assessment_id]))
 
     students_marks = []
     for p in profiles:
-        existing = StudentScore.objects.filter(assessment=assessment, student=p.user).first()
-        try:
-            # Guard against any corrupt stored decimal values
-            marks_val = existing.marks_obtained if existing else ''
-            if marks_val != '':
-                marks_val = Decimal(str(marks_val))  # validate — raises if corrupt
-        except Exception:
-            logger.error(
-                "Corrupt marks_obtained for student %s in assessment %s — resetting display.",
-                p.user_id, assessment_id
-            )
-            marks_val = ''
-        students_marks.append({
-            'user': p.user,
-            'roll': p.roll_number,
-            'marks': marks_val,
-        })
+        score = existing.get(p.user_id)
+        marks_val, is_na = '', False
+        if score:
+            is_na = score.not_applicable
+            try:
+                # Guard against any corrupt stored decimal values
+                marks_val = '' if is_na else Decimal(str(score.marks_obtained))
+            except Exception:
+                logger.error("Corrupt marks_obtained for student %s in assessment %s — resetting display.",
+                             p.user_id, assessment_id)
+                marks_val = ''
+        students_marks.append({'user': p.user, 'roll': p.roll_number, 'marks': marks_val, 'na': is_na})
 
     context = {
         'assessment': assessment,
         'students_marks': students_marks,
+        'na_count': sum(1 for s in students_marks if s['na']),
+        'entered_count': sum(1 for s in students_marks if s['marks'] != ''),
     }
     return render(request, 'dashboard/enter_marks.html', context)
 

@@ -71,29 +71,38 @@ def _pct(obtained, total):
     return (obtained / total) * HUNDRED if total and total > 0 else None
 
 
-def combine(pcts_by_type, weights=None, at_names=None):
+def combine(pcts_by_type, weights=None, at_names=None, na_types=frozenset()):
     """
     Combine a student's percentages in one subject into a result.
 
     pcts_by_type: {assessment_type_id: [percentage, ...]}
     weights:      {assessment_type_id: weight_percentage}; None/empty = simple average.
+    na_types:     assessment types marked "not applicable" for this student; a type
+                  with only N/A entries is left out without making the grade provisional.
 
-    Returns {'score': Decimal|None, 'provisional': bool, 'details': [...]}.
-    Each detail is {'type', 'weight', 'avg_pct' (None if no marks), 'weighted_score'}.
+    Returns {'score': Decimal|None, 'provisional': bool, 'not_applicable': bool, 'details': [...]}.
+    Each detail is {'type', 'weight', 'avg_pct' (None if no marks), 'weighted_score', 'not_applicable'}.
+    `not_applicable` on the result means everything that would count was marked N/A.
     """
     if not weights:
         all_pcts = [p for pcts in pcts_by_type.values() for p in pcts]
         avg = sum(all_pcts) / len(all_pcts) if all_pcts else None
-        return {'score': None if avg is None else round(avg, 1), 'provisional': False, 'details': []}
+        return {'score': None if avg is None else round(avg, 1), 'provisional': False,
+                'not_applicable': avg is None and bool(na_types), 'details': []}
 
     at_names = at_names or {}
     details, weighted_sum, weight_with_marks, missing = [], Decimal('0'), Decimal('0'), False
+    all_na = True
     for at_id, weight in weights.items():
         pcts = pcts_by_type.get(at_id) or []
         avg = sum(pcts) / len(pcts) if pcts else None
+        type_na = avg is None and at_id in na_types
         if avg is None:
-            missing = True
+            if not type_na:
+                missing = True
+                all_na = False
         else:
+            all_na = False
             weighted_sum += avg * weight
             weight_with_marks += weight
         details.append({
@@ -101,17 +110,20 @@ def combine(pcts_by_type, weights=None, at_names=None):
             'weight': weight,
             'avg_pct': None if avg is None else round(avg, 1),
             'weighted_score': None if avg is None else round(avg * weight / HUNDRED, 1),
+            'not_applicable': type_na,
         })
 
     if not weight_with_marks:
-        return {'score': None, 'provisional': False, 'details': details}
+        return {'score': None, 'provisional': False, 'not_applicable': all_na and bool(na_types),
+                'details': details}
     # Scale to the weights that have marks, so a missing exam isn't counted as zero.
-    return {'score': round(weighted_sum / weight_with_marks, 1), 'provisional': missing, 'details': details}
+    return {'score': round(weighted_sum / weight_with_marks, 1), 'provisional': missing,
+            'not_applicable': False, 'details': details}
 
 
 def _score_rows(qs):
     return qs.values_list('student_id', 'assessment__subject_id', 'assessment__assessment_type_id',
-                          'marks_obtained', 'assessment__total_marks')
+                          'marks_obtained', 'assessment__total_marks', 'not_applicable')
 
 
 def subject_result(student, subject, section, weights=None, at_names=None, marks_filter=None):
@@ -119,14 +131,17 @@ def subject_result(student, subject, section, weights=None, at_names=None, marks
     scores = StudentScore.objects.filter(student=student, assessment__subject=subject, assessment__section=section)
     if marks_filter is not None:
         scores = scores.filter(marks_filter)
-    pcts = defaultdict(list)
-    for _, _, at_id, obtained, total in _score_rows(scores):
+    pcts, na_types = defaultdict(list), set()
+    for _, _, at_id, obtained, total, na in _score_rows(scores):
+        if na:
+            na_types.add(at_id)
+            continue
         p = _pct(obtained, total)
         if p is not None:
             pcts[at_id].append(p)
     if weights and at_names is None:
         at_names = dict(AssessmentType.objects.filter(id__in=weights.keys()).values_list('id', 'name'))
-    return combine(pcts, weights, at_names)
+    return combine(pcts, weights, at_names, na_types)
 
 
 # ─── WEIGHTS ──────────────────────────────────────────────────────────────────
@@ -290,7 +305,11 @@ def build_report_cards(section, profiles, viewer=None, period=None):
     if marks_filter is not None:
         scores = scores.filter(marks_filter)
     pcts = defaultdict(lambda: defaultdict(list))  # (student, subject) -> {type: [pct]}
-    for stu, subj, at_id, obtained, total in _score_rows(scores):
+    na = defaultdict(set)                           # (student, subject) -> {types marked N/A}
+    for stu, subj, at_id, obtained, total, is_na in _score_rows(scores):
+        if is_na:
+            na[(stu, subj)].add(at_id)
+            continue
         p = _pct(obtained, total)
         if p is not None:
             pcts[(stu, subj)][at_id].append(p)
@@ -299,7 +318,7 @@ def build_report_cards(section, profiles, viewer=None, period=None):
     for stu in student_ids:
         for subj in assessed:
             w, n = weights_for(subj.id)
-            results[(stu, subj.id)] = combine(pcts.get((stu, subj.id), {}), w, n)
+            results[(stu, subj.id)] = combine(pcts.get((stu, subj.id), {}), w, n, na.get((stu, subj.id), set()))
 
     # Class statistics per subject, over students who have marks in it
     stats = {}
@@ -352,6 +371,7 @@ def build_report_cards(section, profiles, viewer=None, period=None):
                 'subject': subj,
                 'score': r['score'],
                 'provisional': r['provisional'],
+                'not_applicable': r['not_applicable'],
                 'letter': letter['letter'],
                 'remark': letter['remark'],
                 'grade_point': letter['grade_point'],

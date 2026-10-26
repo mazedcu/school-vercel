@@ -525,3 +525,111 @@ class CTProgressReportTestCase(TestCase):
     def test_students_cannot_open_it(self):
         self.client.login(username="a", password="pw-test-1")
         self.assertEqual(self.client.get(reverse("ct_progress_report")).status_code, 302)
+
+
+class NotApplicableMarksTestCase(TestCase):
+    """Marks entered as N/A are left out of results: not zero, not missing, not provisional."""
+
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile
+        from exams.models import SubjectWeighting, WeightingComponent
+
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.phy = Subject.objects.create(name="Physics", code="P")
+        self.art = Subject.objects.create(name="Art", code="A")
+        self.quiz, _ = AssessmentType.objects.get_or_create(name="Class Test")
+        self.final, _ = AssessmentType.objects.get_or_create(name="Final Term")
+        self.admin = User.objects.create_user(username="adm", password="pw-test-1", role=User.Role.ADMIN)
+        teacher = User.objects.create_user(username="t", password="pw-test-1", role=User.Role.TEACHER)
+        self.s1 = User.objects.create_user(username="s1", password="pw-test-1", role=User.Role.STUDENT)
+        self.s2 = User.objects.create_user(username="s2", password="pw-test-1", role=User.Role.STUDENT)
+        StudentProfile.objects.create(user=self.s1, section=self.sec, roll_number="1")
+        StudentProfile.objects.create(user=self.s2, section=self.sec, roll_number="2")
+        w = SubjectWeighting.objects.create(section=self.sec, subject=self.phy, teacher=teacher, academic_year="2026")
+        WeightingComponent.objects.create(weighting_profile=w, assessment_type=self.quiz, weight_percentage=30)
+        WeightingComponent.objects.create(weighting_profile=w, assessment_type=self.final, weight_percentage=70)
+        GradeSetting.objects.create(letter="A", min_score=80, max_score=100)
+        GradeSetting.objects.create(letter="F", min_score=0, max_score=79)
+        self.ct = self.record(self.phy, self.quiz, "CT 1", 20)
+        self.exam = self.record(self.phy, self.final, "Final", 100)
+
+    def record(self, subject, atype, title, total):
+        return AssessmentRecord.objects.create(section=self.sec, subject=subject, assessment_type=atype, title=title,
+                                               total_marks=Decimal(total), date_conducted=self.d(2026, 3, 1))
+
+    def score(self, record, student, marks=0, na=False):
+        StudentScore.objects.create(assessment=record, student=student, marks_obtained=Decimal(marks), not_applicable=na)
+
+    def card(self, student):
+        from exams.services import report_card
+        return report_card(student, viewer=self.admin)
+
+    def test_marks_entry_saves_and_clears_na(self):
+        self.client.login(username="adm", password="pw-test-1")
+        url = reverse("enter_marks", args=[self.ct.id])
+        self.client.post(url, {f"marks_{self.s1.id}": "15", f"na_{self.s2.id}": "on", f"marks_{self.s2.id}": "9"})
+        self.assertEqual(StudentScore.objects.get(student=self.s1).marks_obtained, Decimal("15"))
+        na = StudentScore.objects.get(student=self.s2)
+        self.assertTrue(na.not_applicable)
+        self.assertEqual(na.marks_obtained, 0)
+
+        page = self.client.get(url)
+        self.assertEqual([s["na"] for s in page.context["students_marks"]], [False, True])
+        self.assertContains(page, "1 of 2 entered, 1 N/A")
+
+        # Unticking N/A with no mark returns the student to "not entered"
+        self.client.post(url, {f"marks_{self.s1.id}": "15"})
+        self.assertFalse(StudentScore.objects.filter(student=self.s2).exists())
+        # Entering a mark after N/A replaces it
+        self.score(self.ct, self.s2, na=True)
+        self.client.post(url, {f"marks_{self.s2.id}": "12"})
+        s2 = StudentScore.objects.get(student=self.s2)
+        self.assertEqual((s2.not_applicable, s2.marks_obtained), (False, Decimal("12")))
+
+    def test_na_exam_is_left_out_without_making_grade_provisional(self):
+        self.score(self.ct, self.s1, 18)             # 90%
+        self.score(self.exam, self.s1, na=True)      # final doesn't apply
+        g = self.card(self.s1)["grades"][0]
+        self.assertEqual(g["score"], Decimal("90.0"))
+        self.assertFalse(g["provisional"])
+        self.assertEqual([d["not_applicable"] for d in g["details"]], [False, True])
+
+        self.score(self.ct, self.s2, 18)             # same quiz, final simply not entered
+        g2 = self.card(self.s2)["grades"][0]
+        self.assertEqual(g2["score"], Decimal("90.0"))
+        self.assertTrue(g2["provisional"])
+
+    def test_subject_all_na_shows_not_applicable_and_is_out_of_average(self):
+        art_ct = self.record(self.art, self.quiz, "Art CT", 10)
+        self.score(self.ct, self.s1, 16)             # Physics 80%
+        self.score(art_ct, self.s1, na=True)
+        self.score(art_ct, self.s2, 5)               # Art class average comes only from s2
+        c = self.card(self.s1)
+        art = next(g for g in c["grades"] if g["subject"] == self.art)
+        self.assertIsNone(art["score"])
+        self.assertTrue(art["not_applicable"])
+        self.assertEqual(art["class_avg"], Decimal("50.0"))
+        self.assertEqual(c["overall_avg"], Decimal("80.0"))
+        self.client.login(username="adm", password="pw-test-1")
+        self.assertContains(self.client.get(reverse("student_report_detail", args=[self.s1.id]) + "?print=1"),
+                            "Not applicable")
+
+    def test_ct_report_shows_na_and_ignores_it(self):
+        from exams.ct_report import ct_progress
+        ct2 = self.record(self.phy, self.quiz, "CT 2", 20)
+        self.score(self.ct, self.s1, 10)
+        self.score(ct2, self.s1, na=True)
+        self.score(self.ct, self.s2, 20)
+        self.score(ct2, self.s2, 16)
+        r = ct_progress(self.sec, self.quiz, self.d(2026, 1, 1), self.d(2026, 12, 31))
+        s1 = r["students"][0]["by_subject"][self.phy.id]
+        self.assertEqual((s1["pct"], s1["missing"]), (Decimal("50.0"), 0))
+        self.assertTrue(s1["tests"][1]["not_applicable"])
+        self.assertEqual(s1["tests"][1]["class_avg"], Decimal("16.0"))   # CT 2 average ignores the N/A
+        self.client.login(username="adm", password="pw-test-1")
+        page = self.client.get(reverse("ct_progress_report_print"),
+                               {"section": self.sec.id, "month": 3, "year": 2026, "ct_type": self.quiz.id})
+        self.assertContains(page, "N/A")

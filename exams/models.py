@@ -53,6 +53,9 @@ class StudentScore(models.Model):
     assessment = models.ForeignKey(AssessmentRecord, on_delete=models.CASCADE, related_name='scores')
     student = models.ForeignKey('accounts.User', on_delete=models.CASCADE, limit_choices_to={'role': 'student'})
     marks_obtained = models.DecimalField(max_digits=6, decimal_places=2)
+    # The assessment doesn't apply to this student (e.g. exempt, joined later). It is left out
+    # of all results instead of counting as zero or as missing; marks_obtained is stored as 0.
+    not_applicable = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -60,6 +63,9 @@ class StudentScore(models.Model):
         ]
 
     def clean(self):
+        if self.not_applicable:
+            self.marks_obtained = 0
+            return
         if self.marks_obtained > self.assessment.total_marks:
             raise ValidationError({'marks_obtained': _("Marks obtained cannot be greater than total marks.")})
 
@@ -68,6 +74,8 @@ class StudentScore(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        if self.not_applicable:
+            return f"{self.student.username}: N/A in {self.assessment.title}"
         return f"{self.student.username}: {self.marks_obtained}/{self.assessment.total_marks} in {self.assessment.title}"
 
 

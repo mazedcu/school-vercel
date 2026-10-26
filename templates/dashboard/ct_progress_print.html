@@ -115,7 +115,7 @@
                 <td>{{ st.profile.roll_number|default:"—" }}</td>
                 <td class="subj">{{ st.student.get_full_name|default:st.student.username }}</td>
                 {% for r in st.cells %}
-                <td class="c">{% if r is None %}<span class="muted small">not taken</span>{% elif r.pct is None %}<span class="muted">—</span>{% else %}{{ r.pct }}%{% if r.missing %}<span class="star">*</span>{% endif %}<small>{{ r.grade }}</small>{% endif %}</td>
+                <td class="c">{% if r is None %}<span class="muted small">not taken</span>{% elif r.pct is None %}<span class="muted">{% if r.not_applicable %}N/A{% else %}—{% endif %}</span>{% else %}{{ r.pct }}%{% if r.missing %}<span class="star">*</span>{% endif %}<small>{{ r.grade }}</small>{% endif %}</td>
                 {% endfor %}
                 <td class="c pct">{% if st.overall is None %}—{% else %}{{ st.overall }}%<small>{{ st.overall_grade }}</small>{% endif %}</td>
             </tr>
@@ -165,10 +165,10 @@
                 <td class="subj">{{ r.subject.name }}</td>
                 <td><ul class="tests">{% for t in r.tests %}
                     <li><span>{{ t.ct.title }}, {{ t.ct.date_conducted|date:"j M" }}</span>
-                        {% if t.obtained is None %}<span class="miss">absent / not entered</span>{% else %}<span>{{ t.obtained|floatformat:"-2" }} / {{ t.total|floatformat:"-2" }}</span>{% endif %}</li>
+                        {% if t.not_applicable %}<span class="muted">N/A</span>{% elif t.obtained is None %}<span class="miss">absent / not entered</span>{% else %}<span>{{ t.obtained|floatformat:"-2" }} / {{ t.total|floatformat:"-2" }}</span>{% endif %}</li>
                 {% endfor %}</ul></td>
                 <td class="num">{% if r.maximum %}{{ r.obtained|floatformat:"-2" }} / {{ r.maximum|floatformat:"-2" }}{% else %}—{% endif %}</td>
-                <td class="num pct">{% if r.pct is None %}<span class="muted">—</span>{% else %}{{ r.pct }}%{% endif %}</td>
+                <td class="num pct">{% if r.pct is None %}<span class="muted">{% if r.not_applicable %}N/A{% else %}—{% endif %}</span>{% else %}{{ r.pct }}%{% endif %}</td>
                 <td>{% if r.grade != '-' %}<strong>{{ r.grade }}</strong>{% if r.remark %}<div class="muted small">{{ r.remark }}</div>{% endif %}{% else %}—{% endif %}</td>
                 <td class="num muted">{% if r.class_avg is None %}—{% else %}{{ r.class_avg }}%{% endif %}</td>
             </tr>

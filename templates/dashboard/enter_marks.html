@@ -1,37 +1,93 @@
 {% extends "base.html" %}
 {% block page_title %}Enter Marks: {{ assessment.title }}{% endblock %}
 {% block breadcrumb %}Assessments / {{ assessment.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .marks-table td { vertical-align: middle; }
+    .marks-input { width: 120px; }
+    .marks-input:disabled { background: var(--bg); color: var(--text-muted); }
+    .na-toggle { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.85rem; user-select: none; }
+    .na-toggle input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+    tr.is-na td { color: var(--text-muted); }
+    .marks-help { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 1rem; line-height: 1.5; }
+    .marks-summary { font-size: 0.8rem; color: var(--text-muted); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
         <div>
             <div class="card-title" style="margin-bottom:0.25rem;">{{ assessment.title }}</div>
             <div style="color:var(--text-muted);font-size:0.8rem;">
-                {{ assessment.section.class_group.name }} {{ assessment.section.name }} · {{ assessment.subject.name }} · <span class="badge badge-blue">{{ assessment.assessment_type.name }}</span> · Total: {{ assessment.total_marks }} marks
+                {{ assessment.section.class_group.name }} {{ assessment.section.name }}, {{ assessment.subject.name }},
+                <span class="badge badge-blue">{{ assessment.assessment_type.name }}</span>, out of {{ assessment.total_marks|floatformat:"-2" }} marks
             </div>
         </div>
         <a href="{% url 'manage_assessments' %}" class="btn btn-primary btn-sm">← Back</a>
     </div>
 
+    <p class="marks-help">
+        Tick <strong>N/A</strong> if this assessment doesn't apply to a student, for example if they are exempt or joined after it.
+        N/A is left out of their results completely. A blank mark means absent or not entered yet; it doesn't count as zero either, but
+        the report card marks the grade as provisional.
+    </p>
+
     <form method="POST">
         {% csrf_token %}
-        <table>
-            <thead><tr><th>Roll #</th><th>Student</th><th>Marks Obtained (out of {{ assessment.total_marks }})</th></tr></thead>
+        <table class="marks-table">
+            <thead><tr><th>Roll #</th><th>Student</th><th>Marks (out of {{ assessment.total_marks|floatformat:"-2" }})</th><th>Not applicable</th></tr></thead>
             <tbody>
                 {% for s in students_marks %}
-                <tr>
+                <tr class="{% if s.na %}is-na{% endif %}">
                     <td>{{ s.roll|default:"-" }}</td>
                     <td>{{ s.user.get_full_name|default:s.user.username }}</td>
-                    <td><input type="number" name="marks_{{ s.user.id }}" value="{{ s.marks }}" class="form-control" style="width:120px;" min="0" max="{{ assessment.total_marks }}" step="0.01"></td>
+                    <td><input type="number" name="marks_{{ s.user.id }}" value="{{ s.marks }}" class="form-control marks-input"
+                               min="0" max="{{ assessment.total_marks }}" step="0.01" inputmode="decimal"
+                               aria-label="Marks for {{ s.user.get_full_name|default:s.user.username }}" {% if s.na %}disabled placeholder="N/A"{% endif %}></td>
+                    <td><label class="na-toggle"><input type="checkbox" name="na_{{ s.user.id }}" class="na-box" {% if s.na %}checked{% endif %}> N/A</label></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="3" class="empty-state">No students found in this section. Make sure students have profiles assigned to this section.</td></tr>
+                <tr><td colspan="4" class="empty-state">No students found in this section. Make sure students have profiles assigned to this section.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
         {% if students_marks %}
-        <button type="submit" class="btn btn-success" style="margin-top:1rem;">Save Marks</button>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:1rem;">
+            <button type="submit" class="btn btn-success">Save Marks</button>
+            <span class="marks-summary" id="marksSummary">{{ entered_count }} of {{ students_marks|length }} entered{% if na_count %}, {{ na_count }} N/A{% endif %}</span>
+        </div>
         {% endif %}
     </form>
 </div>
+
+<script>
+(function () {
+    const rows = document.querySelectorAll('.marks-table tbody tr');
+    const summary = document.getElementById('marksSummary');
+    function update() {
+        let entered = 0, na = 0;
+        rows.forEach((row) => {
+            const box = row.querySelector('.na-box'), input = row.querySelector('.marks-input');
+            if (!box || !input) return;
+            if (box.checked) na++; else if (input.value.trim() !== '') entered++;
+        });
+        if (summary) summary.textContent = entered + ' of ' + rows.length + ' entered' + (na ? ', ' + na + ' N/A' : '');
+    }
+    rows.forEach((row) => {
+        const box = row.querySelector('.na-box'), input = row.querySelector('.marks-input');
+        if (!box || !input) return;
+        box.addEventListener('change', () => {
+            input.disabled = box.checked;
+            input.placeholder = box.checked ? 'N/A' : '';
+            if (box.checked) input.value = '';
+            row.classList.toggle('is-na', box.checked);
+            if (!box.checked) input.focus();
+            update();
+        });
+        input.addEventListener('input', update);
+    });
+})();
+</script>
 {% endblock %}

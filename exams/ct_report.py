@@ -5,6 +5,8 @@ over a date range, plus class statistics.
 Rules:
 - A missing mark (absent or not entered) is shown as such and left out of the
   student's totals; it never counts as zero.
+- A mark entered as "not applicable" is shown as N/A and left out entirely: it
+  doesn't count as zero, as missing, or towards class averages.
 - A class test with no marks entered for anyone is left out entirely and
   listed separately as "not marked yet".
 - Only current (active) students in the section appear, ordered by roll number.
@@ -71,12 +73,14 @@ def ct_progress(section, ct_type, start, end):
                                         date_conducted__gte=start, date_conducted__lte=end)
         .select_related('subject').order_by('subject__name', 'date_conducted', 'id')
     )
-    scores = {
-        (sid, aid): obtained
-        for aid, sid, obtained in StudentScore.objects.filter(
-            assessment__in=all_cts, student__in=[p.user_id for p in profiles]
-        ).values_list('assessment_id', 'student_id', 'marks_obtained')
-    }
+    scores, not_applicable = {}, set()
+    for aid, sid, obtained, na in StudentScore.objects.filter(
+        assessment__in=all_cts, student__in=[p.user_id for p in profiles]
+    ).values_list('assessment_id', 'student_id', 'marks_obtained', 'not_applicable'):
+        if na:
+            not_applicable.add((sid, aid))
+        else:
+            scores[(sid, aid)] = obtained
     marked_ids = set(StudentScore.objects.filter(assessment__in=all_cts).values_list('assessment_id', flat=True))
     cts = [a for a in all_cts if a.id in marked_ids and a.total_marks > 0]
     unmarked = [a for a in all_cts if a.id not in marked_ids]
@@ -97,7 +101,10 @@ def ct_progress(section, ct_type, start, end):
             tests, obtained, maximum, missing = [], Decimal('0'), Decimal('0'), 0
             for a in cts_by_subject[subj.id]:
                 mark = scores.get((p.user_id, a.id))
-                tests.append({'ct': a, 'obtained': mark, 'total': a.total_marks})
+                na = (p.user_id, a.id) in not_applicable
+                tests.append({'ct': a, 'obtained': mark, 'total': a.total_marks, 'not_applicable': na})
+                if na:
+                    continue
                 if mark is None:
                     missing += 1
                 else:
@@ -108,6 +115,7 @@ def ct_progress(section, ct_type, start, end):
             rows.append({
                 'subject': subj, 'tests': tests, 'obtained': obtained, 'maximum': maximum,
                 'pct': pct, 'missing': missing, 'grade': letter['letter'], 'remark': letter['remark'],
+                'not_applicable': bool(tests) and all(t['not_applicable'] for t in tests),
             })
         overall = _mean(r['pct'] for r in rows)
         letter = get_letter_grade(overall, grade_settings)
