@@ -701,3 +701,20 @@ class StudentCTProgressTestCase(TestCase):
         self.assertEqual(self.client.get(other).status_code, 302)
         self.assertEqual(self.client.get(reverse("ct_progress_report_print"), {"section": self.sec.id}).status_code, 302)
         self.assertContains(self.client.get(reverse("student_dashboard")), reverse("my_ct_progress"))
+
+
+class StudentCTProgressDefaultMonthTestCase(StudentCTProgressTestCase):
+    def test_opens_on_latest_month_with_results_when_this_month_is_empty(self):
+        from unittest import mock
+        import datetime
+        self.client.login(username="me", password="pw-test-1")
+        with mock.patch("django.utils.timezone.localdate", return_value=datetime.date(2026, 11, 20)):
+            r = self.client.get(reverse("my_ct_progress"))
+        self.assertTrue(r.context["showing_latest"])
+        self.assertEqual(r.context["label"], "October 2026")
+        self.assertEqual([t["ct"].title for t in r.context["entry"]["rows"][0]["tests"]], ["CT Oct"])
+        # Choosing a month explicitly is respected, even if it is empty
+        with mock.patch("django.utils.timezone.localdate", return_value=datetime.date(2026, 11, 20)):
+            r = self.client.get(reverse("my_ct_progress"), {"month": "2026-11"})
+        self.assertFalse(r.context["showing_latest"])
+        self.assertContains(r, "No class test results for November 2026")

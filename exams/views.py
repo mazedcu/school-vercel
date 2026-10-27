@@ -708,9 +708,25 @@ def my_ct_progress(request, student_id=None):
 
     ct_type = detect_ct_type()
     entry, report = None, {}
+    showing_latest = False
     if section and ct_type and start and not error:
         report = ct_progress(section, ct_type, start, end)
         entry = next((s for s in report['students'] if s['student'] == student), None)
+
+        # Opened without choosing a month and this month has no class tests yet:
+        # show the most recent month that has marked class tests instead of an empty page.
+        if view == 'month' and 'month' not in request.GET and not (entry and entry['rows']):
+            latest = (AssessmentRecord.objects
+                      .filter(section=section, assessment_type=ct_type, date_conducted__lte=today,
+                              scores__isnull=False)
+                      .order_by('-date_conducted').values_list('date_conducted', flat=True).first())
+            if latest and (latest.year, latest.month) != (start.year, start.month):
+                start, end = latest.replace(day=1), month_end(latest.year, latest.month)
+                month_value = latest.strftime('%Y-%m')
+                label = f"{MONTH_NAMES[latest.month]} {latest.year}"
+                report = ct_progress(section, ct_type, start, end)
+                entry = next((s for s in report['students'] if s['student'] == student), None)
+                showing_latest = True
 
     context = {
         'student': student,
@@ -731,6 +747,7 @@ def my_ct_progress(request, student_id=None):
         'class_avg': report.get('class_avg'),
         'grade_settings': report.get('grade_settings', []),
         'unmarked': report.get('unmarked', []),
+        'showing_latest': showing_latest,
     }
     if request.GET.get('print') == '1' and entry:
         return render(request, 'dashboard/ct_progress_print.html', {

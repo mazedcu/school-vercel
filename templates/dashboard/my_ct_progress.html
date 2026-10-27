@@ -89,6 +89,9 @@
     {% elif not entry or not entry.rows %}
     <div class="card empty-state">No class test results for {{ label }}.{% if view == 'month' %} Try another month, or choose a term.{% endif %}</div>
     {% else %}
+    {% if showing_latest %}
+    <div class="card" style="font-size:0.85rem;color:var(--text-muted);padding:0.85rem 1.25rem;">No class tests have been marked yet this month, so this shows {{ label }}, the latest month with results.</div>
+    {% endif %}
     <div class="card">
         <div class="ctp-head">
             <div>
