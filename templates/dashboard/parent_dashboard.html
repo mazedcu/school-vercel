@@ -14,8 +14,9 @@
                 {{ cd.section|default:"Unassigned" }} · Roll: {{ cd.profile.roll_number|default:"N/A" }}
             </div>
         </div>
-        <div style="display:flex;gap:0.5rem;">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
             <a href="{% url 'period_report_select_student' cd.child.id %}" class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none;">📅 Period Reports</a>
+            <a href="{% url 'student_ct_progress' cd.child.id %}" class="btn btn-sm" style="background:#0f766e;color:#fff;border:none;">📝 Class Tests</a>
             <a href="{% url 'student_report_detail' cd.child.id %}" class="btn btn-primary btn-sm">📄 Full Report</a>
         </div>
     </div>

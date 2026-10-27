@@ -652,6 +652,95 @@ def ct_progress_report_print(request):
 
 
 @login_required
+def my_ct_progress(request, student_id=None):
+    """
+    A student's own class test progress (or a parent's child's): for one month,
+    a term, or any date range. Staff can open it for any student.
+    """
+    from exams.ct_report import ct_progress, detect_ct_type, month_end
+
+    viewer = request.user
+    if student_id:
+        student = get_object_or_404(User, pk=student_id, role=User.Role.STUDENT)
+    elif viewer.role == User.Role.STUDENT:
+        student = viewer
+    else:
+        return redirect('dashboard_router')
+    if not _can_view_student_report(viewer, student):
+        return redirect('dashboard_router')
+
+    profile = StudentProfile.objects.filter(user=student).select_related('section__class_group').first()
+    section = profile.section if profile else None
+    today = timezone.localdate()
+    periods = []
+    if section:
+        config = period_config(section)
+        if config:
+            periods = list(config.periods.order_by('sequence'))
+
+    view = request.GET.get('view', 'month')
+    error = None
+    start = end = None
+    label = ''
+    selected_period = None
+    month_value = request.GET.get('month') or today.strftime('%Y-%m')
+    from_value = request.GET.get('from', '')
+    to_value = request.GET.get('to', '')
+    try:
+        if view == 'term' and periods:
+            selected_period = next((p for p in periods if str(p.id) == request.GET.get('period')), None) \
+                or next((p for p in periods if p.start_date <= today <= p.end_date), None) or periods[-1]
+            start, end, label = selected_period.start_date, selected_period.end_date, selected_period.label
+        elif view == 'range':
+            start = datetime.date.fromisoformat(from_value) if from_value else today.replace(day=1)
+            end = datetime.date.fromisoformat(to_value) if to_value else today
+            if end < start:
+                error = "The end date is before the start date."
+            label = f"{start:%-d %b} to {end:%-d %b %Y}"
+            from_value, to_value = start.isoformat(), end.isoformat()
+        else:
+            view = 'month'
+            year, month = (int(x) for x in month_value.split('-'))
+            start, end = datetime.date(year, month, 1), month_end(year, month)
+            label = f"{MONTH_NAMES[month]} {year}"
+    except ValueError:
+        error = "Choose a valid month or dates."
+
+    ct_type = detect_ct_type()
+    entry, report = None, {}
+    if section and ct_type and start and not error:
+        report = ct_progress(section, ct_type, start, end)
+        entry = next((s for s in report['students'] if s['student'] == student), None)
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'section': section,
+        'periods': periods,
+        'view': view,
+        'selected_period': selected_period,
+        'month_value': month_value,
+        'from_value': from_value,
+        'to_value': to_value,
+        'label': label,
+        'start': start,
+        'end': end,
+        'error': error,
+        'ct_type': ct_type,
+        'entry': entry,
+        'class_avg': report.get('class_avg'),
+        'grade_settings': report.get('grade_settings', []),
+        'unmarked': report.get('unmarked', []),
+    }
+    if request.GET.get('print') == '1' and entry:
+        return render(request, 'dashboard/ct_progress_print.html', {
+            **context, 'students': [entry], 'layout': 'sheets', 'single_student': True,
+            'term_label': label,
+        })
+    return render(request, 'dashboard/my_ct_progress.html', context)
+
+
+@login_required
 @role_required(User.Role.ADMIN)
 def period_setup(request):
     """Admin: configure reporting mode, period date ranges, and weights."""

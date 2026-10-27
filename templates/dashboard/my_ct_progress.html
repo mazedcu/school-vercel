@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block page_title %}Class Test Progress{% endblock %}
+{% block breadcrumb %}{% if request.user.role == 'student' %}My results{% else %}{{ student.get_full_name|default:student.username }}{% endif %} / Class tests{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ctp { max-width: 880px; }
+    .ctp-tabs { display: flex; gap: 0.35rem; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.25rem; width: fit-content; margin-bottom: 0.9rem; flex-wrap: wrap; }
+    .ctp-tabs a { font-size: 0.85rem; font-weight: 600; text-decoration: none; color: var(--text-muted); padding: 0.45rem 0.9rem; border-radius: 7px; }
+    .ctp-tabs a.on { background: var(--surface); color: var(--primary); box-shadow: 0 1px 2px rgba(15,23,42,0.08); }
+    .ctp-pick { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+    .ctp-pick .form-group { margin-bottom: 0; }
+    .ctp-pick .form-control { min-width: 170px; }
+
+    .ctp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .ctp-head h2 { font-size: 1.15rem; margin: 0; }
+    .ctp-head .sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    .ctp-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+    .ctp-summary > div { padding: 0.8rem 1rem; border-left: 1px solid var(--border); background: var(--surface); }
+    .ctp-summary > div:first-child { border-left: 0; background: var(--primary-light); }
+    .ctp-k { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+    .ctp-v { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.15; }
+    .ctp-v small { font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-left: 0.25rem; }
+    .ctp-s { font-size: 0.75rem; color: var(--text-muted); }
+
+    .subj { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin-bottom: 0.75rem; overflow: hidden; }
+    .subj-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+    .subj-name { font-weight: 700; }
+    .subj-pct { font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+    .subj-pct small { font-weight: 700; color: var(--primary); margin-left: 0.3rem; }
+    .subj ul { list-style: none; margin: 0; padding: 0.35rem 1rem; }
+    .subj li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.35rem 0; font-size: 0.85rem; border-bottom: 1px dashed var(--border); }
+    .subj li:last-child { border-bottom: 0; }
+    .subj li .when { color: var(--text-muted); font-size: 0.78rem; margin-left: 0.35rem; }
+    .subj li .m { font-weight: 600; white-space: nowrap; }
+    .subj li .miss { color: #b45309; font-style: italic; font-weight: 500; }
+    .subj li .na { color: var(--text-muted); font-weight: 500; }
+    .subj-foot { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 1rem; background: var(--bg); font-size: 0.78rem; color: var(--text-muted); }
+    .ctp-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; line-height: 1.5; }
+
+    @media (max-width: 640px) {
+        .ctp-summary { grid-template-columns: minmax(0, 1fr); }
+        .ctp-summary > div { border-left: 0; border-top: 1px solid var(--border); }
+        .ctp-summary > div:first-child { border-top: 0; }
+        .ctp-pick .form-control { min-width: 0; width: 100%; }
+        .ctp-pick .form-group { flex: 1 1 140px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ctp">
+    <div class="card">
+        <nav class="ctp-tabs" aria-label="Choose what to show">
+            <a href="?view=month" class="{% if view == 'month' %}on{% endif %}">Month</a>
+            {% if periods %}<a href="?view=term" class="{% if view == 'term' %}on{% endif %}">Term</a>{% endif %}
+            <a href="?view=range" class="{% if view == 'range' %}on{% endif %}">Choose dates</a>
+        </nav>
+        <form method="GET" class="ctp-pick">
+            <input type="hidden" name="view" value="{{ view }}">
+            {% if view == 'term' %}
+            <div class="form-group">
+                <label for="fPeriod">Term</label>
+                <select id="fPeriod" name="period" class="form-control" onchange="this.form.submit()">
+                    {% for p in periods %}<option value="{{ p.id }}" {% if p == selected_period %}selected{% endif %}>{{ p.label }} ({{ p.start_date|date:"j M" }} to {{ p.end_date|date:"j M Y" }})</option>{% endfor %}
+                </select>
+            </div>
+            {% elif view == 'range' %}
+            <div class="form-group"><label for="fFrom">From</label><input id="fFrom" type="date" name="from" value="{{ from_value }}" class="form-control"></div>
+            <div class="form-group"><label for="fTo">To</label><input id="fTo" type="date" name="to" value="{{ to_value }}" class="form-control"></div>
+            <button type="submit" class="btn btn-primary">Show</button>
+            {% else %}
+            <div class="form-group">
+                <label for="fMonth">Month</label>
+                <input id="fMonth" type="month" name="month" value="{{ month_value }}" class="form-control" onchange="this.form.submit()">
+            </div>
+            <noscript><button type="submit" class="btn btn-primary">Show</button></noscript>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if error %}
+    <div class="card" style="color:var(--danger);">{{ error }}</div>
+    {% elif not section %}
+    <div class="card empty-state">No class is assigned yet, so there are no class tests to show.</div>
+    {% elif not ct_type %}
+    <div class="card empty-state">Class test results aren't set up yet.</div>
+    {% elif not entry or not entry.rows %}
+    <div class="card empty-state">No class test results for {{ label }}.{% if view == 'month' %} Try another month, or choose a term.{% endif %}</div>
+    {% else %}
+    <div class="card">
+        <div class="ctp-head">
+            <div>
+                <h2>{{ label }}</h2>
+                <div class="sub">{{ student.get_full_name|default:student.username }}, {{ section.class_group.name }} – {{ section.name }}{% if start and end %}, {{ start|date:"j M" }} to {{ end|date:"j M Y" }}{% endif %}</div>
+            </div>
+            <a class="btn btn-sm" style="background:#059669;color:#fff;" href="?{{ request.GET.urlencode }}{% if request.GET %}&amp;{% endif %}print=1" target="_blank">Print or save as PDF</a>
+        </div>
+
+        <div class="ctp-summary">
+            <div><div class="ctp-k">Class test average</div>
+                <div class="ctp-v">{% if entry.overall is None %}—{% else %}{{ entry.overall }}%{% if entry.overall_grade != '-' %}<small>{{ entry.overall_grade }}</small>{% endif %}{% endif %}</div>
+                {% if entry.overall_remark %}<div class="ctp-s">{{ entry.overall_remark }}</div>{% endif %}</div>
+            <div><div class="ctp-k">Class average</div>
+                <div class="ctp-v">{% if class_avg is None %}—{% else %}{{ class_avg }}%{% endif %}</div>
+                <div class="ctp-s">Everyone in the section</div></div>
+            <div><div class="ctp-k">Missed or not entered</div>
+                <div class="ctp-v">{{ entry.missing }}</div>
+                <div class="ctp-s">{% if entry.missing %}Not counted in the average{% else %}None{% endif %}</div></div>
+        </div>
+
+        {% for r in entry.rows %}
+        <section class="subj">
+            <div class="subj-head">
+                <span class="subj-name">{{ r.subject.name }}</span>
+                <span class="subj-pct">{% if r.pct is None %}<span style="color:var(--text-muted);font-weight:600;">{% if r.not_applicable %}N/A{% else %}—{% endif %}</span>{% else %}{{ r.pct }}%{% if r.grade != '-' %}<small>{{ r.grade }}</small>{% endif %}{% endif %}</span>
+            </div>
+            <ul>
+                {% for t in r.tests %}
+                <li><span>{{ t.ct.title }}<span class="when">{{ t.ct.date_conducted|date:"j M" }}</span></span>
+                    {% if t.not_applicable %}<span class="na">N/A</span>
+                    {% elif t.obtained is None %}<span class="miss">absent / not entered</span>
+                    {% else %}<span class="m">{{ t.obtained|floatformat:"-2" }} / {{ t.total|floatformat:"-2" }}</span>{% endif %}</li>
+                {% endfor %}
+            </ul>
+            <div class="subj-foot">
+                <span>{% if r.maximum %}Total {{ r.obtained|floatformat:"-2" }} / {{ r.maximum|floatformat:"-2" }}{% else %}No marks counted{% endif %}</span>
+                <span>Class average {% if r.class_avg is None %}—{% else %}{{ r.class_avg }}%{% endif %}</span>
+            </div>
+        </section>
+        {% endfor %}
+
+        <p class="ctp-note">Missed tests and tests marked N/A aren't counted as zero.{% if unmarked %} Tests not marked yet: {% for a in unmarked %}{{ a.subject.name }} {{ a.title }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

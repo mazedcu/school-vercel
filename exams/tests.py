@@ -629,3 +629,75 @@ class NotApplicableMarksTestCase(TestCase):
         page = self.client.get(reverse("ct_progress_report_print"),
                                {"section": self.sec.id, "month": 3, "year": 2026, "ct_type": self.quiz.id})
         self.assertContains(page, "N/A")
+
+
+class StudentCTProgressTestCase(TestCase):
+    """Students (and parents) can see their own class test results by month, term or dates."""
+
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile, ParentProfile
+
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.math = Subject.objects.create(name="Math", code="M")
+        self.ct, _ = AssessmentType.objects.get_or_create(name="Class Test")
+        self.me = User.objects.create_user(username="me", password="pw-test-1", role=User.Role.STUDENT, first_name="Me")
+        self.other = User.objects.create_user(username="other", password="pw-test-1", role=User.Role.STUDENT, first_name="Other")
+        StudentProfile.objects.create(user=self.me, section=self.sec, roll_number="1")
+        StudentProfile.objects.create(user=self.other, section=self.sec, roll_number="2")
+        self.parent = User.objects.create_user(username="par", password="pw-test-1", role=User.Role.PARENT)
+        ParentProfile.objects.create(user=self.parent).children.add(self.me)
+        GradeSetting.objects.create(letter="A", min_score=80, max_score=100)
+        GradeSetting.objects.create(letter="F", min_score=0, max_score=79)
+        for title, when, mine, theirs in [("CT Sep", self.d(2026, 9, 10), 18, 10), ("CT Oct", self.d(2026, 10, 5), 12, 20)]:
+            a = AssessmentRecord.objects.create(section=self.sec, subject=self.math, assessment_type=self.ct,
+                                                title=title, total_marks=Decimal(20), date_conducted=when)
+            StudentScore.objects.create(assessment=a, student=self.me, marks_obtained=Decimal(mine))
+            StudentScore.objects.create(assessment=a, student=self.other, marks_obtained=Decimal(theirs))
+
+    def get(self, **params):
+        return self.client.get(reverse("my_ct_progress"), params)
+
+    def test_month_view_shows_only_that_month(self):
+        self.client.login(username="me", password="pw-test-1")
+        r = self.get(view="month", month="2026-09")
+        self.assertEqual(r.status_code, 200)
+        math = r.context["entry"]["rows"][0]
+        self.assertEqual([t["ct"].title for t in math["tests"]], ["CT Sep"])
+        self.assertEqual(math["pct"], Decimal("90.0"))
+        self.assertEqual(math["class_avg"], Decimal("70.0"))     # (90 + 50) / 2
+        self.assertContains(r, "September 2026")
+        self.assertNotContains(r, "Other")                        # no other student's name or marks
+
+    def test_term_and_date_range_views(self):
+        config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
+        term = ReportPeriod.objects.create(config=config, label="Term 2", sequence=2,
+                                           start_date=self.d(2026, 7, 1), end_date=self.d(2026, 12, 31))
+        self.client.login(username="me", password="pw-test-1")
+        r = self.get(view="term", period=term.id)
+        self.assertEqual(r.context["entry"]["rows"][0]["pct"], Decimal("75.0"))   # (18 + 12) / 40
+        self.assertContains(r, "Term 2")
+        r = self.get(view="range", **{"from": "2026-10-01", "to": "2026-10-31"})
+        self.assertEqual([t["ct"].title for t in r.context["entry"]["rows"][0]["tests"]], ["CT Oct"])
+        self.assertContains(self.get(view="range", **{"from": "2026-10-31", "to": "2026-10-01"}),
+                            "The end date is before the start date.")
+
+    def test_print_is_single_student_without_marksheet_switch(self):
+        self.client.login(username="me", password="pw-test-1")
+        r = self.get(view="month", month="2026-10", print="1")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context["students"]), 1)
+        self.assertNotContains(r, "Switch to class marksheet")
+
+    def test_access_rules(self):
+        own = reverse("student_ct_progress", args=[self.me.id])
+        other = reverse("student_ct_progress", args=[self.other.id])
+        self.client.login(username="par", password="pw-test-1")
+        self.assertEqual(self.client.get(own, {"month": "2026-09"}).status_code, 200)
+        self.assertEqual(self.client.get(other).status_code, 302)
+        self.client.login(username="me", password="pw-test-1")
+        self.assertEqual(self.client.get(other).status_code, 302)
+        self.assertEqual(self.client.get(reverse("ct_progress_report_print"), {"section": self.sec.id}).status_code, 302)
+        self.assertContains(self.client.get(reverse("student_dashboard")), reverse("my_ct_progress"))

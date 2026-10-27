@@ -87,7 +87,7 @@
 <div class="toolbar">
     <span>{% if layout == 'marksheet' %}Class marksheet{% else %}{{ students|length }} student page{{ students|length|pluralize }}{% endif %}</span>
     <button class="primary" onclick="window.print()">Print or save as PDF</button>
-    <a class="plain" href="?{% for k, v in request.GET.items %}{% if k != 'layout' %}{{ k }}={{ v|urlencode }}&amp;{% endif %}{% endfor %}layout={% if layout == 'marksheet' %}sheets{% else %}marksheet{% endif %}">{% if layout == 'marksheet' %}Switch to one page per student{% else %}Switch to class marksheet{% endif %}</a>
+    {% if not single_student %}    <a class="plain" href="?{% for k, v in request.GET.items %}{% if k != 'layout' %}{{ k }}={{ v|urlencode }}&amp;{% endif %}{% endfor %}layout={% if layout == 'marksheet' %}sheets{% else %}marksheet{% endif %}">{% if layout == 'marksheet' %}Switch to one page per student{% else %}Switch to class marksheet{% endif %}</a>{% endif %}
     <button class="plain" onclick="window.close()">Close</button>
 </div>
 

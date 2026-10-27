@@ -612,6 +612,7 @@
             <li class="nav-section">My School</li>
             <li><a href="{% url 'student_profile_detail' user.id %}" class="{% if request.resolver_match.url_name == 'student_profile_detail' %}active{% endif %}"><span class="icon">👤</span> My Profile</a></li>
             <li><a href="{% url 'student_report' %}" class="{% if request.resolver_match.url_name == 'student_report' %}active{% endif %}"><span class="icon">📄</span> My Report Card</a></li>
+            <li><a href="{% url 'my_ct_progress' %}" class="{% if request.resolver_match.url_name == 'my_ct_progress' %}active{% endif %}"><span class="icon">📝</span> Class Test Results</a></li>
             <li><a href="{% url 'my_timetable' %}" class="{% if request.resolver_match.url_name == 'my_timetable' %}active{% endif %}"><span class="icon">📅</span> My Timetable</a></li>
             <li><a href="{% url 'my_attendance' %}" class="{% if request.resolver_match.url_name == 'my_attendance' %}active{% endif %}"><span class="icon">✅</span> My Attendance</a></li>
             <li><a href="{% url 'library_my_books' %}" class="{% if request.resolver_match.url_name == 'library_my_books' %}active{% endif %}"><span class="icon">📚</span> My Books</a></li>
