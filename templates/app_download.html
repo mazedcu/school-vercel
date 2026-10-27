@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Radon Academy app for Android</title>
+    <meta name="description" content="Download the Radon Academy app: results, class test notifications, timetable, attendance and fees.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #f5f6fb; color: #0f172a; line-height: 1.5; }
+        .wrap { max-width: 520px; margin: 0 auto; padding: 1.5rem 1.1rem 2.5rem; }
+        .hero { background: #1e1b4b; color: #fff; border-radius: 20px; padding: 1.6rem 1.4rem 1.4rem; position: relative; overflow: hidden; }
+        .hero::after { content: ''; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%;
+                       background: radial-gradient(circle, rgba(129,140,248,0.35), transparent 70%); }
+        .brand { display: flex; align-items: center; gap: 0.85rem; position: relative; }
+        .icon { width: 60px; height: 60px; flex: none; border-radius: 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+        .brand h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+        .brand p { font-size: 0.85rem; color: #c7d2fe; }
+        .lead { position: relative; font-size: 0.95rem; color: #e0e7ff; margin: 1.1rem 0 1.25rem; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 0.55rem; width: 100%; background: #fff; color: #1e1b4b;
+               font-weight: 800; font-size: 1.05rem; text-decoration: none; border-radius: 12px; padding: 0.95rem 1rem; position: relative; }
+        .btn:active { transform: scale(0.99); }
+        .btn svg { width: 22px; height: 22px; }
+        .meta { position: relative; text-align: center; font-size: 0.78rem; color: #a5b4fc; margin-top: 0.6rem; }
+        .note { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 1rem 1.1rem; margin-top: 1rem; font-size: 0.9rem; }
+        .note.warn { background: #fffbeb; border-color: #fde68a; color: #78350f; }
+        h2 { font-size: 1rem; font-weight: 800; margin: 1.6rem 0 0.7rem; letter-spacing: -0.01em; }
+        ol.steps { list-style: none; counter-reset: s; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+        ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2rem 1fr; gap: 0.6rem; padding: 0.85rem 1rem; border-top: 1px solid #eef0f6; font-size: 0.9rem; }
+        ol.steps li:first-child { border-top: 0; }
+        ol.steps li::before { content: counter(s); width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #eef2ff; color: #4338ca;
+                              font-weight: 800; font-size: 0.8rem; display: grid; place-items: center; }
+        ol.steps b { font-weight: 700; }
+        ol.steps span { display: block; font-size: 0.8rem; color: #64748b; margin-top: 0.1rem; }
+        .features { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .feature { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.8rem 0.85rem; font-size: 0.85rem; font-weight: 600; }
+        .feature svg { width: 20px; height: 20px; color: #4f46e5; display: block; margin-bottom: 0.35rem; }
+        .feature span { display: block; font-weight: 400; font-size: 0.75rem; color: #64748b; margin-top: 0.1rem; }
+        .foot { text-align: center; margin-top: 1.6rem; font-size: 0.88rem; }
+        .foot a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+        @media (min-width: 700px) { .wrap { padding-top: 3rem; } }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <section class="hero">
+        <div class="brand">
+            <svg class="icon" viewBox="0 0 108 108" aria-hidden="true">
+                <rect width="108" height="108" rx="24" fill="#312E81"/>
+                <path d="M41,74 V34 H56 A12,12 0 0 1 56,58 H41 M55,58 L69,74" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="72" cy="33" r="5" fill="#A5B4FC"/>
+            </svg>
+            <div><h1>Radon Academy</h1><p>The app for students and parents</p></div>
+        </div>
+        <p class="lead">Your results, class tests, timetable, attendance and fees, with a notification as soon as a new class test result is entered.</p>
+        {% if app.available %}
+        <a class="btn" href="{% url 'app_download' %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>
+            Download for Android
+        </a>
+        <p class="meta">Version {{ app.version }}, {{ app.size_mb }} MB, Android {{ app.min_android }} or newer</p>
+        {% else %}
+        <p class="meta">The app isn't available to download right now. Please check back soon.</p>
+        {% endif %}
+    </section>
+
+    {% if in_app %}
+    <div class="note">You're already using the Radon Academy app. Installing the download above updates it to version {{ app.version }}; you'll stay logged in.</div>
+    {% elif is_iphone %}
+    <div class="note warn">The app is for Android phones. On an iPhone, use the website instead: everything in the app is available there. <a href="{% url 'login' %}" style="color:inherit;font-weight:700;">Open the website</a></div>
+    {% endif %}
+
+    <h2>How to install</h2>
+    <ol class="steps">
+        <li><div><b>Tap “Download for Android”</b><span>If your browser asks whether to keep the file, choose Download or Keep.</span></div></li>
+        <li><div><b>Open the downloaded file</b><span>Tap the download notification, or find RadonAcademy-{{ app.version }}.apk in your Files app under Downloads.</span></div></li>
+        <li><div><b>Allow the install if asked</b><span>Android may say apps from this source aren't allowed. Tap Settings, turn on “Allow from this source”, go back and tap Install.</span></div></li>
+        <li><div><b>Open Radon Academy and log in</b><span>Use the same username and password as the website. Allow notifications to hear about new results.</span></div></li>
+    </ol>
+    <p style="font-size:0.8rem;color:#64748b;margin-top:0.6rem;">Already have the app? Installing again updates it, and you stay logged in.</p>
+
+    <h2>In the app</h2>
+    <div class="features">
+        <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg>Result notifications<span>Know when a class test is marked</span></div>
+        <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>Report card<span>Grades, comments and PDF</span></div>
+        <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Timetable<span>Today's classes at a glance</span></div>
+        <div class="feature"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>Attendance and fees<span>See what's due</span></div>
+    </div>
+
+    <p class="foot"><a href="{% url 'login' %}">Continue to the website instead</a></p>
+</main>
+</body>
+</html>

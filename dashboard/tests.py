@@ -144,3 +144,34 @@ class StudentDashboardTestCase(TestCase):
         StudentProfile.objects.create(user=lone)
         self.client.login(username="lone", password=PW)
         self.assertContains(self.client.get(reverse("student_dashboard")), "Your class hasn't been set yet")
+
+
+class AppDownloadTestCase(TestCase):
+    ANDROID = "Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36"
+    IN_APP = ANDROID + " RadonAcademyApp/1.1"
+    DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36"
+    IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"
+
+    def test_download_page_is_public(self):
+        r = self.client.get(reverse("app_page"), HTTP_USER_AGENT=self.ANDROID)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Download for Android")
+        self.assertContains(r, "How to install")
+        self.assertContains(self.client.get(reverse("app_page"), HTTP_USER_AGENT=self.IPHONE), "The app is for Android phones")
+        self.assertContains(self.client.get(reverse("app_page"), HTTP_USER_AGENT=self.IN_APP), "already using the Radon Academy app")
+
+    def test_download_serves_the_apk(self):
+        from django.conf import settings
+        r = self.client.get(reverse("app_download"))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "application/vnd.android.package-archive")
+        self.assertIn(f'filename="RadonAcademy-{settings.ANDROID_APP["version"]}.apk"', r["Content-Disposition"])
+        body = b"".join(r.streaming_content)
+        self.assertEqual(body[:2], b"PK")              # an APK is a zip file
+        self.assertEqual(len(body), settings.ANDROID_APP["file"].stat().st_size)
+
+    def test_banner_only_in_android_browsers(self):
+        login = reverse("login")
+        self.assertContains(self.client.get(login, HTTP_USER_AGENT=self.ANDROID), 'id="appBanner"')
+        for ua in (self.IN_APP, self.DESKTOP, self.IPHONE):
+            self.assertNotContains(self.client.get(login, HTTP_USER_AGENT=ua), 'id="appBanner"', msg_prefix=ua)

@@ -1,8 +1,10 @@
 from django.urls import path
-from . import views
+from . import app_download, views
 
 urlpatterns = [
     path('', views.home_view, name='home'),
+    path('app/', app_download.app_page, name='app_page'),
+    path('app/download/', app_download.app_download, name='app_download'),
     path('dashboard/', views.dashboard_router, name='dashboard_router'),
 
     # Dashboards

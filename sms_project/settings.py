@@ -191,6 +191,14 @@ LOGOUT_REDIRECT_URL = '/login/'
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_HTTPONLY = True
 
+# Android app offered at /app/ (download page) and in the "Get the app" banner.
+# To publish an update: replace downloads/RadonAcademy.apk and change the version here.
+ANDROID_APP = {
+    'version': '1.1',
+    'file': BASE_DIR / 'downloads' / 'RadonAcademy.apk',
+    'min_android': '7.0',
+}
+
 # Full login URL for emails
 LOGIN_URL_FULL = os.environ.get('LOGIN_URL_FULL', 'http://127.0.0.1:8000/login/')
 
