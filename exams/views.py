@@ -229,6 +229,8 @@ def enter_marks(request, assessment_id):
             name = p.user.get_full_name() or p.user.username
             current = existing.get(p.user_id)
             if request.POST.get(f'na_{p.user_id}') == 'on':
+                if current and current.not_applicable:
+                    continue   # unchanged
                 StudentScore.objects.update_or_create(
                     assessment=assessment, student=p.user,
                     defaults={'marks_obtained': Decimal('0'), 'not_applicable': True},
@@ -248,6 +250,8 @@ def enter_marks(request, assessment_id):
                     raise ValueError("Marks cannot be negative.")
                 if m > assessment.total_marks:
                     raise ValueError(f"Marks ({m}) exceed total ({assessment.total_marks}).")
+                if current and not current.not_applicable and current.marks_obtained == m:
+                    continue   # unchanged: don't touch it, so students aren't notified again
                 StudentScore.objects.update_or_create(
                     assessment=assessment, student=p.user,
                     defaults={'marks_obtained': m, 'not_applicable': False},
@@ -260,6 +264,8 @@ def enter_marks(request, assessment_id):
                 errors.append(f"{name}: Could not save.")
         for err in errors:
             messages.warning(request, err)
+        if not (saved or not_applicable or cleared or errors):
+            messages.info(request, f"'{assessment.title}': no changes to save.")
         if saved or not_applicable or cleared:
             parts = [f"{saved} mark{'s' if saved != 1 else ''} saved"]
             if not_applicable:

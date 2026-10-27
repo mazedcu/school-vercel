@@ -56,6 +56,9 @@ class StudentScore(models.Model):
     # The assessment doesn't apply to this student (e.g. exempt, joined later). It is left out
     # of all results instead of counting as zero or as missing; marks_obtained is stored as 0.
     not_applicable = models.BooleanField(default=False)
+    # When this mark was last entered or changed; the Android app uses it to notify
+    # students and parents of new results.
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
     class Meta:
         constraints = [

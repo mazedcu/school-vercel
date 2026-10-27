@@ -719,3 +719,86 @@ class StudentCTProgressDefaultMonthTestCase(StudentCTProgressTestCase):
             r = self.client.get(reverse("my_ct_progress"), {"month": "2026-11"})
         self.assertFalse(r.context["showing_latest"])
         self.assertContains(r, "No class test results for November 2026")
+
+
+class AppNotificationsTestCase(TestCase):
+    """The Android app's background check for new class test results."""
+
+    def setUp(self):
+        import datetime
+        from students.models import StudentProfile, ParentProfile
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.phy = Subject.objects.create(name="Physics", code="P")
+        self.ct, _ = AssessmentType.objects.get_or_create(name="Class Test")
+        self.final, _ = AssessmentType.objects.get_or_create(name="Final Term")
+        self.admin = User.objects.create_user(username="adm", password="pw-test-1", role=User.Role.ADMIN)
+        self.kid = User.objects.create_user(username="kid", password="pw-test-1", role=User.Role.STUDENT, first_name="Rafi")
+        self.other = User.objects.create_user(username="oth", password="pw-test-1", role=User.Role.STUDENT)
+        StudentProfile.objects.create(user=self.kid, section=self.sec, roll_number="1")
+        StudentProfile.objects.create(user=self.other, section=self.sec, roll_number="2")
+        self.parent = User.objects.create_user(username="par", password="pw-test-1", role=User.Role.PARENT)
+        ParentProfile.objects.create(user=self.parent).children.add(self.kid)
+        self.ct3 = AssessmentRecord.objects.create(section=self.sec, subject=self.phy, assessment_type=self.ct,
+                                                   title="CT 3", total_marks=Decimal(20), date_conducted=self.d(2026, 10, 20))
+        self.url = reverse("app_notifications")
+
+    def cursor(self, username):
+        self.client.login(username=username, password="pw-test-1")
+        r = self.client.get(self.url)
+        self.assertEqual(r.json()["items"], [])          # first call only sets a starting point
+        return r.json()["cursor"]
+
+    def enter(self, marks):
+        self.client.login(username="adm", password="pw-test-1")
+        self.client.post(reverse("enter_marks", args=[self.ct3.id]), marks)
+
+    def test_student_is_notified_once_per_new_or_changed_mark(self):
+        since = self.cursor("kid")
+        self.enter({f"marks_{self.kid.id}": "18", f"marks_{self.other.id}": "12"})
+        self.client.login(username="kid", password="pw-test-1")
+        data = self.client.get(self.url, {"since": since}).json()
+        self.assertEqual([i["body"] for i in data["items"]], ["Physics CT 3: 18/20 (90%)"])
+        self.assertEqual(data["items"][0]["url"], reverse("my_ct_progress") + "?view=month&month=2026-10")
+
+        # Re-saving the page without changes doesn't notify again; changing the mark does
+        since = data["cursor"]
+        self.enter({f"marks_{self.kid.id}": "18", f"marks_{self.other.id}": "12"})
+        self.client.login(username="kid", password="pw-test-1")
+        self.assertEqual(self.client.get(self.url, {"since": since}).json()["items"], [])
+        self.enter({f"marks_{self.kid.id}": "19.5", f"marks_{self.other.id}": "12"})
+        self.client.login(username="kid", password="pw-test-1")
+        self.assertEqual([i["body"] for i in self.client.get(self.url, {"since": since}).json()["items"]],
+                         ["Physics CT 3: 19.5/20 (98%)"])
+
+    def test_parent_gets_childs_results_with_name(self):
+        since = self.cursor("par")
+        self.enter({f"marks_{self.kid.id}": "15"})
+        self.client.login(username="par", password="pw-test-1")
+        item = self.client.get(self.url, {"since": since}).json()["items"][0]
+        self.assertEqual(item["title"], "Rafi: New class test result")
+        self.assertTrue(item["url"].startswith(reverse("student_ct_progress", args=[self.kid.id])))
+
+    def test_only_class_tests_no_na_and_many_results_are_summarised(self):
+        since = self.cursor("kid")
+        exam = AssessmentRecord.objects.create(section=self.sec, subject=self.phy, assessment_type=self.final,
+                                               title="Final", total_marks=Decimal(100), date_conducted=self.d(2026, 10, 21))
+        StudentScore.objects.create(assessment=exam, student=self.kid, marks_obtained=Decimal(80))   # not a CT
+        self.enter({f"na_{self.kid.id}": "on"})                                                        # N/A
+        self.client.login(username="kid", password="pw-test-1")
+        self.assertEqual(self.client.get(self.url, {"since": since}).json()["items"], [])
+
+        for i in range(4):
+            a = AssessmentRecord.objects.create(section=self.sec, subject=self.phy, assessment_type=self.ct,
+                                                title=f"Quiz {i}", total_marks=Decimal(10), date_conducted=self.d(2026, 10, 22))
+            StudentScore.objects.create(assessment=a, student=self.kid, marks_obtained=Decimal(7))
+        items = self.client.get(self.url, {"since": since}).json()["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["title"], "4 new class test results")
+
+    def test_not_logged_in_and_staff(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url, {"since": "2026-01-01T00:00:00Z"}).status_code, 401)
+        self.client.login(username="adm", password="pw-test-1")
+        self.assertEqual(self.client.get(self.url, {"since": "2026-01-01T00:00:00Z"}).json()["items"], [])
