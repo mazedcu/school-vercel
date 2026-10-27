@@ -10,4 +10,6 @@
     <string name="download_failed">The download couldn\'t start.</string>
     <string name="no_app_for_link">No app on this phone can open that link.</string>
     <string name="choose_file">Choose a file</string>
+    <string name="channel_results">Class test results</string>
+    <string name="channel_results_description">A notification when a new class test result is entered</string>
 </resources>

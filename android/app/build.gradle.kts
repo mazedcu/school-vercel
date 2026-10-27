@@ -11,8 +11,8 @@ android {
         applicationId = "com.radonacademy.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // The website the app opens. Change both lines if the address changes.
         buildConfigField("String", "START_URL", "\"https://opdevsystems.xyz/\"")
@@ -62,4 +62,5 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
 }

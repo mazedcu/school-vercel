@@ -16,6 +16,11 @@ students and parents can use the coaching management system like a normal app.
 - Phone numbers, email, WhatsApp and other websites open in their own apps.
 - Links to opdevsystems.xyz shared on WhatsApp etc. can open in the app.
 - Only secure (https) connections are allowed.
+- **Class test notifications:** about every 15 minutes (when online) the app asks the
+  website for new class test results and shows a notification for each; tapping it
+  opens that month's Class Test Results. Parents get their children's results.
+  Android 13+ asks for permission once, on the student or parent home page.
+  Notifications can be turned off under the app's settings ("Class test results").
 
 ## Build the APK
 

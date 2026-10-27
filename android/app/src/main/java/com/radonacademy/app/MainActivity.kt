@@ -1,9 +1,11 @@
 package com.radonacademy.app
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
@@ -45,7 +47,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
  * Besides displaying pages it makes the parts of the site that a plain WebView
  * can't handle work: printing report cards (window.print), PDF downloads that
  * need the login session, photo uploads, the back button, pull-to-refresh and
- * an offline screen.
+ * an offline screen. It also schedules [ResultsCheckWorker], which notifies
+ * students and parents of new class test results.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -60,6 +63,9 @@ class MainActivity : AppCompatActivity() {
 
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var mainFrameFailed = false
+
+    private val askNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     private val pickFiles =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -85,6 +91,9 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        Notifications.createChannels(this)
+        ResultsCheckWorker.schedule(this)
 
         webView = findViewById(R.id.webview)
         swipe = findViewById(R.id.swipe)
@@ -196,6 +205,26 @@ class MainActivity : AppCompatActivity() {
         siteUrlFrom(intent)?.let { webView.loadUrl(it) }
     }
 
+    // ── Result notifications ────────────────────────────────────────────────
+
+    /**
+     * When a student or parent reaches their home page (so they're logged in): check for
+     * results once, and on Android 13+ ask once for permission to show notifications.
+     */
+    private fun onHomePageShown(url: String) {
+        val path = Uri.parse(url).path ?: return
+        if (!path.startsWith("/student_dashboard") && !path.startsWith("/parent_dashboard")) return
+        ResultsCheckWorker.checkNow(this)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) return
+        val prefs = getSharedPreferences("notifications", MODE_PRIVATE)
+        if (prefs.getBoolean("asked_permission", false)) return
+        prefs.edit().putBoolean("asked_permission", true).apply()
+        askNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     // ── Downloads (PDF timetables, ID cards, lesson plans…) ─────────────────
 
     private fun download(url: String, userAgent: String?, contentDisposition: String?, mimeType: String?) {
@@ -268,6 +297,7 @@ class MainActivity : AppCompatActivity() {
             swipe.isRefreshing = false
             offline.visibility = if (mainFrameFailed) View.VISIBLE else View.GONE
             CookieManager.getInstance().flush()
+            if (url != null && !mainFrameFailed) onHomePageShown(url)
             if (url != null && isOwnSite(Uri.parse(url))) {
                 // A WebView ignores window.print() and window.close(); route them to the app so
                 // "Print or save as PDF" opens Android's print dialog and "Close" goes back.
