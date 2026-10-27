@@ -13,9 +13,8 @@ Rules:
   out of the overall average, GPA and class statistics.
 - Letter grades are chosen by minimum score only (highest band whose minimum is
   met), so there are no gaps between bands.
-- Students and parents only see marks from published report periods, when the
-  academic year has report periods configured. Class averages/highest use the
-  same visible marks, so they never reveal unpublished results.
+- Students and parents see every mark as soon as it is entered (no publishing
+  step for the full-year report card or dashboards).
 - If a student has enrolled subjects, only those appear on their report.
 
 Report cards are built a whole section at a time: one query loads the marks,
@@ -29,7 +28,6 @@ from decimal import Decimal
 
 from django.db.models import Count, Q
 
-from accounts.models import User
 from academics.models import Subject
 from attendance.models import Attendance
 from students.models import StudentProfile
@@ -42,7 +40,6 @@ logger = logging.getLogger(__name__)
 
 HUNDRED = Decimal('100')
 NO_GRADE = {'letter': '-', 'remark': '', 'grade_point': Decimal('0')}
-RESTRICTED_VIEWERS = (User.Role.STUDENT, User.Role.PARENT)
 
 
 # ─── LETTER GRADE ─────────────────────────────────────────────────────────────
@@ -210,18 +207,10 @@ def visible_marks_filter(section, viewer):
     """
     Q limiting which marks `viewer` may see, or None for no limit.
 
-    Students and parents only see marks dated inside published report periods
-    when the section's academic year has report periods set up.
+    Everyone sees every mark as soon as it is entered, so this returns None.
+    Kept as the single place to add a publishing rule again if one is wanted.
     """
-    if viewer is None or viewer.role not in RESTRICTED_VIEWERS:
-        return None
-    config = period_config(section)
-    if not config:
-        return None
-    q = Q(pk__in=[])
-    for p in config.periods.filter(is_published=True):
-        q |= period_marks_filter(p)
-    return q
+    return None
 
 
 def report_subjects(profile, section, assessment_filter=None):

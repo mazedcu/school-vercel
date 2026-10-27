@@ -303,32 +303,28 @@ class ReportCardRulesTestCase(TestCase):
         self.assertEqual(get_letter_grade(Decimal("49.9"))["letter"], "U")
         self.assertEqual(get_letter_grade(None)["letter"], "-")
 
-    def test_students_and_parents_only_see_published_terms(self):
+    def test_students_and_parents_see_marks_as_soon_as_entered(self):
+        """No publishing step: unpublished terms don't hide marks from students or parents."""
         config = AcademicPeriodConfig.objects.create(academic_year="2026", mode="term")
-        ReportPeriod.objects.create(config=config, label="Term 1", sequence=1, is_published=True,
-                                         start_date=self.d(2026, 1, 1), end_date=self.d(2026, 4, 30))
         t2 = ReportPeriod.objects.create(config=config, label="Term 2", sequence=2, is_published=False,
                                          start_date=self.d(2026, 5, 1), end_date=self.d(2026, 8, 31))
-        self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))           # Term 1: 90%
-        self.mark(self.phy, self.final, 40, 100, self.d(2026, 6, 1))         # Term 2 (unpublished): 40%
+        self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))           # outside any term: 90%
+        self.mark(self.phy, self.final, 40, 100, self.d(2026, 6, 1))         # in unpublished Term 2: 40%
         self.SubjectComment.objects.create(student=self.student, subject=self.phy, section=self.sec,
-                                           academic_year="2026", period=t2, comment="Secret term 2 remark")
+                                           academic_year="2026", period=t2, comment="Term 2 remark")
 
-        self.assertEqual(self.report(self.admin)[1]["Physics"]["score"], Decimal("55.0"))   # 0.3*90 + 0.7*40
-        for viewer in (self.student, self.parent):
+        for viewer in (self.admin, self.student, self.parent):
             r, g = self.report(viewer)
-            self.assertEqual(g["Physics"]["score"], Decimal("90.0"))
-            self.assertTrue(r["marks_limited"])
+            self.assertEqual(g["Physics"]["score"], Decimal("55.0"))         # 0.3*90 + 0.7*40
+            self.assertFalse(r["marks_limited"])
 
         self.client.login(username="s", password="pw-test-1")
         page = self.client.get(reverse("student_report"))
-        self.assertContains(page, "Only marks from published terms are shown.")
-        self.assertContains(page, "Provisional")
-        self.assertNotContains(page, "Secret term 2 remark")
-
-        t2.is_published = True
-        t2.save()
-        self.assertEqual(self.report(self.student)[1]["Physics"]["score"], Decimal("55.0"))
+        self.assertContains(page, "55.0%")
+        self.assertContains(page, "Term 2 remark")
+        self.assertNotContains(page, "Only marks from published terms are shown.")
+        self.client.login(username="p", password="pw-test-1")
+        self.assertContains(self.client.get(reverse("parent_dashboard")), "55.0%")
 
     def test_report_pages_render_no_marks_and_provisional(self):
         self.mark(self.phy, self.quiz, 18, 20, self.d(2026, 3, 1))
