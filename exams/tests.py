@@ -700,7 +700,8 @@ class StudentCTProgressTestCase(TestCase):
         self.client.login(username="me", password="pw-test-1")
         self.assertEqual(self.client.get(other).status_code, 302)
         self.assertEqual(self.client.get(reverse("ct_progress_report_print"), {"section": self.sec.id}).status_code, 302)
-        self.assertContains(self.client.get(reverse("student_dashboard")), reverse("my_ct_progress"))
+        dash = self.client.get(reverse("student_dashboard"))
+        self.assertContains(dash, "Class Test Results", count=2)   # side menu and Quick Links
 
 
 class StudentCTProgressDefaultMonthTestCase(StudentCTProgressTestCase):
