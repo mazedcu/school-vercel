@@ -701,7 +701,7 @@ class StudentCTProgressTestCase(TestCase):
         self.assertEqual(self.client.get(other).status_code, 302)
         self.assertEqual(self.client.get(reverse("ct_progress_report_print"), {"section": self.sec.id}).status_code, 302)
         dash = self.client.get(reverse("student_dashboard"))
-        self.assertContains(dash, "Class Test Results", count=2)   # side menu and Quick Links
+        self.assertContains(dash, f'href="{reverse("my_ct_progress")}"', count=4)  # menu, results, latest marks, shortcuts
 
 
 class StudentCTProgressDefaultMonthTestCase(StudentCTProgressTestCase):

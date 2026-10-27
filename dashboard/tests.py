@@ -104,3 +104,43 @@ class AdminDashboardTestCase(TestCase):
         User.objects.create_user(username="tea", password=PW, role=User.Role.TEACHER)
         self.client.login(username="tea", password=PW)
         self.assertEqual(self.client.get(reverse("admin_dashboard")).status_code, 302)
+
+
+class StudentDashboardTestCase(TestCase):
+    def setUp(self):
+        import datetime
+        from academics.models import Subject
+        from exams.models import AssessmentType, AssessmentRecord, StudentScore
+        self.d = datetime.date
+        grade = ClassGroup.objects.create(name="Y9")
+        self.sec = Section.objects.create(name="A", class_group=grade, academic_year="2026")
+        self.s = User.objects.create_user(username="stu", password=PW, role=User.Role.STUDENT, first_name="Rafi")
+        StudentProfile.objects.create(user=self.s, section=self.sec, roll_number="7")
+        math = Subject.objects.create(name="Math", code="M")
+        ct, _ = AssessmentType.objects.get_or_create(name="Class Test")
+        a = AssessmentRecord.objects.create(section=self.sec, subject=math, assessment_type=ct, title="CT 1",
+                                            total_marks=Decimal(20), date_conducted=self.d(2026, 3, 1))
+        StudentScore.objects.create(assessment=a, student=self.s, marks_obtained=Decimal(15))
+        inv = Invoice.objects.create(student=self.s, due_date=self.d(2026, 3, 10), fee_month="March")
+        InvoiceLineItem.objects.create(invoice=inv, description="Tuition", amount=Decimal("4500"))
+        inv.save()
+        from finance.models import Payment
+        Payment.objects.create(invoice=inv, amount=Decimal("1500"))
+        inv.save()
+
+    def test_dashboard_shows_results_latest_marks_and_correct_fee_balance(self):
+        self.client.login(username="stu", password=PW)
+        r = self.client.get(reverse("student_dashboard"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Rafi")
+        self.assertContains(r, "Y9 – A, roll 7")
+        self.assertContains(r, "Math: CT 1")             # latest marks
+        self.assertContains(r, "75.0%")                  # Math result
+        self.assertEqual(r.context["fees"]["outstanding"], Decimal("3000"))
+        self.assertContains(r, "Balance <b style=\"color:var(--bad);\">Tk 3,000</b>", html=False)
+
+    def test_student_without_section(self):
+        lone = User.objects.create_user(username="lone", password=PW, role=User.Role.STUDENT)
+        StudentProfile.objects.create(user=lone)
+        self.client.login(username="lone", password=PW)
+        self.assertContains(self.client.get(reverse("student_dashboard")), "Your class hasn't been set yet")

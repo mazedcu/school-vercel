@@ -1,133 +1,249 @@
 {% extends "base.html" %}
-{% block page_title %}Student Dashboard{% endblock %}
-{% block breadcrumb %}Student / Dashboard{% endblock %}
+{% block page_title %}Home{% endblock %}
+{% block breadcrumb %}{{ section.class_group.name|default:"Student" }}{% if section %} – {{ section.name }}{% endif %}{% endblock %}
 
 {% block extra_head %}
 <style>
-    .perf-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin-top: 0.35rem; }
-    .perf-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
-    .welcome-banner {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        color: #fff;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        margin-bottom: 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .sd { --ink: var(--text); --muted: var(--text-muted); --line: var(--border); --accent: #4f46e5; --accent-soft: #eef2ff;
+          --warn: #b45309; --warn-bg: #fffbeb; --bad: #b91c1c; --bad-bg: #fef2f2; --good: #047857; --good-bg: #ecfdf5; }
+    .sd-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
+    .sd-col { display: grid; gap: 1.1rem; min-width: 0; }
+    @media (max-width: 1000px) { .sd-layout { grid-template-columns: minmax(0, 1fr); } }
+
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; min-width: 0; }
+    .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; margin-bottom: 0.8rem; }
+    .panel h2 { font-size: 1rem; font-weight: 700; margin: 0; color: var(--ink); letter-spacing: -0.01em; }
+    .link { font-size: 0.8rem; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
+    .link:hover { text-decoration: underline; }
+    .muted { color: var(--muted); }
+    .empty { color: var(--muted); font-size: 0.85rem; padding: 0.4rem 0; }
+
+    /* Greeting */
+    .hello { margin-bottom: 1.1rem; }
+    .hello h1 { font-size: clamp(1.4rem, 2.4vw, 1.8rem); font-weight: 800; letter-spacing: -0.025em; margin: 0 0 0.25rem; color: var(--ink); }
+    .hello p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+    /* Numbers */
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+    .stat { display: block; padding: 0.9rem 1.1rem; border-left: 1px solid var(--line); text-decoration: none; color: inherit; min-width: 0; }
+    .stat:first-child { border-left: 0; }
+    .stat:hover, .stat:focus-visible { background: var(--bg); }
+    .stat-k { font-size: 0.75rem; font-weight: 600; color: var(--muted); }
+    .stat-v { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; color: var(--ink); line-height: 1.15; margin-top: 0.1rem; white-space: nowrap; }
+    .stat-v small { font-size: 0.85rem; font-weight: 700; color: var(--accent); margin-left: 0.25rem; letter-spacing: 0; }
+    .stat-s { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+    .stat-s.bad { color: var(--bad); font-weight: 600; }
+    .stat-s.good { color: var(--good); font-weight: 600; }
+    @media (max-width: 560px) {
+        .stats { grid-template-columns: minmax(0, 1fr); }
+        .stat { border-left: 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .stat:first-child { border-top: 0; }
+        .stat-v { font-size: 1.35rem; text-align: right; }
+        .stat .right { text-align: right; }
     }
-    .welcome-banner h2 { margin: 0; font-size: 1.25rem; }
-    .welcome-banner p { margin: 0.25rem 0 0; opacity: 0.85; font-size: 0.85rem; }
+
+    /* Today's classes */
+    .classes { list-style: none; margin: 0; padding: 0; }
+    .classes li { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.6rem 0; border-top: 1px solid var(--line); }
+    .classes li:first-child { border-top: 0; padding-top: 0.1rem; }
+    .classes .time { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.3; }
+    .classes .subj { font-weight: 650; font-size: 0.92rem; color: var(--ink); }
+    .classes .who { font-size: 0.78rem; color: var(--muted); }
+    .classes li.done .subj, .classes li.done .time { color: #94a3b8; }
+    .pill { font-size: 0.7rem; font-weight: 700; border-radius: 999px; padding: 0.15rem 0.55rem; white-space: nowrap; }
+    .pill.now { background: var(--accent); color: #fff; }
+    .pill.next { background: var(--accent-soft); color: var(--accent); }
+
+    /* Results */
+    .results { list-style: none; margin: 0; padding: 0; }
+    .results li { display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 5.2rem; gap: 0.8rem; align-items: center; padding: 0.5rem 0; }
+    .results .name { font-size: 0.88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .bar span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+    .results .score { text-align: right; font-weight: 700; font-size: 0.88rem; white-space: nowrap; }
+    .results .score small { color: var(--accent); margin-left: 0.25rem; }
+    .results .score.none { color: var(--muted); font-weight: 500; font-size: 0.78rem; }
+    .prov { display: block; font-size: 0.65rem; font-weight: 700; color: var(--warn); }
+    .results-foot { display: flex; gap: 0.5rem 1.25rem; flex-wrap: wrap; border-top: 1px solid var(--line); margin-top: 0.6rem; padding-top: 0.75rem; }
+
+    /* Recent marks */
+    .marks { list-style: none; margin: 0; padding: 0; }
+    .marks li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0; border-top: 1px solid var(--line); }
+    .marks li:first-child { border-top: 0; padding-top: 0.1rem; }
+    .marks .t { font-size: 0.88rem; font-weight: 600; }
+    .marks .d { font-size: 0.75rem; color: var(--muted); }
+    .marks .m { text-align: right; font-weight: 700; font-size: 0.88rem; white-space: nowrap; }
+    .marks .m small { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+
+    /* Fees */
+    .fee { border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.85rem; margin-top: 0.6rem; }
+    .fee-total + .fee { margin-top: 0; }
+    .fee-top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
+    .fee-top strong { font-size: 0.88rem; }
+    .fee-items { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .fee-nums { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+    .fee-nums b { color: var(--ink); }
+    .tag { font-size: 0.7rem; font-weight: 700; border-radius: 6px; padding: 0.12rem 0.45rem; white-space: nowrap; }
+    .tag.paid { background: var(--good-bg); color: var(--good); }
+    .tag.partial { background: var(--warn-bg); color: var(--warn); }
+    .tag.unpaid { background: var(--bad-bg); color: var(--bad); }
+    .fee-total { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem; }
+    .fee-total .v { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+
+    /* Notices */
+    .notice { padding: 0.6rem 0; border-top: 1px solid var(--line); }
+    .panel-head + .notice { border-top: 0; padding-top: 0; }
+    .notice-t { font-weight: 650; font-size: 0.88rem; }
+    .notice-d { font-size: 0.72rem; color: var(--muted); }
+    .notice-b { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; line-height: 1.45; }
+
+    /* Shortcuts */
+    .shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+    .shortcut { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.75rem; border: 1px solid var(--line); border-radius: 10px;
+                text-decoration: none; color: var(--ink); font-size: 0.84rem; font-weight: 600; min-width: 0; }
+    .shortcut:hover, .shortcut:focus-visible { border-color: var(--accent); color: var(--accent); }
+    .shortcut svg { width: 20px; height: 20px; flex: none; color: var(--accent); }
+    .shortcut span { line-height: 1.25; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="welcome-banner">
-    <div>
-        <h2>Welcome back, {{ request.user.first_name|default:request.user.username }}! 👋</h2>
-        <p>{{ section|default:"No section assigned" }} · Roll: {{ profile.roll_number|default:"N/A" }}</p>
+<div class="sd">
+    <div class="hello">
+        <h1>{{ greeting }}, {{ request.user.first_name|default:request.user.username }}</h1>
+        <p>{{ now|date:"l, j F" }}{% if section %}. {{ section.class_group.name }} – {{ section.name }}{% if profile.roll_number %}, roll {{ profile.roll_number }}{% endif %}{% endif %}</p>
     </div>
-    <a href="{% url 'student_profile_detail' request.user.id %}" class="btn" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);">👤 My Profile</a>
-</div>
 
-{% include "dashboard/notices_snippet.html" %}
-
-<div class="grid grid-3" style="margin-bottom:1.5rem;">
-    <div class="stat-card">
-        <div class="stat-value" style="color:{% if att_pct >= 75 %}var(--success){% elif att_pct >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ att_pct }}%</div>
-        <div class="stat-label">My Attendance</div>
+    {% if not section %}
+    <div class="panel" style="margin-bottom:1.1rem;">
+        <h2>Your class hasn't been set yet</h2>
+        <p class="muted" style="font-size:0.88rem;margin-top:0.35rem;">Your results, timetable and attendance will appear here once the school assigns you to a class and section.</p>
     </div>
-    <div class="stat-card">
-        <div class="stat-value">{{ grades|length }}</div>
-        <div class="stat-label">Subjects</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value">{{ section|default:"N/A" }}</div>
-        <div class="stat-label">My Section</div>
-    </div>
-</div>
-
-<div class="grid grid-2">
-    <div class="card">
-        <div class="card-title">📊 My Grades</div>
-        {% if grades %}
-        {% for g in grades %}
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
-            <div style="width:100px;font-weight:500;font-size:0.8rem;">{{ g.subject.name }}</div>
-            <div style="flex:1;"><div class="perf-bar"><div class="perf-bar-fill" style="width:{{ g.score|default_if_none:0 }}%;background:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% elif g.score is None %}var(--text-muted){% else %}var(--danger){% endif %};"></div></div></div>
-            <div style="min-width:50px;white-space:nowrap;text-align:right;font-weight:700;font-size:0.85rem;color:{% if g.score >= 80 %}var(--success){% elif g.score >= 50 %}var(--warning){% elif g.score is None %}var(--text-muted){% else %}var(--danger){% endif %};">{% if g.score is None %}{% if g.not_applicable %}Not applicable{% else %}No marks yet{% endif %}{% else %}{{ g.score }}%{% if g.provisional %} <span class="prov-tag" title="Some weighted assessments do not have marks yet" style="font-size:0.65rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:4px;padding:0.05rem 0.35rem;vertical-align:middle;">Provisional</span>{% endif %}{% endif %}</div>
-        </div>
-        {% endfor %}
-        {% else %}
-        <div class="empty-state">No grades recorded yet.</div>
-        {% endif %}
-    </div>
-    <div class="card">
-        <div class="card-title">Quick Links</div>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;">
-            <a href="{% url 'student_profile_detail' request.user.id %}" class="btn btn-primary btn-block">👤 My Profile</a>
-            <a href="{% url 'period_report_select' %}" class="btn btn-primary btn-block" style="background:#7c3aed;">📅 Period Report Cards</a>
-            <a href="{% url 'student_report' %}" class="btn btn-block" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">📄 Full Year Report</a>
-            <a href="{% url 'my_ct_progress' %}" class="btn btn-block" style="background:#0f766e;color:#fff;">📝 Class Test Results</a>
-            <a href="{% url 'my_timetable' %}" class="btn btn-primary btn-block" style="background:#06b6d4;">📅 My Timetable</a>
-            {% if section %}
-            <a href="{% url 'download_timetable_pdf' section.id %}" class="btn btn-block" style="background:#059669;color:#fff;">📥 Download Timetable PDF</a>
-            {% endif %}
-            <a href="{% url 'my_attendance' %}" class="btn btn-success btn-block">✅ My Attendance</a>
-        </div>
-    </div>
-</div>
-
-{% if published_periods %}
-<div class="card">
-    <div class="card-title">📅 Period Report Cards</div>
-    <div class="grid grid-{% if published_periods|length > 2 %}4{% else %}2{% endif %}">
-        {% for p in published_periods %}
-        <a href="{% url 'period_report' p.id request.user.id %}" style="text-decoration:none;">
-            <div style="background:linear-gradient(135deg,{% cycle '#4f46e5' '#7c3aed' '#06b6d4' '#059669' %},{% cycle '#6366f1' '#8b5cf6' '#0891b2' '#047857' %});color:#fff;padding:1.25rem;border-radius:0.75rem;text-align:center;transition:transform 0.2s,box-shadow 0.2s;"
-                 onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'"
-                 onmouseleave="this.style.transform='';this.style.boxShadow=''">
-                <div style="font-size:1.15rem;font-weight:700;">{{ p.label }}</div>
-                <div style="font-size:0.75rem;opacity:0.85;margin-top:0.35rem;">
-                    {{ p.start_date|date:"M d" }} — {{ p.end_date|date:"M d, Y" }}
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-<div class="card">
-    <div class="card-title">💰 Fee Status</div>
-    {% if invoices %}
-    <div class="table-wrap">
-    <table>
-        <thead><tr><th>Invoice #</th><th>Fee Items</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Due Date</th></tr></thead>
-        <tbody>
-            {% for inv in invoices %}
-            <tr>
-                <td><strong>{{ inv.invoice_number }}</strong></td>
-                <td style="font-size:0.8rem;">
-                    {% for item in inv.line_items.all %}
-                    {{ item.description }} (Tk.{{ item.amount }}){% if not forloop.last %}<br>{% endif %}
-                    {% endfor %}
-                    {% if inv.discount_amount > 0 %}
-                    <br><span style="color:var(--success);font-size:0.75rem;">Discount: -Tk.{{ inv.discount_amount }}{% if inv.discount_description %} ({{ inv.discount_description }}){% endif %}</span>
-                    {% endif %}
-                </td>
-                <td><strong>Tk.{{ inv.amount_due }}</strong></td>
-                <td>Tk.{{ inv.amount_paid }}</td>
-                <td style="font-weight:600;color:{% if inv.amount_paid >= inv.amount_due %}var(--success){% else %}var(--danger){% endif %};">Tk.{{ inv.amount_due|add:"-"|default:"0" }}{% widthratio inv.amount_paid 1 1 as paid_int %}{% widthratio inv.amount_due 1 1 as due_int %}</td>
-                <td><span class="badge {% if inv.status == 'paid' %}badge-green{% elif inv.status == 'partial' %}badge-yellow{% else %}badge-red{% endif %}">{{ inv.get_status_display }}</span></td>
-                <td>{{ inv.due_date }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% else %}
-    <div class="empty-state">No fee invoices found. ✅</div>
     {% endif %}
+
+    <div class="stats" style="margin-bottom:1.1rem;">
+        <a class="stat" href="{% url 'student_report' %}">
+            <div><div class="stat-k">Overall average</div>
+            {% if report.overall_avg is None %}<div class="stat-s">No marks yet</div>{% else %}<div class="stat-s">{{ report.overall_letter.remark|default:"Across your subjects" }}{% if report.gpa is not None %}, GPA {{ report.gpa }}{% endif %}</div>{% endif %}</div>
+            <div class="right"><div class="stat-v">{% if report.overall_avg is None %}—{% else %}{{ report.overall_avg }}%{% if report.overall_letter.letter != '-' %}<small>{{ report.overall_letter.letter }}</small>{% endif %}{% endif %}</div></div>
+        </a>
+        <a class="stat" href="{% url 'my_attendance' %}">
+            <div><div class="stat-k">Attendance</div>
+            {% if attendance.total %}<div class="stat-s{% if attendance.absent_this_month %} bad{% endif %}">{% if attendance.absent_this_month %}{{ attendance.absent_this_month }} absent this month{% else %}No absences this month{% endif %}</div>{% else %}<div class="stat-s">Not recorded yet</div>{% endif %}</div>
+            <div class="right"><div class="stat-v">{% if attendance.pct is None %}—{% else %}{{ attendance.pct }}%{% endif %}</div></div>
+        </a>
+        <a class="stat" href="#fees">
+            <div><div class="stat-k">Fees due</div>
+            {% if fees.outstanding %}<div class="stat-s bad">{% if fees.next_due %}Next due {{ fees.next_due.due_date|date:"j M" }}{% endif %}</div>{% else %}<div class="stat-s good">All paid</div>{% endif %}</div>
+            <div class="right"><div class="stat-v">Tk {{ fees.outstanding|floatformat:"0g" }}</div></div>
+        </a>
+    </div>
+
+    <div class="sd-layout">
+        <div class="sd-col">
+            {% if section %}
+            <section class="panel" aria-labelledby="todayH">
+                <div class="panel-head"><h2 id="todayH">Today's classes</h2><a class="link" href="{% url 'my_timetable' %}">Full timetable</a></div>
+                {% if classes %}
+                <ul class="classes">
+                    {% for c in classes %}
+                    <li class="{{ c.state }}">
+                        <span class="time">{{ c.entry.time_slot.start_time|time:"g:i A" }}<br>{{ c.entry.time_slot.end_time|time:"g:i A" }}</span>
+                        <span><span class="subj">{{ c.entry.subject.name }}</span><br><span class="who">{{ c.entry.teacher.get_full_name|default:c.entry.teacher.username }}{% if c.entry.room %}, {{ c.entry.room }}{% endif %}</span></span>
+                        {% if c.state == 'now' %}<span class="pill now">Now</span>{% elif c.state == 'next' %}<span class="pill next">Next</span>{% else %}<span></span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty">No classes today.</p>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section class="panel" aria-labelledby="resultsH">
+                <div class="panel-head"><h2 id="resultsH">My results</h2><a class="link" href="{% url 'student_report' %}">Report card</a></div>
+                {% if report.grades %}
+                <ul class="results">
+                    {% for g in report.grades %}
+                    <li>
+                        <span class="name" title="{{ g.subject.name }}">{{ g.subject.name }}</span>
+                        <span class="bar" role="img" aria-label="{{ g.subject.name }} {{ g.score|default_if_none:'no marks' }}"><span style="width:{{ g.score|default_if_none:0 }}%"></span></span>
+                        {% if g.score is None %}<span class="score none">{% if g.not_applicable %}N/A{% else %}No marks yet{% endif %}</span>
+                        {% else %}<span class="score">{{ g.score }}%{% if g.letter != '-' %}<small>{{ g.letter }}</small>{% endif %}{% if g.provisional %}<span class="prov">Provisional</span>{% endif %}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="empty">Your results will appear here once your teachers enter marks.</p>
+                {% endif %}
+                <div class="results-foot">
+                    <a class="link" href="{% url 'my_ct_progress' %}">Class test results</a>
+                    {% for p in periods %}<a class="link" href="{% url 'period_report' p.id request.user.id %}">{{ p.label }} report</a>{% endfor %}
+                </div>
+            </section>
+
+            {% if recent %}
+            <section class="panel" aria-labelledby="recentH">
+                <div class="panel-head"><h2 id="recentH">Latest marks</h2><a class="link" href="{% url 'my_ct_progress' %}">All class tests</a></div>
+                <ul class="marks">
+                    {% for s in recent %}
+                    <li>
+                        <div><div class="t">{{ s.assessment.subject.name }}: {{ s.assessment.title }}</div>
+                            <div class="d">{{ s.assessment.assessment_type.name }}, {{ s.assessment.date_conducted|date:"j M Y" }}</div></div>
+                        <div class="m">{% if s.not_applicable %}<span class="muted">N/A</span>{% else %}{{ s.marks_obtained|floatformat:"-2" }} / {{ s.assessment.total_marks|floatformat:"-2" }}<small>{{ s.pct }}%</small>{% endif %}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+        </div>
+
+        <div class="sd-col">
+            <section class="panel" id="fees" aria-labelledby="feesH">
+                <div class="panel-head"><h2 id="feesH">Fees</h2></div>
+                {% if fees.invoices %}
+                <div class="fee-total"><span class="muted" style="font-size:0.85rem;">Total outstanding</span><span class="v">Tk {{ fees.outstanding|floatformat:"0g" }}</span></div>
+                {% for inv in fees.invoices %}
+                <div class="fee">
+                    <div class="fee-top"><strong>{{ inv.fee_month|default:inv.invoice_number }}</strong><span class="tag {{ inv.status }}">{{ inv.get_status_display }}</span></div>
+                    <div class="fee-items">{% for item in inv.line_items.all %}{{ item.description }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if inv.discount_amount > 0 %}{% if inv.line_items.all %}, {% endif %}discount {{ inv.discount_description|default:"" }} −Tk {{ inv.discount_amount|floatformat:"0g" }}{% endif %}</div>
+                    <div class="fee-nums">
+                        <span>Due <b>Tk {{ inv.amount_due|floatformat:"0g" }}</b></span>
+                        <span>Paid <b>Tk {{ inv.amount_paid|floatformat:"0g" }}</b></span>
+                        {% if inv.balance > 0 %}<span>Balance <b style="color:var(--bad);">Tk {{ inv.balance|floatformat:"0g" }}</b></span>{% endif %}
+                        <span>{% if inv.status == 'paid' %}Invoice {{ inv.invoice_number }}{% else %}Due by {{ inv.due_date|date:"j M Y" }}{% endif %}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="empty">No fee invoices yet.</p>
+                {% endif %}
+            </section>
+
+            <section class="panel" aria-labelledby="noticesH">
+                <div class="panel-head"><h2 id="noticesH">Announcements</h2></div>
+                {% for n in notices %}
+                <div class="notice"><div class="notice-t">{{ n.title }}</div><div class="notice-d">{{ n.created_at|date:"j M Y" }}</div>
+                    <div class="notice-b">{{ n.content|truncatewords:30 }}</div></div>
+                {% empty %}
+                <p class="empty">No announcements right now.</p>
+                {% endfor %}
+            </section>
+
+            <section class="panel" aria-labelledby="goH">
+                <div class="panel-head"><h2 id="goH">Go to</h2></div>
+                <nav class="shortcuts">
+                    <a class="shortcut" href="{% url 'student_report' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><span>Report card</span></a>
+                    <a class="shortcut" href="{% url 'my_ct_progress' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16V10M12 16V5M17 16v-7"/></svg><span>Class tests</span></a>
+                    <a class="shortcut" href="{% url 'my_timetable' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Timetable</span></a>
+                    <a class="shortcut" href="{% url 'my_attendance' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg><span>Attendance</span></a>
+                    <a class="shortcut" href="{% url 'period_report_select' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>Term reports</span></a>
+                    <a class="shortcut" href="{% url 'student_profile_detail' request.user.id %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.5 4-5 7-5s5.8 1.5 7 5"/></svg><span>My profile</span></a>
+                    {% if section %}<a class="shortcut" href="{% url 'download_timetable_pdf' section.id %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg><span>Timetable PDF</span></a>{% endif %}
+                    <a class="shortcut" href="{% url 'library_my_books' %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h5a2 2 0 0 1 2 2V20a2 2 0 0 0-2-2H5zM19 4.5h-5a2 2 0 0 0-2 2V20a2 2 0 0 1 2-2h5z"/></svg><span>My books</span></a>
+                </nav>
+            </section>
+        </div>
+    </div>
 </div>
 {% endblock %}

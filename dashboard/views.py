@@ -160,42 +160,12 @@ def teacher_dashboard(request):
 @login_required
 @role_required(User.Role.STUDENT)
 def student_dashboard(request):
-    profile = StudentProfile.objects.filter(user=request.user).first()
-    section = profile.section if profile else None
+    """Student's home: today's classes, results, recent marks, attendance and fees."""
+    from dashboard.student_home import student_home
 
-    # Calculate attendance
-    total_att = Attendance.objects.filter(user=request.user).exclude(status=Attendance.Status.NOT_APPLICABLE).count()
-    present_att = Attendance.objects.filter(user=request.user, status__in=[Attendance.Status.PRESENT, Attendance.Status.LATE]).count()
-    att_pct = round((present_att / total_att * 100), 1) if total_att > 0 else 0
-
-    # Calculate grades per subject
-    grades = year_report(request.user, viewer=request.user)['grades'] if section else []
-
-    # Timetable for the student's section
-    timetable = []
-    if section:
-        timetable = TimetableEntry.objects.filter(section=section).select_related('subject', 'teacher', 'time_slot').order_by('time_slot__day', 'time_slot__start_time')
-
-    # Invoices
-    invoices = Invoice.objects.filter(student=request.user).prefetch_related('line_items').order_by('-issued_date')[:5]
-
-    # Published periods for this student's academic year
-    published_periods = []
-    if section:
-        config = AcademicPeriodConfig.objects.filter(academic_year=section.academic_year).first()
-        if config:
-            published_periods = config.periods.filter(is_published=True)
-
-    context = {
-        'profile': profile,
-        'section': section,
-        'att_pct': att_pct,
-        'grades': grades,
-        'timetable': timetable,
-        'invoices': invoices,
-        'published_periods': published_periods,
-        'notices': Notice.objects.filter(is_active=True, target_role__in=['all', 'student_parent']).order_by('-created_at')[:5],
-    }
+    context = student_home(request.user)
+    context['notices'] = Notice.objects.filter(
+        is_active=True, target_role__in=['all', 'student_parent']).order_by('-created_at')[:3]
     return render(request, 'dashboard/student_dashboard.html', context)
 
 # ─── PARENT Dashboard ────────────────────────────────────────────────────────
